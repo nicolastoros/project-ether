@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f8ff;
+  --foreground: #243047;
+
+  --color-arcade-bg: #eaf4ff;
+  --color-arcade-panel: #ffffff;
+  --color-arcade-panel-light: #eef5fd;
+  --color-arcade-border: #d3e3fa;
+
+  --color-gold: #ffb84d;
+  --color-gold-bright: #c9820f;
+  --color-gold-ink: #96590c;
+
+  --color-neon: #0d9488;
+  --color-neon-bright: #7ce9dc;
+  --color-neon-ink: #0a685f;
+
+  --color-rarity-common: #64748b;
+  --color-rarity-rare: #2563eb;
+  --color-rarity-ssr: #d9770b;
+  --color-rarity-mythic: #db2777;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-arcade-bg: var(--color-arcade-bg);
+  --color-arcade-panel: var(--color-arcade-panel);
+  --color-arcade-panel-light: var(--color-arcade-panel-light);
+  --color-arcade-border: var(--color-arcade-border);
+  --color-gold: var(--color-gold);
+  --color-gold-bright: var(--color-gold-bright);
+  --color-gold-ink: var(--color-gold-ink);
+  --color-neon: var(--color-neon);
+  --color-neon-bright: var(--color-neon-bright);
+  --color-neon-ink: var(--color-neon-ink);
+  --color-rarity-common: var(--color-rarity-common);
+  --color-rarity-rare: var(--color-rarity-rare);
+  --color-rarity-ssr: var(--color-rarity-ssr);
+  --color-rarity-mythic: var(--color-rarity-mythic);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-arcade: var(--font-display);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Soft rounded card frame — replaces the old notched pixel corners. */
+.pixel-frame {
+  border-radius: 1.25rem;
+}
+
+.glow-border-gold {
+  border: 2px solid var(--color-gold);
+  box-shadow: 0 6px 16px 0 rgba(255, 184, 77, 0.25);
+}
+
+.glow-border-neon {
+  border: 2px solid var(--color-neon);
+  box-shadow: 0 6px 16px 0 rgba(13, 148, 136, 0.2);
+}
+
+.glow-text-gold {
+  color: var(--color-gold-ink);
+}
+
+.glow-text-neon {
+  color: var(--color-neon-ink);
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.bg-arcade-grid {
+  background-color: var(--color-arcade-bg);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(125, 192, 255, 0.35), transparent 50%),
+    radial-gradient(circle at 90% 10%, rgba(255, 207, 125, 0.3), transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(124, 233, 220, 0.25), transparent 50%);
 }

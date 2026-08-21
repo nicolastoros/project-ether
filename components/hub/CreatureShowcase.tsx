@@ -1,0 +1,113 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useActiveCreature, useGameStore } from "@/lib/store";
+import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
+import { GlowPanel } from "@/components/ui/GlowPanel";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { RarityBadge } from "@/components/ui/RarityBadge";
+import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { xpPercent, cn } from "@/lib/utils";
+
+export function CreatureShowcase() {
+  const creature = useActiveCreature();
+  const creatures = useGameStore((s) => s.creatures);
+  const setActiveCreature = useGameStore((s) => s.setActiveCreature);
+
+  return (
+    <GlowPanel className="p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="font-arcade text-xs glow-text-gold">Active Creature</h2>
+          <p className="mt-1 text-lg font-bold text-foreground">{creature.name}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <RarityBadge rarity={creature.rarity} />
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+            Stage {creature.stage} · Lv.{creature.level}
+          </span>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "relative flex h-40 items-center justify-center overflow-hidden rounded-xl border border-arcade-border bg-gradient-to-b",
+          ELEMENT_GRADIENT[creature.element]
+        )}
+      >
+        <motion.div
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          className={cn(
+            "flex items-center justify-center",
+            creature.spriteFolder
+              ? "h-32 w-32"
+              : "h-20 w-20 rounded-xl border-2 border-gold bg-arcade-panel pixel-frame glow-border-gold"
+          )}
+        >
+          <CreatureSprite
+            creature={creature}
+            spin
+            className={cn(creature.spriteFolder ? "h-full w-full drop-shadow-md" : "h-10 w-10 p-1 text-gold-bright")}
+          />
+        </motion.div>
+        <span className="absolute bottom-1.5 right-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500/80">
+          {creature.element}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <ProgressBar
+          percent={100}
+          color="hp"
+          label={`HP ${creature.baseStats.hp}`}
+        />
+        <ProgressBar
+          percent={xpPercent(creature.exp, creature.expToNextLevel)}
+          color="exp"
+          label={`EXP ${creature.exp}/${creature.expToNextLevel}`}
+          showPercentText
+        />
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+        {(
+          [
+            ["ATK", creature.baseStats.atk],
+            ["DEF", creature.baseStats.def],
+            ["SPD", creature.baseStats.spd],
+            ["HP", creature.baseStats.hp],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label} className="rounded-xl border border-arcade-border bg-arcade-panel-light py-1.5">
+            <p className="text-[9px] uppercase tracking-wide text-zinc-600">{label}</p>
+            <p className="font-mono text-sm font-semibold text-foreground">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {creatures.length > 1 && (
+        <div className="mt-3 flex gap-2">
+          {creatures.map((c) => {
+            const isActive = c.id === creature.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveCreature(c.id)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl border transition-colors",
+                  isActive
+                    ? "border-gold bg-arcade-panel-light glow-border-gold"
+                    : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-zinc-700"
+                )}
+                aria-label={`Select ${c.name}`}
+              >
+                <CreatureSprite creature={c} className={cn("h-5 w-5 p-0.5", isActive && "text-gold-bright")} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </GlowPanel>
+  );
+}
