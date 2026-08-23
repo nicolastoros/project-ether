@@ -115,12 +115,13 @@ export type GachaBannerType = "Creature" | "Equipment";
 export interface GachaBanner {
   id: string;
   name: string;
+  tagline: string;
   type: GachaBannerType;
-  description: string;
+  bannerImage: string;
   featuredIds: string[];
   singlePullCost: number;
-  tenPullCost: number;
-  bannerArtKey: string;
+  multiPullCost: number;
+  multiPullCount: number;
 }
 
 export type CombatantSide = "player" | "enemy";
@@ -175,6 +176,8 @@ export type DungeonDifficulty = "Normal" | "Hard" | "Nightmare";
 export interface DungeonStage {
   id: string;
   stageNumber: number;
+  world: number;
+  worldStageNumber: number;
   name: string;
   difficulty: DungeonDifficulty;
   staminaCost: number;

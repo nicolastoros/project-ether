@@ -1,0 +1,36 @@
+{
+  "group_id": "c43299b2-2f94-4168-b9ad-89a3032414db",
+  "states": [
+    {
+      "character": {
+        "id": "11b8f49e-806e-4950-a123-0b1a80191878",
+        "name": "Idle",
+        "prompt": "Anatomy: Grayish-blue-skinned elf with bioluminescent tribal markings on his face and short black hair shaved at the sides.  Attire and Weapons: Light armor made of leather and dark plant spines. He carries two curved daggers coated in neon-green poison.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T15:27:43.148873+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T15:34:51.912746"
+}

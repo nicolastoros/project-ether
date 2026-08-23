@@ -1,0 +1,36 @@
+{
+  "group_id": "faa1280a-b428-4aec-accd-29e0e95181f4",
+  "states": [
+    {
+      "character": {
+        "id": "4060788f-2aaa-4ccd-8d4b-6df84211a266",
+        "name": "Idle",
+        "prompt": "Anatomy: A stylized Eastern dragon with electric-blue and silver-white scales. It features a mane of radiant beams and translucent, crystal-like horns.\n\nEnvironment and Effects: Soaring through a stormy night sky, with lightning bolts crossing its body and flashes of cyan light surrounding it.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T15:20:59.509639+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T15:26:44.365350"
+}

@@ -1,0 +1,36 @@
+{
+  "group_id": "213a77d0-27c5-4bc3-89ef-893f10ab5498",
+  "states": [
+    {
+      "character": {
+        "id": "6d4cb683-9e0c-41c2-b40a-0ea0d0a69c58",
+        "name": "Idle",
+        "prompt": "Anatomy: Imposing humanoid with crimson scales on the shoulders, throat, and forearms. Giant ash-black membranous wings and twisted, obsidian-like horns. Glowing yellow eyes that emit smoke.\n\nAttire and Weapons: Heavy wrought-iron plate armor etched with glowing runes. Wields a massive greatsword from which hot magma flows.\n\nVisual Style: High-contrast cinematic lighting (chiaroscuro), dynamic fire, hyper-detailed scales, dark fantasy anime aesthetic.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T15:20:15.023571+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T15:26:31.782294"
+}

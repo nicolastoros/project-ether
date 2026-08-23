@@ -6,6 +6,8 @@ import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { CreatureName } from "@/components/ui/CreatureName";
+import { MythicCardAura } from "@/components/ui/MythicCardAura";
 import { cn } from "@/lib/utils";
 
 export default function PartyPage() {
@@ -49,7 +51,7 @@ export default function PartyPage() {
               )}
             >
               <CreatureSprite creature={creature} className="h-7 w-7 p-0.5 text-gold-bright sm:h-8 sm:w-8" />
-              <p className="truncate text-[11px] font-semibold text-foreground">{creature.name}</p>
+              <CreatureName creature={creature} className="truncate text-[11px] font-semibold" />
               <p className="text-[9px] text-zinc-500">Lv.{creature.level}</p>
             </GlowPanel>
           );
@@ -85,6 +87,8 @@ export default function PartyPage() {
                     !isAssigned && "hover:border-gold"
                   )}
                 >
+                  {creature.rarity === "Mythic" && <MythicCardAura />}
+
                   <div
                     className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold bg-gradient-to-b pixel-frame",
@@ -94,7 +98,7 @@ export default function PartyPage() {
                     <CreatureSprite creature={creature} className="h-5 w-5 p-0.5 text-gold-bright" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-foreground">{creature.name}</p>
+                    <CreatureName creature={creature} className="truncate text-xs font-semibold" />
                     <p className="text-[10px] text-zinc-600">Lv.{creature.level}</p>
                   </div>
                   <RarityBadge rarity={creature.rarity} />

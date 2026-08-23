@@ -9,7 +9,7 @@ export function DungeonProgressCard() {
   const dungeon = useGameStore((s) => s.dungeon);
 
   return (
-    <Link href="/dungeons">
+    <Link href="/campaign">
       <GlowPanel
         accent="none"
         className="flex items-center justify-between px-4 py-3 transition-colors hover:border-gold"
@@ -17,9 +17,11 @@ export function DungeonProgressCard() {
         <div className="flex items-center gap-2">
           <Map className="h-4 w-4 text-gold-bright" />
           <div>
-            <p className="text-xs font-semibold text-foreground">Dungeon Progress</p>
+            <p className="text-xs font-semibold text-foreground">Campaign Progress</p>
             <p className="text-[10px] text-zinc-600">
-              Stage {dungeon.highestStageCleared} · Wave {dungeon.currentWave}
+              {dungeon.highestStageCleared > 0
+                ? `Stage ${dungeon.highestStageCleared} · Wave ${dungeon.currentWave}`
+                : "World 1-1 · Not started yet"}
             </p>
           </div>
         </div>

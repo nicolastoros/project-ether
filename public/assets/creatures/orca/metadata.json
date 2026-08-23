@@ -1,0 +1,36 @@
+{
+  "group_id": "7d1e5a22-85ba-4871-87a9-344de267a4b7",
+  "states": [
+    {
+      "character": {
+        "id": "76c0328a-6233-4a4c-9d8d-4895196bbf5b",
+        "name": "Idle",
+        "prompt": "Anatomy: A stylized orca with light green skin, pupil-less red eyes, and braids adorned with bones and feathers.\n\nAttire: Dark fur cloaks, with floating totems surrounding it and emanating mystical purple smoke.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T15:36:39.242370+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T15:39:52.572821"
+}

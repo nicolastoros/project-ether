@@ -22,12 +22,39 @@ export interface AuthState {
   provider: AuthProvider | null;
 }
 
+export const HUB_TEAM_SIZE = 7;
+const BOX_EXP_PER_SECOND = 1.5;
+const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
+
+function applyExpGain(creature: Creature, gained: number): Creature {
+  let exp = creature.exp + gained;
+  let level = creature.level;
+  let expToNextLevel = creature.expToNextLevel;
+  let baseStats = creature.baseStats;
+
+  while (exp >= expToNextLevel) {
+    exp -= expToNextLevel;
+    level += 1;
+    expToNextLevel = Math.round(expToNextLevel * 1.15);
+    baseStats = {
+      hp: baseStats.hp + 8,
+      atk: baseStats.atk + 3,
+      def: baseStats.def + 2,
+      spd: baseStats.spd + 1,
+    };
+  }
+
+  return { ...creature, level, exp, expToNextLevel, baseStats };
+}
+
 interface GameState {
   profile: UserProfile;
   currencies: Currencies;
   creatures: Creature[];
   activeCreatureId: string;
   partyCreatureIds: (string | null)[];
+  hubTeamIds: string[];
+  lastExpTickAt: number;
   inventory: Equipment[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
@@ -40,6 +67,9 @@ interface GameState {
 
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
+  toggleHubTeamMember: (creatureId: string) => void;
+  tickBoxExp: () => void;
+  gainCreatureExp: (creatureId: string, amount: number) => void;
 
   addGold: (amount: number) => void;
   spendGold: (amount: number) => boolean;
@@ -73,10 +103,12 @@ export const useGameStore = create<GameState>()(
       creatures: STARTER_CREATURES,
       activeCreatureId: STARTER_CREATURES[0].id,
       partyCreatureIds: STARTER_CREATURES.slice(0, 3).map((c) => c.id),
+      hubTeamIds: STARTER_CREATURES.slice(0, HUB_TEAM_SIZE).map((c) => c.id),
+      lastExpTickAt: Date.now(),
       inventory: STARTER_EQUIPMENT,
       dungeon: {
-        highestStageCleared: 14,
-        currentWave: 3,
+        highestStageCleared: 0,
+        currentWave: 0,
         autoBattleEnabled: false,
         autoDgEnabled: false,
         speedMultiplier: 1,
@@ -101,6 +133,49 @@ export const useGameStore = create<GameState>()(
           next[slotIndex] = creatureId;
           return { partyCreatureIds: next };
         }),
+
+      toggleHubTeamMember: (creatureId) =>
+        set((state) => {
+          const isMember = state.hubTeamIds.includes(creatureId);
+
+          if (isMember) {
+            const nextTeam = state.hubTeamIds.filter((id) => id !== creatureId);
+            const activeCreatureId =
+              state.activeCreatureId === creatureId
+                ? nextTeam[0] ?? state.creatures[0]?.id ?? state.activeCreatureId
+                : state.activeCreatureId;
+            return { hubTeamIds: nextTeam, activeCreatureId };
+          }
+
+          if (state.hubTeamIds.length >= HUB_TEAM_SIZE) return state;
+          return { hubTeamIds: [...state.hubTeamIds, creatureId] };
+        }),
+
+      tickBoxExp: () =>
+        set((state) => {
+          const now = Date.now();
+          const elapsedSeconds = Math.min(
+            MAX_TICK_SECONDS,
+            Math.max(0, (now - state.lastExpTickAt) / 1000)
+          );
+          if (elapsedSeconds < 1) return state;
+
+          const gained = elapsedSeconds * BOX_EXP_PER_SECOND;
+          const hubSet = new Set(state.hubTeamIds);
+          return {
+            lastExpTickAt: now,
+            creatures: state.creatures.map((c) =>
+              hubSet.has(c.id) ? c : applyExpGain(c, gained)
+            ),
+          };
+        }),
+
+      gainCreatureExp: (creatureId, amount) =>
+        set((state) => ({
+          creatures: state.creatures.map((c) =>
+            c.id === creatureId ? applyExpGain(c, amount) : c
+          ),
+        })),
 
       addGold: (amount) =>
         set((state) => ({
@@ -217,16 +292,30 @@ export const useGameStore = create<GameState>()(
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
-      // Creatures and equipment are design/content data we control from code, not
-      // player-mutated data — always take the latest definitions on load so sprite,
-      // stat, or skill changes show up immediately instead of being shadowed by
-      // whatever shape happened to be cached in the browser from an earlier session.
+      // Creatures and equipment are mostly design/content data we control from code —
+      // always take the latest definitions on load so name, sprite, or skill changes
+      // show up immediately instead of being shadowed by whatever shape happened to be
+      // cached in the browser from an earlier session. Level/EXP/stat growth and gear
+      // assignment ARE real player progress though, so those are preserved per id.
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
         const persisted = persistedState as Partial<GameState>;
         const merged: GameState = { ...currentState, ...persisted };
 
-        merged.creatures = STARTER_CREATURES;
+        const savedCreaturesById = new Map((persisted.creatures ?? []).map((c) => [c.id, c]));
+        merged.creatures = STARTER_CREATURES.map((base) => {
+          const saved = savedCreaturesById.get(base.id);
+          return saved
+            ? {
+                ...base,
+                level: saved.level,
+                exp: saved.exp,
+                expToNextLevel: saved.expToNextLevel,
+                baseStats: saved.baseStats,
+                equipment: saved.equipment,
+              }
+            : base;
+        });
 
         // Equipment enhancement level and what it's equipped to ARE real player
         // progress, so preserve those per item while refreshing everything else

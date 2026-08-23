@@ -7,19 +7,29 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { CreatureName } from "@/components/ui/CreatureName";
+import { MythicCardAura } from "@/components/ui/MythicCardAura";
 import { xpPercent, cn } from "@/lib/utils";
 
 export function CreatureShowcase() {
   const creature = useActiveCreature();
   const creatures = useGameStore((s) => s.creatures);
+  const hubTeamIds = useGameStore((s) => s.hubTeamIds);
   const setActiveCreature = useGameStore((s) => s.setActiveCreature);
+  const hubTeam = hubTeamIds
+    .map((id) => creatures.find((c) => c.id === id))
+    .filter((c): c is (typeof creatures)[number] => Boolean(c));
 
   return (
     <GlowPanel className="p-4">
+      {creature.rarity === "Mythic" && <MythicCardAura />}
+
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="font-arcade text-xs glow-text-gold">Active Creature</h2>
-          <p className="mt-1 text-lg font-bold text-foreground">{creature.name}</p>
+          <p className="mt-1">
+            <CreatureName creature={creature} className="text-lg font-bold" />
+          </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <RarityBadge rarity={creature.rarity} />
@@ -86,26 +96,31 @@ export function CreatureShowcase() {
         ))}
       </div>
 
-      {creatures.length > 1 && (
-        <div className="mt-3 flex gap-2">
-          {creatures.map((c) => {
-            const isActive = c.id === creature.id;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setActiveCreature(c.id)}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl border transition-colors",
-                  isActive
-                    ? "border-gold bg-arcade-panel-light glow-border-gold"
-                    : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-zinc-700"
-                )}
-                aria-label={`Select ${c.name}`}
-              >
-                <CreatureSprite creature={c} className={cn("h-5 w-5 p-0.5", isActive && "text-gold-bright")} />
-              </button>
-            );
-          })}
+      {hubTeam.length > 1 && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-[9px] uppercase tracking-wide text-zinc-500">
+            Hub Team {hubTeam.length}/7
+          </p>
+          <div className="flex gap-2">
+            {hubTeam.map((c) => {
+              const isActive = c.id === creature.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCreature(c.id)}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl border transition-colors",
+                    isActive
+                      ? "border-gold bg-arcade-panel-light glow-border-gold"
+                      : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-zinc-700"
+                  )}
+                  aria-label={`Select ${c.name}`}
+                >
+                  <CreatureSprite creature={c} className={cn("h-5 w-5 p-0.5", isActive && "text-gold-bright")} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </GlowPanel>

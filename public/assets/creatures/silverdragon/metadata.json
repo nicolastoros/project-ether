@@ -1,0 +1,36 @@
+{
+  "group_id": "3c8d2376-d70b-4410-b71e-ee832e4b78be",
+  "states": [
+    {
+      "character": {
+        "id": "6d892375-64ae-42bc-9e98-7788ade302f0",
+        "name": "Idle",
+        "prompt": "Crear un monstruo digital nivel Mega de tipo Drag\u00f3n Sagrado, con apariencia poderosa, elegante y heroica.\n\nEs un gran drag\u00f3n cuadr\u00fapedo, de cuerpo robusto y musculoso, con proporciones similares a una bestia legendaria. Debe verse claramente como una criatura y no como un humanoide.\n\nCabeza\n\nCabeza de drag\u00f3n alargada y agresiva, con hocico blanco/plateado y mand\u00edbula marcada.\n\nTiene ojos azul el\u00e9ctrico muy brillantes.\n\nDesde la cabeza y la nuca nacen varias placas y espinas met\u00e1licas largas, formando una especie de corona natural. Estas placas mezclan blanco plateado y dorado.\n\nPosee dos grandes cuernos dorados principales orientados hacia atr\u00e1s y varias puntas m\u00e1s peque\u00f1as alrededor de la cabeza.\n\nEl cuello est\u00e1 cubierto parcialmente por pelaje blanco, especialmente alrededor de la mand\u00edbula, cuello y parte superior del pecho, d\u00e1ndole una apariencia de drag\u00f3n-lobo sagrado.\n\nCuerpo\n\nEl cuerpo combina partes org\u00e1nicas con una armadura tecnol\u00f3gica de aspecto Digimon.\n\nLa paleta principal es:\n\nBlanco plateado\nNegro/grafito\nDorado\nAzul el\u00e9ctrico\n\nEl pecho y abdomen poseen grandes placas blancas y plateadas, mientras que las articulaciones y zonas interiores son negras.\n\nLos bordes de la armadura tienen detalles dorados, pero sin sobrecargar el dise\u00f1o.\n\nEntre algunas placas existen peque\u00f1as l\u00edneas y cristales de energ\u00eda azul brillante.\n\nPatas\n\nTiene cuatro patas grandes y fuertes.\n\nLas patas delanteras poseen grandes placas de armadura en hombros y antebrazos.\n\nLas garras son largas, met\u00e1licas y oscuras, con algunas protecciones doradas.\n\nLas patas traseras son gruesas y poderosas, permitiendo que la criatura tenga una postura baja y pesada, similar a un gran depredador.\n\nAlas\n\nPosee dos enormes alas mec\u00e1nicas/angelicales.\n\nNo son alas tradicionales de murci\u00e9lago.\n\nEst\u00e1n formadas por varias grandes plumas o cuchillas met\u00e1licas superpuestas, principalmente negras y gris oscuro, con grandes secciones blancas.\n\nLos bordes y articulaciones tienen detalles dorados.\n\nEn el int",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T14:25:25.194489+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T14:50:40.991884"
+}

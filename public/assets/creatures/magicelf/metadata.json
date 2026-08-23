@@ -1,0 +1,36 @@
+{
+  "group_id": "de56ec32-d9d6-4cf9-8e90-88f76da29657",
+  "states": [
+    {
+      "character": {
+        "id": "16b1ec31-1e1f-4dc0-8ae9-c8c79942634a",
+        "name": "Idle",
+        "prompt": "Anatomy: Pale-skinned elf with extremely pointed ears and white hair that floats as if underwater. Luminous purple eyes.  Attire: Elegant, flowing robes in shades of violet, midnight blue, and gold. She holds a staff of mystical wood featuring a floating gem that emits starlight.  Visual Style: Stylized gacha art, saturated colors, glowing magical particles, and a celestial aura.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-22T15:27:09.680483+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T15:30:52.659846"
+}

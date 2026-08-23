@@ -16,7 +16,7 @@ export function GlowPanel({
   return (
     <div
       className={cn(
-        "bg-arcade-panel/95 shadow-sm backdrop-blur-sm",
+        "relative bg-arcade-panel/95 shadow-sm backdrop-blur-sm",
         pixel && "pixel-frame",
         accent === "gold" && "glow-border-gold",
         accent === "neon" && "glow-border-neon",

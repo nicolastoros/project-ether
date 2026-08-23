@@ -1,0 +1,86 @@
+{
+  "group_id": "81e0d6f2-ef56-48ed-8874-a049f2098fe7",
+  "states": [
+    {
+      "character": {
+        "id": "d51dfea0-daa2-4c39-9069-e6d4006cbfea",
+        "name": "Idle",
+        "prompt": "Official Digimon franchise anime style, a small Rookie-stage bipedal reptile Digimon, inspired by Agumon and Gekomon. Cute yet fierce design, chubby small dinosaur and gecko hybrid body, smooth vibrant green and orange scales, large expressive fiery eyes, a small round belly, thick claws, sharp little fangs peeking out, and a coiled amphibian tail. Classic 90s Kenji Watanabe retro digital monster concept art, bold clean lines, vibrant cel-shaded colors, isolated on a pure solid white background, full body character design.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-19T23:22:06.048686+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    },
+    {
+      "character": {
+        "id": "a62fc035-4b34-4413-a19f-e80d1ce952ae",
+        "name": "runing",
+        "prompt": "Official Digimon franchise anime style, a small Rookie-stage bipedal reptile Digimon, inspired by Agumon and Gekomon. Cute yet fierce design, chubby small dinosaur and gecko hybrid body, smooth vibrant green and orange scales, large expressive fiery eyes, a small round belly, thick claws, sharp little fangs peeking out, and a coiled amphibian tail. Classic 90s Kenji Watanabe retro digital monster concept art, bold clean lines, vibrant cel-shaded colors, isolated on a pure solid white background, full body character design.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-19T23:28:43.208800+00:00"
+      },
+      "folder": "runing",
+      "frames": {
+        "rotations": {
+          "south": "runing/rotations/south.png",
+          "south-east": "runing/rotations/south-east.png",
+          "east": "runing/rotations/east.png",
+          "north-east": "runing/rotations/north-east.png",
+          "north": "runing/rotations/north.png",
+          "north-west": "runing/rotations/north-west.png",
+          "west": "runing/rotations/west.png",
+          "south-west": "runing/rotations/south-west.png"
+        },
+        "animations": {
+          "Running": {
+            "east": [
+              "runing/animations/Running/east/frame_000.png",
+              "runing/animations/Running/east/frame_001.png",
+              "runing/animations/Running/east/frame_002.png",
+              "runing/animations/Running/east/frame_003.png"
+            ],
+            "south": [
+              "runing/animations/Running/south/frame_000.png",
+              "runing/animations/Running/south/frame_001.png",
+              "runing/animations/Running/south/frame_002.png",
+              "runing/animations/Running/south/frame_003.png"
+            ],
+            "south-east": [
+              "runing/animations/Running/south-east/frame_000.png",
+              "runing/animations/Running/south-east/frame_001.png",
+              "runing/animations/Running/south-east/frame_002.png",
+              "runing/animations/Running/south-east/frame_003.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-22T00:52:14.707369"
+}
