@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Castle,
   Map,
+  Skull,
   Sparkles,
   Users,
   ShieldHalf,
@@ -29,6 +30,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/hub", label: "Hub", icon: Castle },
       { href: "/campaign", label: "Campaign", icon: Map },
+      { href: "/survival", label: "Survival", icon: Skull },
       { href: "/combat", label: "Combat Sandbox", icon: Swords },
       { href: "/gacha", label: "Summon", icon: Sparkles },
       { href: "/pvp", label: "PvP Arena", icon: Trophy },
