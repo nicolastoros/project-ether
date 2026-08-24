@@ -2,10 +2,44 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { UserCircle2, LogOut } from "lucide-react";
+import { Settings, UserCircle2, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+
+/**
+ * Decorative watermark for the empty space below the nav groups.
+ * Placeholder abstract dragon silhouette built from plain SVG shapes — swap it for a real
+ * asset later by replacing this <svg> with an <img src="/assets/ui/sidebar_watermark.png" />
+ * (or a `background-image` on the wrapper), keeping the same wrapper classes/positioning.
+ */
+function SidebarWatermark() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-64 overflow-hidden opacity-[0.06]"
+    >
+      <svg
+        viewBox="0 0 240 300"
+        className="absolute -bottom-8 -right-14 h-72 w-auto text-[#476ba8]"
+        fill="currentColor"
+      >
+        <path
+          d="M60 280 Q20 230 55 188"
+          stroke="currentColor"
+          strokeWidth="16"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <ellipse cx="140" cy="188" rx="68" ry="52" transform="rotate(-25 140 188)" />
+        <polygon points="150,150 232,58 206,138 252,108 190,190" />
+        <circle cx="203" cy="94" r="28" />
+        <polygon points="193,70 202,20 213,67" />
+        <polygon points="213,71 230,30 233,74" />
+      </svg>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -14,26 +48,17 @@ export function Sidebar() {
   const router = useRouter();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-arcade-border bg-arcade-panel/60 lg:flex">
-      <div className="flex items-center gap-2.5 border-b border-arcade-border px-4 py-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold bg-arcade-panel-light glow-border-gold">
-          <UserCircle2 className="h-6 w-6 text-gold-bright" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {profile.name} <span className="text-zinc-600">Lv.{profile.level}</span>
-          </p>
-          <p className="truncate text-[11px] text-zinc-600">{profile.title}</p>
-        </div>
-      </div>
-
-      <nav className="scrollbar-hidden flex-1 overflow-y-auto px-3 py-4">
+    <aside className="sidebar-surface sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex">
+      <nav className="scrollbar-hidden relative flex-1 overflow-y-auto px-3 pb-4 pt-5">
         {NAV_GROUPS.map((group) => (
-          <div key={group.title} className="mb-5">
-            <p className="mb-1.5 px-2 font-arcade text-[9px] uppercase tracking-wider text-zinc-600">
-              {group.title}
-            </p>
-            <ul className="space-y-0.5">
+          <div key={group.title} className="mb-6">
+            <div className="mb-2 flex items-center gap-2 px-2">
+              <span className="font-arcade text-[9px] uppercase tracking-wider text-slate-400">
+                {group.title}
+              </span>
+              <span className="h-px flex-1 bg-gradient-to-r from-arcade-border to-transparent" />
+            </div>
+            <ul className="space-y-1">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const isActive = pathname.startsWith(href);
                 return (
@@ -41,13 +66,22 @@ export function Sidebar() {
                     <Link
                       href={href}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-colors",
+                        "group relative flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs transition-all duration-150 ease-out",
                         isActive
-                          ? "bg-arcade-panel-light text-gold-bright glow-border-gold border border-gold"
-                          : "border border-transparent text-zinc-500 hover:bg-arcade-panel-light hover:text-foreground"
+                          ? "border-gold/70 bg-gold/12 font-semibold text-gold-bright shadow-[0_2px_10px_-2px_rgba(255,184,77,0.4)]"
+                          : "border-transparent text-slate-500 hover:translate-x-[2px] hover:border-arcade-border/60 hover:bg-[#eef3fb] hover:text-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      {isActive && (
+                        <span className="absolute left-0.5 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gold" />
+                      )}
+                      <Icon
+                        strokeWidth={2.25}
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-colors",
+                          isActive ? "text-gold-bright" : "text-slate-400 group-hover:text-neon"
+                        )}
+                      />
                       <span className="truncate">{label}</span>
                     </Link>
                   </li>
@@ -56,17 +90,38 @@ export function Sidebar() {
             </ul>
           </div>
         ))}
+
+        <SidebarWatermark />
       </nav>
 
-      <div className="border-t border-arcade-border px-3 py-3">
+      <div className="border-t border-arcade-border/70 px-3 py-3">
+        <div className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/70 bg-gradient-to-b from-white to-arcade-panel-light shadow-[0_2px_8px_-2px_rgba(255,184,77,0.35)]">
+            <UserCircle2 className="h-5 w-5 text-gold-bright" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-foreground">
+              {profile.name} <span className="font-normal text-slate-400">Lv.{profile.level}</span>
+            </p>
+            <p className="truncate text-[10px] text-slate-400">{profile.title}</p>
+          </div>
+          <button
+            type="button"
+            disabled
+            title="Settings — coming soon"
+            className="flex h-7 w-7 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-slate-300"
+          >
+            <Settings strokeWidth={2.25} className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <button
           onClick={() => {
             logout();
             router.replace("/");
           }}
-          className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs text-zinc-600 transition-colors hover:bg-arcade-panel-light hover:text-red-500"
+          className="mt-0.5 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut strokeWidth={2.25} className="h-3.5 w-3.5" />
           Log out
         </button>
       </div>

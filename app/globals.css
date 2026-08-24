@@ -87,3 +87,19 @@ body {
     radial-gradient(circle at 90% 10%, rgba(255, 207, 125, 0.3), transparent 45%),
     radial-gradient(circle at 50% 100%, rgba(124, 233, 220, 0.25), transparent 50%);
 }
+
+/* Desktop sidebar surface: a near-imperceptible white -> pale blue -> blue-gray wash,
+   plus a very low-opacity dot grid for a "digital" texture. Both stay subtle by design. */
+.sidebar-surface {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 45%, #eef2f9 100%);
+}
+.sidebar-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  background-image: radial-gradient(rgba(71, 111, 168, 0.7) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
