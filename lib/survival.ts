@@ -6,11 +6,18 @@ export const ARENA_HEIGHT = 560;
 const PLAYER_RADIUS = 20;
 const ENEMY_RADIUS_GRUNT = 14;
 const ENEMY_RADIUS_ELITE = 20;
-const GEM_RADIUS = 6;
+const GEM_RADIUS_SIMPLE = 6;
+const GEM_RADIUS_MEDIUM = 10;
 const PROJECTILE_RADIUS = 5;
 const PROJECTILE_SPEED = 420;
 // Kills should land close enough to the player to actually pick up the EXP gem they drop.
 const ATTACK_RANGE = 260;
+const CHAIN_RANGE = 140;
+const FREEZE_DURATION_MS = 1400;
+const SHIELD_BASE_RADIUS = 90;
+const SHIELD_RADIUS_PER_LEVEL = 10;
+const SHIELD_ACTIVE_MS = 4000;
+const SHIELD_RECHARGE_MS = 6000;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -40,6 +47,74 @@ export function angleToDirection(dx: number, dy: number): Direction {
   return DIRECTION_SECTORS[index];
 }
 
+export type WeaponKind = "dark" | "light" | "ice" | "thunder" | "thunder-rain" | "shield";
+
+export interface Weapon {
+  kind: WeaponKind;
+  level: number;
+  timerMs: number;
+  /** Only meaningful for "shield": whether it's currently fielded (vs. recharging). */
+  shieldActive?: boolean;
+}
+
+/** Radius of the "shield" force field at a given weapon level — shared by the sim and the renderer. */
+export function shieldRadius(level: number): number {
+  return SHIELD_BASE_RADIUS + (level - 1) * SHIELD_RADIUS_PER_LEVEL;
+}
+
+interface WeaponMeta {
+  name: string;
+  description: string;
+  icon: string;
+  cooldownMs: number;
+  damageMult: number;
+}
+
+export const WEAPON_META: Record<WeaponKind, WeaponMeta> = {
+  dark: {
+    name: "Dark Orb",
+    description: "A dark orb orbits you, firing shadow bolts at the nearest foe.",
+    icon: "/assets/ui/dark_orb_survivor.png",
+    cooldownMs: 900,
+    damageMult: 0.85,
+  },
+  light: {
+    name: "Light Orb",
+    description: "A radiant orb orbits you, firing beams of light at the nearest foe.",
+    icon: "/assets/ui/light_orb_survivor.png",
+    cooldownMs: 850,
+    damageMult: 0.8,
+  },
+  ice: {
+    name: "Ice Orb",
+    description: "Fires ice shards with a chance to freeze the enemy in place.",
+    icon: "/assets/ui/ice_orb_survivor.png",
+    cooldownMs: 1100,
+    damageMult: 0.7,
+  },
+  thunder: {
+    name: "Thunder Orb",
+    description: "Lightning bolts that arc and chain to nearby enemies.",
+    icon: "/assets/ui/thunder_orb_survivor.png",
+    cooldownMs: 1000,
+    damageMult: 0.65,
+  },
+  "thunder-rain": {
+    name: "Thunder Rain",
+    description: "Calls down random lightning strikes across the field every few seconds.",
+    icon: "/assets/ui/thunder_rain_survivor.png",
+    cooldownMs: 5000,
+    damageMult: 1.6,
+  },
+  shield: {
+    name: "Force Shield",
+    description: "Surrounds you with a damaging field for 4s. Recharges in 6s.",
+    icon: "/assets/ui/shield_survivor.png",
+    cooldownMs: SHIELD_RECHARGE_MS,
+    damageMult: 0.55,
+  },
+};
+
 export interface PlayerStats {
   x: number;
   y: number;
@@ -52,6 +127,7 @@ export interface PlayerStats {
   projectileCount: number;
   pickupRadius: number;
   facing: Direction;
+  weapons: Weapon[];
 }
 
 export type EnemyKind = "grunt" | "elite";
@@ -67,6 +143,7 @@ export interface Enemy {
   damage: number;
   radius: number;
   hitCooldownMs: number;
+  frozenMs: number;
 }
 
 export interface Projectile {
@@ -78,7 +155,12 @@ export interface Projectile {
   damage: number;
   radius: number;
   lifeMs: number;
+  kind?: WeaponKind;
+  chainRemaining?: number;
+  freezeChance?: number;
 }
+
+export type GemKind = "simple" | "medium";
 
 export interface Gem {
   id: number;
@@ -86,6 +168,26 @@ export interface Gem {
   y: number;
   value: number;
   radius: number;
+  kind: GemKind;
+}
+
+/** A brief expanding-ring marker where a Thunder Rain bolt struck the ground. */
+export interface Strike {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  ttlMs: number;
+}
+
+/** A brief line flash showing a chain-lightning jump between two enemies. */
+export interface Bolt {
+  id: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  ttlMs: number;
 }
 
 export type SurvivalPhase = "playing" | "levelup" | "gameover";
@@ -95,6 +197,8 @@ export interface SurvivalState {
   enemies: Enemy[];
   projectiles: Projectile[];
   gems: Gem[];
+  strikes: Strike[];
+  bolts: Bolt[];
   level: number;
   xp: number;
   xpToNext: number;
@@ -110,8 +214,28 @@ export interface Upgrade {
   id: string;
   name: string;
   description: string;
+  icon?: string;
   apply: (player: PlayerStats) => void;
 }
+
+function addOrLevelWeapon(kind: WeaponKind) {
+  return (p: PlayerStats) => {
+    const existing = p.weapons.find((w) => w.kind === kind);
+    if (existing) {
+      existing.level += 1;
+    } else {
+      p.weapons.push({ kind, level: 1, timerMs: 0 });
+    }
+  };
+}
+
+const WEAPON_UPGRADES: Upgrade[] = (Object.keys(WEAPON_META) as WeaponKind[]).map((kind) => ({
+  id: kind,
+  name: WEAPON_META[kind].name,
+  description: WEAPON_META[kind].description,
+  icon: WEAPON_META[kind].icon,
+  apply: addOrLevelWeapon(kind),
+}));
 
 export const UPGRADE_POOL: Upgrade[] = [
   {
@@ -163,6 +287,7 @@ export const UPGRADE_POOL: Upgrade[] = [
       p.projectileCount += 1;
     },
   },
+  ...WEAPON_UPGRADES,
 ];
 
 export function rollUpgrades(count: number): string[] {
@@ -183,6 +308,7 @@ function createInitialPlayer(): PlayerStats {
     projectileCount: 1,
     pickupRadius: 95,
     facing: "south",
+    weapons: [],
   };
 }
 
@@ -192,6 +318,8 @@ export function createInitialState(): SurvivalState {
     enemies: [],
     projectiles: [],
     gems: [],
+    strikes: [],
+    bolts: [],
     level: 1,
     xp: 0,
     xpToNext: 20,
@@ -238,6 +366,7 @@ function spawnEnemy(state: SurvivalState, elapsedSec: number): void {
       damage: 14,
       radius: ENEMY_RADIUS_ELITE,
       hitCooldownMs: 0,
+      frozenMs: 0,
     });
   } else {
     const hp = Math.round(14 * hpScale);
@@ -252,6 +381,7 @@ function spawnEnemy(state: SurvivalState, elapsedSec: number): void {
       damage: 8,
       radius: ENEMY_RADIUS_GRUNT,
       hitCooldownMs: 0,
+      frozenMs: 0,
     });
   }
 }
@@ -287,13 +417,17 @@ export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<str
   }
 
   for (const e of state.enemies) {
-    const dx = p.x - e.x;
-    const dy = p.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
-    e.x += (dx / d) * e.speed * dt;
-    e.y += (dy / d) * e.speed * dt;
+    e.frozenMs = Math.max(0, e.frozenMs - dtMs);
+    const isFrozen = e.frozenMs > 0;
+    if (!isFrozen) {
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      e.x += (dx / d) * e.speed * dt;
+      e.y += (dy / d) * e.speed * dt;
+    }
     e.hitCooldownMs = Math.max(0, e.hitCooldownMs - dtMs);
-    if (d < e.radius + PLAYER_RADIUS && e.hitCooldownMs <= 0) {
+    if (!isFrozen && dist(p.x, p.y, e.x, e.y) < e.radius + PLAYER_RADIUS && e.hitCooldownMs <= 0) {
       p.hp = Math.max(0, p.hp - e.damage);
       e.hitCooldownMs = 500;
       if (p.hp <= 0) state.phase = "gameover";
@@ -325,6 +459,78 @@ export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<str
     p.attackTimerMs = targets.length > 0 ? p.attackCooldownMs : 60;
   }
 
+  for (const weapon of p.weapons) {
+    const meta = WEAPON_META[weapon.kind];
+
+    if (weapon.kind === "shield") {
+      if (weapon.shieldActive) {
+        const radius = shieldRadius(weapon.level);
+        const dps = p.damage * meta.damageMult * (1 + (weapon.level - 1) * 0.2);
+        const tickDamage = dps * dt;
+        for (const e of state.enemies) {
+          if (dist(p.x, p.y, e.x, e.y) < radius) e.hp -= tickDamage;
+        }
+        weapon.timerMs -= dtMs;
+        if (weapon.timerMs <= 0) {
+          weapon.shieldActive = false;
+          weapon.timerMs = Math.max(2000, SHIELD_RECHARGE_MS - (weapon.level - 1) * 500);
+        }
+      } else {
+        weapon.timerMs -= dtMs;
+        if (weapon.timerMs <= 0) {
+          weapon.shieldActive = true;
+          weapon.timerMs = SHIELD_ACTIVE_MS + (weapon.level - 1) * 400;
+        }
+      }
+      continue;
+    }
+
+    weapon.timerMs -= dtMs;
+    if (weapon.timerMs > 0) continue;
+    const cooldown = Math.max(220, Math.round(meta.cooldownMs * Math.pow(0.9, weapon.level - 1)));
+
+    if (weapon.kind === "thunder-rain") {
+      const strikeCount = 1 + weapon.level;
+      const dmg = Math.round(p.damage * meta.damageMult * Math.pow(1.2, weapon.level - 1));
+      for (let i = 0; i < strikeCount; i++) {
+        const sx = 30 + Math.random() * (ARENA_WIDTH - 60);
+        const sy = 30 + Math.random() * (ARENA_HEIGHT - 60);
+        state.strikes.push({ id: state.idCounter++, x: sx, y: sy, radius: 50, ttlMs: 280 });
+        for (const e of state.enemies) {
+          if (dist(sx, sy, e.x, e.y) < 50) e.hp -= dmg;
+        }
+      }
+      weapon.timerMs = cooldown;
+      continue;
+    }
+
+    const target = state.enemies
+      .filter((e) => dist(p.x, p.y, e.x, e.y) <= ATTACK_RANGE)
+      .sort((a, b) => dist(p.x, p.y, a.x, a.y) - dist(p.x, p.y, b.x, b.y))[0];
+    if (!target) {
+      weapon.timerMs = 80;
+      continue;
+    }
+    const dmg = Math.round(p.damage * meta.damageMult * Math.pow(1.18, weapon.level - 1));
+    const dx = target.x - p.x;
+    const dy = target.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    state.projectiles.push({
+      id: state.idCounter++,
+      x: p.x,
+      y: p.y,
+      vx: (dx / d) * PROJECTILE_SPEED,
+      vy: (dy / d) * PROJECTILE_SPEED,
+      damage: dmg,
+      radius: PROJECTILE_RADIUS + 2,
+      lifeMs: 1500,
+      kind: weapon.kind,
+      chainRemaining: weapon.kind === "thunder" ? 1 + Math.floor(weapon.level / 2) : undefined,
+      freezeChance: weapon.kind === "ice" ? Math.min(0.75, 0.3 + weapon.level * 0.08) : undefined,
+    });
+    weapon.timerMs = cooldown;
+  }
+
   const remainingProjectiles: Projectile[] = [];
   for (const proj of state.projectiles) {
     proj.x += proj.vx * dt;
@@ -337,6 +543,37 @@ export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<str
         if (dist(proj.x, proj.y, e.x, e.y) < proj.radius + e.radius) {
           e.hp -= proj.damage;
           consumed = true;
+
+          if (proj.kind === "ice" && proj.freezeChance && Math.random() < proj.freezeChance) {
+            e.frozenMs = FREEZE_DURATION_MS;
+          }
+
+          if (proj.kind === "thunder" && proj.chainRemaining) {
+            let chainsLeft = proj.chainRemaining;
+            let fromX = e.x;
+            let fromY = e.y;
+            const visited = new Set<number>([e.id]);
+            while (chainsLeft > 0) {
+              const next = state.enemies
+                .filter((c) => !visited.has(c.id) && c.hp > 0 && dist(fromX, fromY, c.x, c.y) < CHAIN_RANGE)
+                .sort((a, b) => dist(fromX, fromY, a.x, a.y) - dist(fromX, fromY, b.x, b.y))[0];
+              if (!next) break;
+              const chainDmg = Math.round(proj.damage * 0.6);
+              next.hp -= chainDmg;
+              state.bolts.push({
+                id: state.idCounter++,
+                x1: fromX,
+                y1: fromY,
+                x2: next.x,
+                y2: next.y,
+                ttlMs: 180,
+              });
+              visited.add(next.id);
+              fromX = next.x;
+              fromY = next.y;
+              chainsLeft -= 1;
+            }
+          }
           break;
         }
       }
@@ -344,6 +581,11 @@ export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<str
     }
   }
   state.projectiles = remainingProjectiles;
+
+  for (const s of state.strikes) s.ttlMs -= dtMs;
+  state.strikes = state.strikes.filter((s) => s.ttlMs > 0);
+  for (const b of state.bolts) b.ttlMs -= dtMs;
+  state.bolts = state.bolts.filter((b) => b.ttlMs > 0);
 
   const survivors: Enemy[] = [];
   for (const e of state.enemies) {
@@ -354,7 +596,8 @@ export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<str
         x: e.x,
         y: e.y,
         value: e.kind === "elite" ? 12 : 4,
-        radius: GEM_RADIUS,
+        radius: e.kind === "elite" ? GEM_RADIUS_MEDIUM : GEM_RADIUS_SIMPLE,
+        kind: e.kind === "elite" ? "medium" : "simple",
       });
     } else {
       survivors.push(e);

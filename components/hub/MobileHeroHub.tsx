@@ -145,14 +145,36 @@ export function MobileHeroHub() {
           ) : (
             <motion.button
               key="start"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              whileTap={{ scale: 0.95 }}
+              type="button"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{
+                opacity: 1,
+                scale: [1, 1.045, 1],
+                filter: [
+                  "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
+                  "drop-shadow(0 0 20px rgba(255,184,77,0.9))",
+                  "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
+                ],
+              }}
+              exit={{ opacity: 0, scale: 0.85, filter: "none", transition: { duration: 0.2 } }}
+              transition={{
+                opacity: { duration: 0.25 },
+                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                filter: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.92 }}
               onClick={() => setModesOpen(true)}
-              className="mx-auto flex w-full max-w-[220px] items-center justify-center rounded-full border-b-[3px] border-black/15 bg-gold py-3.5 font-arcade text-sm font-semibold uppercase tracking-widest text-white shadow-lg glow-border-gold"
+              className="mx-auto block"
             >
-              Start
+              <Image
+                src="/assets/ui/start_button.png"
+                alt="Start"
+                width={2172}
+                height={724}
+                priority
+                className="h-auto w-56"
+              />
             </motion.button>
           )}
         </AnimatePresence>

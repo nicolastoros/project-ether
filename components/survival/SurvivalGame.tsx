@@ -11,10 +11,17 @@ import {
   ARENA_HEIGHT,
   ARENA_WIDTH,
   UPGRADE_POOL,
+  WEAPON_META,
   createInitialState,
+  shieldRadius,
   updateSurvival,
   type SurvivalState,
+  type WeaponKind,
 } from "@/lib/survival";
+
+const WEAPON_KINDS = Object.keys(WEAPON_META) as WeaponKind[];
+const STRIKE_MAX_TTL_MS = 280;
+const BOLT_MAX_TTL_MS = 180;
 
 const ROTATION_ORDER: Direction[] = [
   "south",
@@ -31,6 +38,9 @@ interface ImageBundle {
   player: Partial<Record<Direction, HTMLImageElement>>;
   grunt: HTMLImageElement | null;
   elite: HTMLImageElement | null;
+  weapons: Partial<Record<WeaponKind, HTMLImageElement>>;
+  gemSimple: HTMLImageElement | null;
+  gemMedium: HTMLImageElement | null;
 }
 
 interface Hud {
@@ -86,18 +96,54 @@ function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, image
     ctx.stroke();
   }
 
-  for (const g of state.gems) {
-    ctx.fillStyle = "#8b5cf6";
+  for (const s of state.strikes) {
+    const t = 1 - s.ttlMs / STRIKE_MAX_TTL_MS;
+    const r = s.radius * (0.4 + t * 0.6);
+    ctx.strokeStyle = `rgba(250, 204, 21, ${1 - t})`;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(250, 204, 21, ${0.25 * (1 - t)})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
+  for (const g of state.gems) {
+    const img = g.kind === "medium" ? images.gemMedium : images.gemSimple;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const size = g.radius * 3.6;
+      ctx.drawImage(img, g.x - size / 2, g.y - size / 2, size, size);
+    } else {
+      ctx.fillStyle = "#8b5cf6";
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   for (const proj of state.projectiles) {
-    ctx.fillStyle = "#ffb84d";
+    const img = proj.kind ? images.weapons[proj.kind] : null;
+    if (img && img.complete && img.naturalWidth > 0) {
+      const size = proj.radius * 3.4;
+      ctx.drawImage(img, proj.x - size / 2, proj.y - size / 2, size, size);
+    } else {
+      ctx.fillStyle = "#ffb84d";
+      ctx.beginPath();
+      ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  for (const b of state.bolts) {
+    const alpha = Math.max(0, b.ttlMs / BOLT_MAX_TTL_MS);
+    ctx.strokeStyle = `rgba(250, 204, 21, ${alpha})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(b.x1, b.y1);
+    ctx.lineTo(b.x2, b.y2);
+    ctx.stroke();
   }
 
   for (const e of state.enemies) {
@@ -124,9 +170,31 @@ function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, image
       ctx.fillStyle = "#ef4444";
       ctx.fillRect(e.x - w / 2, e.y - e.radius - 10, w * (e.hp / e.maxHp), 4);
     }
+
+    if (e.frozenMs > 0) {
+      ctx.strokeStyle = "rgba(96,165,250,0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   const p = state.player;
+
+  const activeShield = p.weapons.find((w) => w.kind === "shield" && w.shieldActive);
+  if (activeShield) {
+    const radius = shieldRadius(activeShield.level);
+    const pulse = 0.5 + 0.5 * Math.sin(state.elapsedMs / 120);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(96,165,250,${0.12 + pulse * 0.08})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(59,130,246,${0.5 + pulse * 0.3})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
   ctx.beginPath();
   ctx.ellipse(p.x, p.y + 16, 16, 6, 0, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(0,0,0,0.18)";
@@ -142,13 +210,32 @@ function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, image
     ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  const orbitingWeapons = p.weapons.filter((w) => w.kind !== "thunder-rain");
+  orbitingWeapons.forEach((weapon, i) => {
+    const img = images.weapons[weapon.kind];
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+    const angle = (state.elapsedMs / 1000) * (1.4 + i * 0.15) + i * ((Math.PI * 2) / 4);
+    const orbitRadius = 36 + i * 10;
+    const ox = p.x + Math.cos(angle) * orbitRadius;
+    const oy = p.y + Math.sin(angle) * orbitRadius * 0.6;
+    const size = 20;
+    ctx.drawImage(img, ox - size / 2, oy - size / 2, size, size);
+  });
 }
 
 export function SurvivalGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<SurvivalState>(createInitialState());
   const keysRef = useRef<Set<string>>(new Set());
-  const imagesRef = useRef<ImageBundle>({ player: {}, grunt: null, elite: null });
+  const imagesRef = useRef<ImageBundle>({
+    player: {},
+    grunt: null,
+    elite: null,
+    weapons: {},
+    gemSimple: null,
+    gemMedium: null,
+  });
   const [started, setStarted] = useState(false);
   const [hud, setHud] = useState<Hud>(() => deriveHud(createInitialState()));
 
@@ -163,7 +250,20 @@ export function SurvivalGame() {
     grunt.src = "/assets/creatures/firebit/idle/south.png";
     const elite = new window.Image();
     elite.src = "/assets/creatures/voltling/idle/south.png";
-    imagesRef.current = { player, grunt, elite };
+
+    const weapons: Partial<Record<WeaponKind, HTMLImageElement>> = {};
+    WEAPON_KINDS.forEach((kind) => {
+      const img = new window.Image();
+      img.src = WEAPON_META[kind].icon;
+      weapons[kind] = img;
+    });
+
+    const gemSimple = new window.Image();
+    gemSimple.src = "/assets/ui/crystal_exp_simple.png";
+    const gemMedium = new window.Image();
+    gemMedium.src = "/assets/ui/crystal_exp_medium.png";
+
+    imagesRef.current = { player, grunt, elite, weapons, gemSimple, gemMedium };
   }, []);
 
   useEffect(() => {
@@ -279,10 +379,10 @@ export function SurvivalGame() {
 
         {hud.phase === "levelup" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <GlowPanel accent="gold" className="w-full max-w-md space-y-3 p-4 text-center">
-              <h2 className="font-arcade text-sm glow-text-gold">Level {hud.level}!</h2>
-              <p className="text-xs text-zinc-500">Choose an upgrade</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <GlowPanel accent="gold" className="w-full max-w-2xl space-y-4 p-6 text-center">
+              <h2 className="font-arcade text-lg glow-text-gold">Level {hud.level}!</h2>
+              <p className="text-sm text-zinc-500">Choose an upgrade</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {hud.pendingUpgradeIds.map((id) => {
                   const upgrade = UPGRADE_POOL.find((u) => u.id === id);
                   if (!upgrade) return null;
@@ -290,13 +390,18 @@ export function SurvivalGame() {
                     <button
                       key={id}
                       onClick={() => handleUpgrade(id)}
-                      className="rounded-xl border border-arcade-border bg-arcade-panel-light p-3 text-left transition-colors hover:border-gold"
+                      className="rounded-2xl border border-arcade-border bg-arcade-panel-light p-4 text-left transition-colors hover:border-gold"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-gold-bright" />
-                        <p className="text-xs font-semibold text-foreground">{upgrade.name}</p>
+                      <div className="flex items-center gap-2.5">
+                        {upgrade.icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- tiny local UI icon
+                          <img src={upgrade.icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
+                        ) : (
+                          <Sparkles className="h-6 w-6 shrink-0 text-gold-bright" />
+                        )}
+                        <p className="text-base font-semibold text-foreground">{upgrade.name}</p>
                       </div>
-                      <p className="mt-1 text-[10px] text-zinc-600">{upgrade.description}</p>
+                      <p className="mt-2 text-sm text-zinc-600">{upgrade.description}</p>
                     </button>
                   );
                 })}
