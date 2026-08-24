@@ -20,6 +20,8 @@ interface CombatantCardProps {
   /** uids struck by the most recent action, plus a nonce so repeat hits re-trigger. */
   hitUids: string[];
   hitNonce: number;
+  /** "sm" is used for tighter arena art (e.g. the World 1-1 stone-circle background). */
+  size?: "md" | "sm";
 }
 
 export function CombatantCard({
@@ -32,6 +34,7 @@ export function CombatantCard({
   attackNonce,
   hitUids,
   hitNonce,
+  size = "md",
 }: CombatantCardProps) {
   const { creature } = combatant;
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
@@ -59,9 +62,12 @@ export function CombatantCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitNonce]);
 
+  const barWidth = size === "sm" ? "max-w-[7.5rem]" : "max-w-[9rem]";
+  const spriteSize = size === "sm" ? "h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]" : "h-28 w-28 sm:h-32 sm:w-32";
+
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="w-full max-w-[9rem]">
+      <div className={cn("w-full", barWidth)}>
         <ProgressBar percent={hpPercent} color="hp" label={`${combatant.currentHp}/${combatant.maxHp}`} />
       </div>
 
@@ -71,7 +77,8 @@ export function CombatantCard({
         onClick={onSelectTarget}
         animate={lungeControls}
         className={cn(
-          "relative flex h-28 w-28 items-center justify-center border-0 bg-transparent p-0 transition-transform sm:h-32 sm:w-32",
+          "relative flex items-center justify-center border-0 bg-transparent p-0 transition-transform",
+          spriteSize,
           isTargetable && "cursor-pointer hover:scale-105"
         )}
         aria-label={isTargetable ? `Target ${creature.name}` : creature.name}
@@ -112,7 +119,7 @@ export function CombatantCard({
         )}
       </motion.button>
 
-      <p className="max-w-[9rem] truncate text-[10px] font-semibold text-foreground">{creature.name}</p>
+      <p className={cn(barWidth, "truncate text-[10px] font-semibold text-foreground")}>{creature.name}</p>
       <p className="text-[9px] text-zinc-500">Lv.{creature.level}</p>
     </div>
   );

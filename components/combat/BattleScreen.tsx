@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Coins, RotateCcw, Sparkles } from "lucide-react";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
+import type { Direction } from "@/components/ui/CreatureSprite";
 import { useGameStore } from "@/lib/store";
 import {
   applyAction,
@@ -20,6 +22,15 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { CombatantCard } from "./CombatantCard";
 import { cn, formatNumber } from "@/lib/utils";
+
+// Stone-circle marker positions in /assets/campaign/world1_1.jpeg, as % of the image box.
+const STAGE1_ARENA_BG = "/assets/campaign/world1_1.jpeg";
+const STAGE1_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
+  { side: "player", index: 0, left: "20.5%", top: "48%", direction: "south-east" },
+  { side: "player", index: 1, left: "20.5%", top: "78%", direction: "south-east" },
+  { side: "enemy", index: 0, left: "79%", top: "48%", direction: "south-west" },
+  { side: "enemy", index: 1, left: "79%", top: "78%", direction: "south-west" },
+];
 
 interface BattleScreenProps {
   stage: DungeonStage;
@@ -142,6 +153,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
   const players = combatants.filter((c) => c.side === "player");
   const enemies = combatants.filter((c) => c.side === "enemy");
+  const hasStage1Arena = stage.id === "dg-stage-1";
 
   return (
     <div className="space-y-3">
@@ -152,44 +164,88 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         <p className="text-xs text-zinc-500">{stage.name} · 2v2 Turn Battle</p>
       </div>
 
-      <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-4">
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {players.map((c) => (
-            <CombatantCard
-              key={c.uid}
-              combatant={c}
-              direction="south-east"
-              isActingTurn={c.uid === actorUid && phase === "active"}
-              isTargetable={false}
-              attackerUid={attackEvent.uid}
-              attackNonce={attackEvent.nonce}
-              hitUids={hitEvent.uids}
-              hitNonce={hitEvent.nonce}
-            />
-          ))}
+      {hasStage1Arena ? (
+        <div
+          className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
+          style={{ aspectRatio: "704 / 1189" }}
+        >
+          <Image
+            src={STAGE1_ARENA_BG}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 640px) 100vw, 384px"
+            className="object-cover"
+          />
+          {STAGE1_SLOTS.map((slot) => {
+            const c = (slot.side === "player" ? players : enemies)[slot.index];
+            if (!c) return null;
+            return (
+              <div
+                key={c.uid}
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: slot.left, top: slot.top }}
+              >
+                <CombatantCard
+                  combatant={c}
+                  direction={slot.direction}
+                  size="sm"
+                  isActingTurn={c.uid === actorUid && phase === "active"}
+                  isTargetable={c.side === "enemy" && Boolean(pendingSkill) && c.isAlive}
+                  onSelectTarget={
+                    c.side === "enemy" && pendingSkill && actor
+                      ? () => resolveTurn(actor.uid, pendingSkill, c.uid)
+                      : undefined
+                  }
+                  attackerUid={attackEvent.uid}
+                  attackNonce={attackEvent.nonce}
+                  hitUids={hitEvent.uids}
+                  hitNonce={hitEvent.nonce}
+                />
+              </div>
+            );
+          })}
         </div>
+      ) : (
+        <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-4">
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {players.map((c) => (
+              <CombatantCard
+                key={c.uid}
+                combatant={c}
+                direction="south-east"
+                isActingTurn={c.uid === actorUid && phase === "active"}
+                isTargetable={false}
+                attackerUid={attackEvent.uid}
+                attackNonce={attackEvent.nonce}
+                hitUids={hitEvent.uids}
+                hitNonce={hitEvent.nonce}
+              />
+            ))}
+          </div>
 
-        <div className="shrink-0 font-arcade text-[10px] uppercase tracking-widest text-zinc-500">VS</div>
+          <div className="shrink-0 font-arcade text-[10px] uppercase tracking-widest text-zinc-500">VS</div>
 
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {enemies.map((c) => (
-            <CombatantCard
-              key={c.uid}
-              combatant={c}
-              direction="south-west"
-              isActingTurn={c.uid === actorUid && phase === "active"}
-              isTargetable={Boolean(pendingSkill) && c.isAlive}
-              onSelectTarget={
-                pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined
-              }
-              attackerUid={attackEvent.uid}
-              attackNonce={attackEvent.nonce}
-              hitUids={hitEvent.uids}
-              hitNonce={hitEvent.nonce}
-            />
-          ))}
-        </div>
-      </GlowPanel>
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {enemies.map((c) => (
+              <CombatantCard
+                key={c.uid}
+                combatant={c}
+                direction="south-west"
+                isActingTurn={c.uid === actorUid && phase === "active"}
+                isTargetable={Boolean(pendingSkill) && c.isAlive}
+                onSelectTarget={
+                  pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined
+                }
+                attackerUid={attackEvent.uid}
+                attackNonce={attackEvent.nonce}
+                hitUids={hitEvent.uids}
+                hitNonce={hitEvent.nonce}
+              />
+            ))}
+          </div>
+        </GlowPanel>
+      )}
 
       {isPlayerTurn && actor && (
         <GlowPanel className="p-3">
