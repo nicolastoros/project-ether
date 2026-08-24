@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Coins, Gem, UserCircle2, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
@@ -32,7 +33,8 @@ export function TopStatusBar() {
           <CurrencyPill icon={Coins} value={currencies.gold} iconClassName="text-gold-bright" />
           <CurrencyPill icon={Gem} value={currencies.gems} iconClassName="text-neon" />
           <button
-            onClick={() => {
+            onClick={async () => {
+              await signOut({ redirect: false });
               logout();
               router.replace("/");
             }}

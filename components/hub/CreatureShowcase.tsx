@@ -20,6 +20,9 @@ export function CreatureShowcase() {
     .map((id) => creatures.find((c) => c.id === id))
     .filter((c): c is (typeof creatures)[number] => Boolean(c));
 
+  // Briefly true right after login/registration, before the account bundle finishes loading.
+  if (!creature) return null;
+
   return (
     <GlowPanel className="p-4">
       {creature.rarity === "Mythic" && <MythicCardAura />}

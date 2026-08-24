@@ -11,6 +11,11 @@ import type {
   UserProfile,
 } from "@/types/game";
 
+// Lives here (rather than lib/store.ts) so server-only modules — e.g. lib/db/bigquery.ts,
+// deciding how many of an admin account's creatures go into the hub team — can read it
+// without pulling zustand/React into a server bundle.
+export const HUB_TEAM_SIZE = 7;
+
 function skill(
   id: string,
   name: string,
@@ -283,6 +288,10 @@ export const STARTER_CREATURES: Creature[] = [
   },
 ];
 
+// The 3 creatures offered during registration. All stage 1, one per starter element.
+export const STARTER_CHOICE_IDS = ["cr-emberling", "cr-gale-sprite", "cr-voltling"] as const;
+export type StarterChoiceId = (typeof STARTER_CHOICE_IDS)[number];
+
 export const STARTER_EQUIPMENT: Equipment[] = [
   {
     id: "eq-ember-blade",
@@ -338,6 +347,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   exp: 240,
   expToNextLevel: 500,
   avatarKey: "avatar-default",
+  isAdmin: false,
 };
 
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [

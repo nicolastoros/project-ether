@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Settings, UserCircle2, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
@@ -115,7 +116,8 @@ export function Sidebar() {
           </button>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
+            await signOut({ redirect: false });
             logout();
             router.replace("/");
           }}

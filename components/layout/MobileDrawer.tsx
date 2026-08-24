@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
@@ -79,8 +80,9 @@ export function MobileDrawer() {
 
             <div className="border-t border-arcade-border px-3 py-3">
               <button
-                onClick={() => {
+                onClick={async () => {
                   closeDrawer();
+                  await signOut({ redirect: false });
                   logout();
                   router.replace("/");
                 }}

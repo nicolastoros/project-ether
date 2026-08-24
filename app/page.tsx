@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Flame, Droplet, Leaf, Loader2 } from "lucide-react";
-import { useGameStore, type AuthProvider } from "@/lib/store";
+import { Flame, Droplet, Leaf, Loader2, Lock, User } from "lucide-react";
+import Link from "next/link";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
-import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { DiscordIcon } from "@/components/icons/DiscordIcon";
+import { loadAccountIntoStore } from "@/lib/loadAccount";
 import { cn } from "@/lib/utils";
 
 const PREVIEW_CREATURES = [
@@ -16,26 +16,44 @@ const PREVIEW_CREATURES = [
   { icon: Leaf, gradient: ELEMENT_GRADIENT.Nature, delay: 0.4 },
 ] as const;
 
-export default function LandingPage() {
-  const hasHydrated = useGameStore((s) => s.hasHydrated);
-  const isAuthenticated = useGameStore((s) => s.auth.isAuthenticated);
-  const login = useGameStore((s) => s.login);
+export default function LoginPage() {
+  const { status } = useSession();
   const router = useRouter();
-  const [connecting, setConnecting] = useState<AuthProvider | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Single source of truth for "authenticated -> load account, then go to /hub": covers both a
+  // fresh sign-in below and a user who lands here already logged in (e.g. hits the back button).
+  // Keeping this the ONLY place that navigates avoids racing loadAccountIntoStore() against a
+  // navigation fired straight off the session flipping to authenticated.
   useEffect(() => {
-    if (hasHydrated && isAuthenticated) {
-      router.replace("/hub");
-    }
-  }, [hasHydrated, isAuthenticated, router]);
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadAccountIntoStore();
+      if (!cancelled && loaded) router.replace("/hub");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, router]);
 
-  const handleConnect = (provider: AuthProvider) => {
-    if (connecting) return;
-    setConnecting(provider);
-    setTimeout(() => {
-      login(provider);
-      router.replace("/hub");
-    }, 1100);
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+
+    const result = await signIn("credentials", { username, password, redirect: false });
+
+    if (!result || result.error) {
+      setError("Usuario o contraseña incorrectos.");
+      setSubmitting(false);
+      return;
+    }
+    // The effect above takes it from here once `status` flips to "authenticated".
   };
 
   return (
@@ -71,38 +89,50 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <div className="mt-10 flex w-full flex-col gap-3">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            disabled={connecting !== null}
-            onClick={() => handleConnect("google")}
-            className="rounded-full flex items-center justify-center gap-3 bg-white px-5 py-3 text-sm font-semibold text-zinc-800 shadow-md border border-arcade-border transition-opacity disabled:opacity-60"
-          >
-            {connecting === "google" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleIcon className="h-4 w-4" />
-            )}
-            {connecting === "google" ? "Connecting to Google..." : "Continue with Google"}
-          </motion.button>
+        <form onSubmit={handleSubmit} className="mt-10 flex w-full flex-col gap-3 text-left">
+          <label className="flex items-center gap-2.5 rounded-full border border-arcade-border bg-arcade-panel px-4 py-3">
+            <User className="h-4 w-4 shrink-0 text-zinc-500" />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Usuario"
+              autoComplete="username"
+              required
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
+            />
+          </label>
+
+          <label className="flex items-center gap-2.5 rounded-full border border-arcade-border bg-arcade-panel px-4 py-3">
+            <Lock className="h-4 w-4 shrink-0 text-zinc-500" />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              placeholder="Contraseña"
+              autoComplete="current-password"
+              required
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
+            />
+          </label>
+
+          {error && <p className="px-1 text-xs text-red-500">{error}</p>}
 
           <motion.button
             whileTap={{ scale: 0.97 }}
-            disabled={connecting !== null}
-            onClick={() => handleConnect("discord")}
-            className="rounded-full flex items-center justify-center gap-3 bg-[#5865F2] px-5 py-3 text-sm font-semibold text-white shadow-md transition-opacity disabled:opacity-60"
+            type="submit"
+            disabled={submitting}
+            className="mt-1 flex items-center justify-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-gold-ink shadow-md transition-opacity disabled:opacity-60"
           >
-            {connecting === "discord" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <DiscordIcon className="h-4 w-4" />
-            )}
-            {connecting === "discord" ? "Connecting to Discord..." : "Continue with Discord"}
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {submitting ? "Entrando..." : "Entrar"}
           </motion.button>
-        </div>
+        </form>
 
-        <p className="mt-6 text-[10px] leading-relaxed text-zinc-600">
-          Prototype build — mock authentication only, no real account is created.
+        <p className="mt-5 text-xs text-zinc-500">
+          ¿Todavía no tenés cuenta?{" "}
+          <Link href="/register" className="font-semibold text-neon hover:underline">
+            Creá tu personaje
+          </Link>
         </p>
       </div>
     </div>

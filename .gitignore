@@ -32,6 +32,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# GCP service account keys — never commit these
+*-a7055d2d24a2.json
+project-scrappy-intelic*.json
+*.serviceaccount.json
 
 # vercel
 .vercel

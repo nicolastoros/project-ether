@@ -108,6 +108,7 @@ export interface UserProfile {
   exp: number;
   expToNextLevel: number;
   avatarKey: string;
+  isAdmin: boolean;
 }
 
 export type GachaBannerType = "Creature" | "Equipment";

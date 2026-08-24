@@ -11,18 +11,15 @@ import type {
 import {
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
+  HUB_TEAM_SIZE,
   STARTER_CREATURES,
   STARTER_EQUIPMENT,
 } from "@/lib/gameData";
+// Type-only import: erased at compile time, so this never pulls the server-only
+// BigQuery client (lib/db/bigquery.ts) into the client bundle.
+import type { AccountBundle } from "@/lib/db/bigquery";
 
-export type AuthProvider = "google" | "discord";
-
-export interface AuthState {
-  isAuthenticated: boolean;
-  provider: AuthProvider | null;
-}
-
-export const HUB_TEAM_SIZE = 7;
+export { HUB_TEAM_SIZE };
 const BOX_EXP_PER_SECOND = 1.5;
 const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
 
@@ -58,10 +55,11 @@ interface GameState {
   inventory: Equipment[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
-  auth: AuthState;
   hasHydrated: boolean;
 
-  login: (provider: AuthProvider) => void;
+  /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
+  hydrateFromServer: (bundle: AccountBundle) => void;
+  /** Clears account-specific local state so a different account signing in next doesn't inherit it. */
   logout: () => void;
   setHasHydrated: (hydrated: boolean) => void;
 
@@ -114,11 +112,88 @@ export const useGameStore = create<GameState>()(
         speedMultiplier: 1,
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
-      auth: { isAuthenticated: false, provider: null },
       hasHydrated: false,
 
-      login: (provider) => set({ auth: { isAuthenticated: true, provider } }),
-      logout: () => set({ auth: { isAuthenticated: false, provider: null } }),
+      hydrateFromServer: (bundle) => {
+        const creatureCatalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
+        const creatures = bundle.creatures
+          .map((owned): Creature | null => {
+            const base = creatureCatalogById.get(owned.creatureId);
+            if (!base) return null;
+            return {
+              ...base,
+              level: owned.level,
+              exp: owned.exp,
+              expToNextLevel: owned.expToNextLevel,
+              baseStats: { hp: owned.hp, atk: owned.atk, def: owned.def, spd: owned.spd },
+              equipment: {},
+            };
+          })
+          .filter((c): c is Creature => c !== null);
+
+        const equipmentCatalogById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
+        const inventory = bundle.equipment
+          .map((owned): Equipment | null => {
+            const base = equipmentCatalogById.get(owned.equipmentId);
+            if (!base) return null;
+            return { ...base, enhancementLevel: owned.enhancementLevel, equippedTo: owned.equippedTo ?? undefined };
+          })
+          .filter((e): e is Equipment => e !== null);
+
+        const hubTeamIds = bundle.creatures.filter((c) => c.isInHubTeam).map((c) => c.creatureId);
+        const partyCreatureIds: (string | null)[] = [null, null, null];
+        for (const c of bundle.creatures) {
+          if (c.partySlot && c.partySlot >= 1 && c.partySlot <= 3) {
+            partyCreatureIds[c.partySlot - 1] = c.creatureId;
+          }
+        }
+
+        set({
+          profile: {
+            id: bundle.profile.id,
+            name: bundle.profile.displayName,
+            title: bundle.profile.title,
+            level: bundle.profile.level,
+            exp: bundle.profile.exp,
+            expToNextLevel: bundle.profile.expToNextLevel,
+            avatarKey: bundle.profile.avatarKey,
+            isAdmin: bundle.profile.isAdmin,
+          },
+          currencies: bundle.currencies,
+          creatures,
+          activeCreatureId: creatures[0]?.id ?? "",
+          partyCreatureIds,
+          hubTeamIds,
+          lastExpTickAt: Date.now(),
+          inventory,
+          dungeon: bundle.dungeon,
+        });
+      },
+
+      logout: () =>
+        set({
+          profile: DEFAULT_PROFILE,
+          currencies: {
+            gold: 0,
+            gems: 0,
+            energy: 0,
+            energyMax: 120,
+            energyRegenMinutes: 5,
+          },
+          creatures: [],
+          activeCreatureId: "",
+          partyCreatureIds: [null, null, null],
+          hubTeamIds: [],
+          inventory: [],
+          dungeon: {
+            highestStageCleared: 0,
+            currentWave: 0,
+            autoBattleEnabled: false,
+            autoDgEnabled: false,
+            speedMultiplier: 1,
+          },
+        }),
+
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
 
       setActiveCreature: (creatureId) => set({ activeCreatureId: creatureId }),
@@ -302,10 +377,14 @@ export const useGameStore = create<GameState>()(
         const persisted = persistedState as Partial<GameState>;
         const merged: GameState = { ...currentState, ...persisted };
 
-        const savedCreaturesById = new Map((persisted.creatures ?? []).map((c) => [c.id, c]));
-        merged.creatures = STARTER_CREATURES.map((base) => {
-          const saved = savedCreaturesById.get(base.id);
-          return saved
+        // Only the creatures this account actually owns get persisted — refresh their
+        // definition (name/sprite/skills/...) from the current catalog by id, but never
+        // add catalog entries back in just because they exist in code (a real account's
+        // roster is whatever the player owns, not "everything we've ever designed").
+        const catalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
+        merged.creatures = (persisted.creatures ?? []).map((saved) => {
+          const base = catalogById.get(saved.id);
+          return base
             ? {
                 ...base,
                 level: saved.level,
@@ -314,18 +393,19 @@ export const useGameStore = create<GameState>()(
                 baseStats: saved.baseStats,
                 equipment: saved.equipment,
               }
-            : base;
+            : saved;
         });
 
-        // Equipment enhancement level and what it's equipped to ARE real player
-        // progress, so preserve those per item while refreshing everything else
-        // (name, stats, rarity, sprite, ...) from the current content definitions.
-        const savedEquipmentById = new Map((persisted.inventory ?? []).map((e) => [e.id, e]));
-        merged.inventory = STARTER_EQUIPMENT.map((item) => {
-          const saved = savedEquipmentById.get(item.id);
-          return saved
+        // Same rule as creatures above: only equipment this account actually owns is
+        // kept, refreshed by id from the current content definitions. Real accounts
+        // don't own any starter gear yet (equipment isn't wired up server-side), so
+        // this intentionally stays empty for them instead of showing demo items.
+        const catalogEquipmentById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
+        merged.inventory = (persisted.inventory ?? []).map((saved) => {
+          const item = catalogEquipmentById.get(saved.id);
+          return item
             ? { ...item, enhancementLevel: saved.enhancementLevel, equippedTo: saved.equippedTo }
-            : item;
+            : saved;
         });
 
         return merged;
