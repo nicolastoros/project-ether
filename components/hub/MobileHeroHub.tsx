@@ -2,16 +2,13 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, X, type LucideIcon } from "lucide-react";
-import { useActiveCreature, useGameStore } from "@/lib/store";
+import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
-import { ELEMENT_HERO_GRADIENT } from "@/lib/elementVisuals";
-import { CreatureSprite } from "@/components/ui/CreatureSprite";
-import { CreatureName } from "@/components/ui/CreatureName";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
-import { cn } from "@/lib/utils";
 
 const COLLECTION_RAIL = NAV_GROUPS.find((g) => g.title === "Collection")?.items ?? [];
 const SOCIAL_RAIL = NAV_GROUPS.find((g) => g.title === "Social")?.items ?? [];
@@ -91,30 +88,20 @@ function BottomSheet({
 }
 
 export function MobileHeroHub() {
-  const creature = useActiveCreature();
   const dailyTasks = useGameStore((s) => s.dailyTasks);
   const [modesOpen, setModesOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const hasClaimableMission = dailyTasks.some((t) => t.progress >= t.target && !t.claimed);
 
   return (
-    <div
-      className={cn(
-        "relative h-[min(72vh,600px)] overflow-hidden rounded-b-3xl bg-gradient-to-b",
-        ELEMENT_HERO_GRADIENT[creature.element]
-      )}
-    >
-      <motion.div
-        aria-hidden
-        className="absolute -left-10 top-10 h-32 w-32 rounded-full bg-white/40 blur-2xl"
-        animate={{ x: [0, 16, 0], y: [0, 10, 0] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        aria-hidden
-        className="absolute -right-6 top-24 h-24 w-24 rounded-full bg-white/30 blur-2xl"
-        animate={{ x: [0, -14, 0], y: [0, 14, 0] }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+    <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-b-3xl bg-arcade-panel">
+      <Image
+        src="/assets/ui/home_1.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
       />
 
       <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-arcade-bg via-arcade-bg/50 to-transparent" />
@@ -134,19 +121,6 @@ export function MobileHeroHub() {
           onClick={() => setMissionsOpen(true)}
           badge={hasClaimableMission}
         />
-      </div>
-
-      <div className="relative flex h-full flex-col items-center justify-end pb-24 pt-16">
-        <motion.div
-          animate={{ y: [0, -14, 0] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <CreatureSprite creature={creature} spin className="h-52 w-52 drop-shadow-2xl" />
-        </motion.div>
-        <div className="mt-1 text-center">
-          <CreatureName creature={creature} className="font-arcade text-xs" />
-          <p className="text-[10px] uppercase tracking-wide text-zinc-600">Stage {creature.stage} · Lv.{creature.level}</p>
-        </div>
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">

@@ -6,12 +6,14 @@ import { MobileHeroHub } from "@/components/hub/MobileHeroHub";
 
 export default function HubPage() {
   return (
-    <div className="space-y-4">
-      <div className="-mx-3 -mt-4 lg:hidden">
-        <MobileHeroHub />
-      </div>
-      <div className="space-y-4 lg:hidden">
-        <DungeonProgressCard />
+    <div className="h-full space-y-4">
+      <div className="flex h-full flex-col lg:hidden">
+        <div className="-mx-3 -mt-4 flex flex-1 flex-col">
+          <MobileHeroHub />
+        </div>
+        <div className="mt-3">
+          <DungeonProgressCard />
+        </div>
       </div>
 
       <div className="hidden lg:block">
