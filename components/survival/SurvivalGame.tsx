@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { Skull, Sparkles, Swords, Timer } from "lucide-react";
 import type { Direction } from "@/components/ui/CreatureSprite";
@@ -22,6 +22,16 @@ import {
 const WEAPON_KINDS = Object.keys(WEAPON_META) as WeaponKind[];
 const STRIKE_MAX_TTL_MS = 280;
 const BOLT_MAX_TTL_MS = 180;
+// Radius, in on-screen pixels, the thumb can drag from the joystick's origin before it stops
+// getting any faster — independent of the canvas's internal resolution.
+const JOYSTICK_MAX_RADIUS = 46;
+
+interface JoystickVisual {
+  originX: number;
+  originY: number;
+  knobX: number;
+  knobY: number;
+}
 
 const ROTATION_ORDER: Direction[] = [
   "south",
@@ -228,6 +238,8 @@ export function SurvivalGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<SurvivalState>(createInitialState());
   const keysRef = useRef<Set<string>>(new Set());
+  const touchMoveRef = useRef<{ x: number; y: number } | null>(null);
+  const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
   const imagesRef = useRef<ImageBundle>({
     player: {},
     grunt: null,
@@ -288,7 +300,7 @@ export function SurvivalGame() {
     const loop = (now: number) => {
       const dt = Math.min(50, now - last);
       last = now;
-      updateSurvival(stateRef.current, dt, keysRef.current);
+      updateSurvival(stateRef.current, dt, keysRef.current, touchMoveRef.current);
       drawSurvival(ctx, stateRef.current, imagesRef.current);
       setHud(deriveHud(stateRef.current));
       raf = requestAnimationFrame(loop);
@@ -317,6 +329,43 @@ export function SurvivalGame() {
     setHud(deriveHud(stateRef.current));
   }
 
+  // Floating joystick: appears wherever the player first touches (or clicks) the arena, and the
+  // player moves toward wherever the thumb drags from there — same control scheme as most mobile
+  // survivor-likes. Pointer events cover touch and mouse alike, so this also works with click-drag
+  // on desktop for free.
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (hud.phase !== "playing") return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const originX = e.clientX - rect.left;
+    const originY = e.clientY - rect.top;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setJoystick({ originX, originY, knobX: originX, knobY: originY });
+    touchMoveRef.current = { x: 0, y: 0 };
+  }
+
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!joystick) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx = e.clientX - rect.left - joystick.originX;
+    const dy = e.clientY - rect.top - joystick.originY;
+    const dist = Math.hypot(dx, dy);
+    const clampedDist = Math.min(dist, JOYSTICK_MAX_RADIUS);
+    const ratio = dist > 0 ? clampedDist / dist : 0;
+    setJoystick((prev) =>
+      prev ? { ...prev, knobX: prev.originX + dx * ratio, knobY: prev.originY + dy * ratio } : prev
+    );
+    const magnitude = clampedDist / JOYSTICK_MAX_RADIUS;
+    touchMoveRef.current = dist > 0 ? { x: (dx / dist) * magnitude, y: (dy / dist) * magnitude } : { x: 0, y: 0 };
+  }
+
+  function handlePointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setJoystick(null);
+    touchMoveRef.current = null;
+  }
+
   if (!started) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
@@ -324,8 +373,9 @@ export function SurvivalGame() {
           <Skull className="h-10 w-10 text-neon" />
           <h1 className="font-arcade text-sm glow-text-neon">Survival Mode</h1>
           <p className="text-xs text-zinc-500">
-            Move with WASD or the arrow keys. Your Dragoon auto-attacks the nearest enemy. Collect the
-            purple gems for EXP and pick an upgrade every time you level up. Survive as long as you can!
+            Move with WASD or the arrow keys — or on mobile, drag anywhere on the arena to steer.
+            Your Dragoon auto-attacks the nearest enemy. Collect the purple gems for EXP and pick an
+            upgrade every time you level up. Survive as long as you can!
           </p>
           <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-600">
             Prototype build — Dragoon only, for now
@@ -342,7 +392,9 @@ export function SurvivalGame() {
     <div className="space-y-3">
       <div>
         <h1 className="font-arcade text-lg glow-text-gold">Survival Mode</h1>
-        <p className="text-xs text-zinc-500">WASD / Arrow keys to move · auto-attacks the nearest foe</p>
+        <p className="text-xs text-zinc-500">
+          WASD / arrow keys, or drag the arena on mobile · auto-attacks the nearest foe
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -368,7 +420,14 @@ export function SurvivalGame() {
         </div>
       </div>
 
-      <div className="relative mx-auto w-full overflow-hidden rounded-2xl border border-arcade-border shadow-sm" style={{ maxWidth: ARENA_WIDTH }}>
+      <div
+        className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-2xl border border-arcade-border shadow-sm"
+        style={{ maxWidth: ARENA_WIDTH }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
         <canvas
           ref={canvasRef}
           width={ARENA_WIDTH}
@@ -376,6 +435,18 @@ export function SurvivalGame() {
           className="block h-auto w-full"
           style={{ aspectRatio: `${ARENA_WIDTH} / ${ARENA_HEIGHT}` }}
         />
+
+        {joystick && (
+          <div
+            className="pointer-events-none absolute z-10 h-16 w-16 rounded-full border-2 border-white/60 bg-white/10 backdrop-blur-sm"
+            style={{ left: joystick.originX - 32, top: joystick.originY - 32 }}
+          >
+            <div
+              className="absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 shadow-md"
+              style={{ left: 32 + (joystick.knobX - joystick.originX), top: 32 + (joystick.knobY - joystick.originY) }}
+            />
+          </div>
+        )}
 
         {hud.phase === "levelup" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">

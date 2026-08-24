@@ -386,22 +386,42 @@ function spawnEnemy(state: SurvivalState, elapsedSec: number): void {
   }
 }
 
-/** Advances the simulation by dtMs, mutating state in place (this is a game-loop hot path, not React state). */
-export function updateSurvival(state: SurvivalState, dtMs: number, keys: Set<string>): void {
+/**
+ * Advances the simulation by dtMs, mutating state in place (this is a game-loop hot path, not React state).
+ * `touchMove`, when given, is a joystick vector with each axis in [-1, 1] (magnitude below 1 means the
+ * drag hasn't reached the joystick's max radius yet, so the player moves slower) and takes priority
+ * over keyboard input — the two aren't meant to be mixed in the same session.
+ */
+export function updateSurvival(
+  state: SurvivalState,
+  dtMs: number,
+  keys: Set<string>,
+  touchMove?: { x: number; y: number } | null
+): void {
   if (state.phase !== "playing") return;
   const dt = dtMs / 1000;
   const p = state.player;
 
   let mx = 0;
   let my = 0;
-  if (keys.has("w") || keys.has("arrowup")) my -= 1;
-  if (keys.has("s") || keys.has("arrowdown")) my += 1;
-  if (keys.has("a") || keys.has("arrowleft")) mx -= 1;
-  if (keys.has("d") || keys.has("arrowright")) mx += 1;
+  if (touchMove && (touchMove.x !== 0 || touchMove.y !== 0)) {
+    mx = touchMove.x;
+    my = touchMove.y;
+  } else {
+    if (keys.has("w") || keys.has("arrowup")) my -= 1;
+    if (keys.has("s") || keys.has("arrowdown")) my += 1;
+    if (keys.has("a") || keys.has("arrowleft")) mx -= 1;
+    if (keys.has("d") || keys.has("arrowright")) mx += 1;
+  }
   if (mx !== 0 || my !== 0) {
+    // Keyboard input (or a full-length drag) can have magnitude > 1 on diagonals — clamp it down to
+    // 1 so those aren't faster than a cardinal direction. A partial drag (magnitude < 1) is left as-is
+    // so easing the joystick toward center actually slows the player down, not just direction-snaps.
     const len = Math.hypot(mx, my);
-    mx /= len;
-    my /= len;
+    if (len > 1) {
+      mx /= len;
+      my /= len;
+    }
     p.x = clamp(p.x + mx * p.speed * dt, PLAYER_RADIUS, ARENA_WIDTH - PLAYER_RADIUS);
     p.y = clamp(p.y + my * p.speed * dt, PLAYER_RADIUS, ARENA_HEIGHT - PLAYER_RADIUS);
     p.facing = angleToDirection(mx, my);
