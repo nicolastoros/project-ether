@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { syncPlayerProgress } from "@/lib/db/bigquery";
 
+// Headroom beyond the platform default in case BigQuery has a slow moment — the actual queries
+// now run in parallel (see syncPlayerProgress), but a wide roster is still N concurrent round
+// trips, and a killed-mid-flight serverless function silently loses progress with no client error.
+export const maxDuration = 30;
+
 interface SyncCreature {
   creatureId: string;
   level: number;

@@ -303,42 +303,59 @@ export async function syncPlayerProgress(
     dungeonHighestStageCleared?: number;
   }
 ) {
-  await bq().query({
-    query: `
-      UPDATE ${table("users")}
-      SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
-      WHERE id = @userId
-    `,
-    params: { userId, level: opts.level, exp: opts.exp, expToNextLevel: opts.expToNextLevel },
-  });
-
-  for (const creature of opts.creatures) {
-    await bq().query({
+  // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
+  // bug here, not just slow: BigQuery isn't a low-latency row-store, each DML statement has real
+  // job scheduling overhead (multiple seconds), and BigQuery serializes concurrent DML against
+  // the same table regardless of how "parallel" the client-side requests look. A 13-creature
+  // roster (e.g. an admin owning every catalog creature) measured at 25+ seconds even parallelized
+  // — well past a serverless function's timeout, silently killing the request before most (or any)
+  // creature rows got updated. That's exactly what was observed: an admin account's creature
+  // levels never advancing past their grant-time defaults while a single-creature account's
+  // leveling persisted fine. Fix: collapse all N creature updates into ONE query job via MERGE
+  // instead of N separate jobs — cost is then flat regardless of roster size.
+  const queries = [
+    bq().query({
       query: `
-        UPDATE ${table("user_creatures")}
-        SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel
-        WHERE user_id = @userId AND creature_id = @creatureId
+        UPDATE ${table("users")}
+        SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
+        WHERE id = @userId
       `,
-      params: {
-        userId,
-        creatureId: creature.creatureId,
-        level: creature.level,
-        exp: creature.exp,
-        expToNextLevel: creature.expToNextLevel,
-      },
-    });
+      params: { userId, level: opts.level, exp: opts.exp, expToNextLevel: opts.expToNextLevel },
+    }),
+  ];
+
+  if (opts.creatures.length > 0) {
+    queries.push(
+      bq().query({
+        query: `
+          MERGE ${table("user_creatures")} AS target
+          USING UNNEST(@creatures) AS source
+          ON target.user_id = @userId AND target.creature_id = source.creatureId
+          WHEN MATCHED THEN
+            UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel
+        `,
+        params: { userId, creatures: opts.creatures },
+        types: {
+          creatures: [{ creatureId: "STRING", level: "INT64", exp: "INT64", expToNextLevel: "INT64" }],
+        },
+      })
+    );
   }
 
   if (opts.dungeonHighestStageCleared !== undefined) {
-    await bq().query({
-      query: `
-        UPDATE ${table("user_dungeon_state")}
-        SET highest_stage_cleared = GREATEST(highest_stage_cleared, @value)
-        WHERE user_id = @userId
-      `,
-      params: { userId, value: opts.dungeonHighestStageCleared },
-    });
+    queries.push(
+      bq().query({
+        query: `
+          UPDATE ${table("user_dungeon_state")}
+          SET highest_stage_cleared = GREATEST(highest_stage_cleared, @value)
+          WHERE user_id = @userId
+        `,
+        params: { userId, value: opts.dungeonHighestStageCleared },
+      })
+    );
   }
+
+  await Promise.all(queries);
 }
 
 /** Adds a catalog creature to the account's owned roster — or, if already owned, increments its
