@@ -206,7 +206,8 @@ CREATE TABLE `project-scrappy-intelic.project_ether.gacha_banner_featured` (
 ## 5. Inventario del usuario (monstruos e items)
 
 ```sql
--- Inventario de monstruos: cada fila es UNA instancia poseída por un jugador
+-- Inventario de monstruos: una fila por (user_id, creature_id) — los duplicados NO generan una
+-- fila nueva, suman a `copies` en la fila existente (ver grantCreatureToUser en lib/db/bigquery.ts).
 CREATE TABLE `project-scrappy-intelic.project_ether.user_creatures` (
   id                 STRING DEFAULT GENERATE_UUID(),
   user_id            STRING NOT NULL,
@@ -220,6 +221,9 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_creatures` (
   spd                INT64 NOT NULL,
   is_in_hub_team     BOOL DEFAULT false,  -- máx. 7 por usuario, validar en la app (HUB_TEAM_SIZE)
   party_slot         INT64,   -- 1..3, único por usuario; validar en la app
+  copies             INT64 DEFAULT 1,  -- añadida via ALTER TABLE; dupes de la misma criatura suman acá
+                                        -- en vez de crear otra fila — pensado para un futuro sistema
+                                        -- de "overlock"/limit break que consuma estas copias
   acquired_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   PRIMARY KEY (id) NOT ENFORCED,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED,

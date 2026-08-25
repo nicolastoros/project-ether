@@ -102,6 +102,11 @@ export default function MonstersPage() {
                     </p>
                     <div className="mt-1 flex items-center gap-1.5">
                       <RarityBadge rarity={creature.rarity} />
+                      {creature.copies > 1 && (
+                        <span className="rounded-full border border-gold/60 bg-gold/10 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-gold-bright">
+                          ×{creature.copies}
+                        </span>
+                      )}
                       {!isHubMember && (
                         <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
                           <Zap className="h-2.5 w-2.5 animate-pulse" />

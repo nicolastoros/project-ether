@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useGameStore } from "@/lib/store";
+import { syncProgressToServer } from "@/lib/syncProgress";
 import { AppShell } from "@/components/layout/AppShell";
 
 const PROGRESS_SYNC_INTERVAL_MS = 60_000;
@@ -29,34 +30,12 @@ export function GameGate({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [hasHydrated, status, tickBoxExp]);
 
-  // Best-effort progress sync: mirrors profile/creature level & exp back to BigQuery
-  // periodically so a login from another device sees roughly current progress.
-  // Equipment/currencies/dungeon progress aren't synced yet — see docs/gcp-database-schema.md.
+  // Best-effort progress sync: mirrors profile/creature level & exp and highest campaign stage
+  // cleared back to BigQuery periodically so a login from another device sees roughly current
+  // progress. Equipment/currencies aren't synced yet — see docs/gcp-database-schema.md.
   useEffect(() => {
     if (!hasHydrated || status !== "authenticated") return;
-
-    const syncProgress = () => {
-      const { profile, creatures } = useGameStore.getState();
-      fetch("/api/user/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          level: profile.level,
-          exp: profile.exp,
-          expToNextLevel: profile.expToNextLevel,
-          creatures: creatures.map((c) => ({
-            creatureId: c.id,
-            level: c.level,
-            exp: c.exp,
-            expToNextLevel: c.expToNextLevel,
-          })),
-        }),
-      }).catch(() => {
-        // Non-fatal: local play continues regardless of sync success.
-      });
-    };
-
-    const id = setInterval(syncProgress, PROGRESS_SYNC_INTERVAL_MS);
+    const id = setInterval(syncProgressToServer, PROGRESS_SYNC_INTERVAL_MS);
     return () => clearInterval(id);
   }, [hasHydrated, status]);
 

@@ -31,12 +31,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { level, exp, expToNextLevel, creatures } = body as Record<string, unknown>;
+  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared } = body as Record<string, unknown>;
   if (
     typeof level !== "number" ||
     typeof exp !== "number" ||
     typeof expToNextLevel !== "number" ||
-    !Array.isArray(creatures)
+    !Array.isArray(creatures) ||
+    (dungeonHighestStageCleared !== undefined && typeof dungeonHighestStageCleared !== "number")
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
       exp,
       expToNextLevel,
       creatures: creatures.filter(isSyncCreature),
+      dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
     });
   } catch (err) {
     console.error("Progress sync failed", err);

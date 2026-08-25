@@ -72,6 +72,9 @@ export interface Creature {
   baseStats: CreatureStats;
   skills: Skill[]; // up to 4 active skills
   equipment: Partial<Record<EquipmentSlotType, string>>; // slot -> equipment id
+  /** Duplicate copies owned beyond the first — starts at 1. A future "overlock"/limit-break
+   * system will spend these to power the creature up; for now they're just tracked and shown. */
+  copies: number;
 }
 
 export interface Currencies {

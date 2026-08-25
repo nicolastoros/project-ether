@@ -70,9 +70,11 @@ interface GameState {
   toggleHubTeamMember: (creatureId: string) => void;
   tickBoxExp: () => void;
   gainCreatureExp: (creatureId: string, amount: number) => void;
-  /** Adds a catalog creature to the collection at its default level, unless already owned (creature ids
-   * are unique per account — no duplicates). Returns whether it was actually newly granted. */
-  grantCreature: (creatureId: string) => boolean;
+  /** Adds a catalog creature to the collection at its default level, or — if already owned —
+   * increments its dupe count instead (creature ids are unique per account, but duplicates are
+   * tracked via Creature.copies rather than being rejected; a future "overlock" system will spend
+   * them). Returns null only if creatureId isn't a real catalog id. */
+  grantCreature: (creatureId: string) => { isNew: boolean; copies: number } | null;
 
   addGold: (amount: number) => void;
   spendGold: (amount: number) => boolean;
@@ -136,6 +138,7 @@ export const useGameStore = create<GameState>()(
               expToNextLevel: owned.expToNextLevel,
               baseStats: { hp: owned.hp, atk: owned.atk, def: owned.def, spd: owned.spd },
               equipment: {},
+              copies: owned.copies,
             };
           })
           .filter((c): c is Creature => c !== null);
@@ -267,11 +270,18 @@ export const useGameStore = create<GameState>()(
 
       grantCreature: (creatureId) => {
         const { creatures } = get();
-        if (creatures.some((c) => c.id === creatureId)) return false;
+        const existing = creatures.find((c) => c.id === creatureId);
+        if (existing) {
+          const copies = existing.copies + 1;
+          set({
+            creatures: creatures.map((c) => (c.id === creatureId ? { ...c, copies } : c)),
+          });
+          return { isNew: false, copies };
+        }
         const template = STARTER_CREATURES.find((c) => c.id === creatureId);
-        if (!template) return false;
-        set({ creatures: [...creatures, { ...template }] });
-        return true;
+        if (!template) return null;
+        set({ creatures: [...creatures, { ...template, copies: 1 }] });
+        return { isNew: true, copies: 1 };
       },
 
       addGold: (amount) =>
@@ -427,6 +437,7 @@ export const useGameStore = create<GameState>()(
                 expToNextLevel: saved.expToNextLevel,
                 baseStats: saved.baseStats,
                 equipment: saved.equipment,
+                copies: saved.copies,
               }
             : saved;
         });

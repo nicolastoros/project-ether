@@ -47,6 +47,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-em-4", "Rekindle", "Passively regenerates HP each turn.", "Passive", 0, 0, 15),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-tidalfin",
@@ -66,6 +67,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ti-4", "Deep Focus", "Passively boosts SPD when HP is above 50%.", "Passive", 0, 0, 18),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-gale-sprite",
@@ -85,6 +87,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ga-4", "Photosynthesis", "Passively restores small HP each turn in daylight.", "Passive", 0, 0, 12),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-voltling",
@@ -105,6 +108,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-vo-4", "Capacitor Coils", "Passively charges up, boosting the next skill's power.", "Passive", 0, 0, 14),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-firebit",
@@ -125,6 +129,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-fb-4", "Kindle Spirit", "Passively regenerates a small amount of HP each turn.", "Passive", 0, 0, 13),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-dragoon",
@@ -145,6 +150,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-dr-4", "Regenerative Hide", "Passively restores HP each turn based on max HP.", "Passive", 0, 0, 16),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-crimson-guardian",
@@ -165,6 +171,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-cg-4", "Guardian's Resolve", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 20),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-silver-dragon",
@@ -185,6 +192,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sd-4", "Celestial Ward", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 20),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-venomshade",
@@ -205,6 +213,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ve-4", "Creeping Poison", "Passively deals damage over time to a poisoned enemy.", "Passive", 0, 0, 14),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-tidewarden",
@@ -225,6 +234,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-tw-4", "Spirit Current", "Passively restores a small amount of HP each turn.", "Passive", 0, 0, 13),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-emberfiend",
@@ -245,6 +255,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ef-4", "Undying Wrath", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 16),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-thundracoil",
@@ -265,6 +276,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-th-4", "Galvanic Core", "Passively charges up, boosting the next skill's power.", "Passive", 0, 0, 17),
     ],
     equipment: {},
+    copies: 1,
   },
   {
     id: "cr-starweaver",
@@ -285,6 +297,7 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sw-4", "Guiding Light", "Passively restores HP to the lowest-HP ally each turn.", "Passive", 0, 0, 15),
     ],
     equipment: {},
+    copies: 1,
   },
 ];
 

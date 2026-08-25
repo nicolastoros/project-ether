@@ -8,6 +8,7 @@ import { Coins, RotateCcw, Sparkles } from "lucide-react";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { useGameStore } from "@/lib/store";
+import { grantCreatureOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import {
   applyAction,
   createCombatant,
@@ -77,7 +78,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     { id: nextLogId(), kind: "info", message: `${stage.name} — battle start!` },
   ]);
   const [rewardGranted, setRewardGranted] = useState(false);
-  const [gotFirstClearGift, setGotFirstClearGift] = useState(false);
+  const [firstClearGift, setFirstClearGift] = useState<{ isNew: boolean; copies: number } | null>(null);
   const [rewardMultiplier, setRewardMultiplier] = useState(1);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
@@ -122,9 +123,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * multiplier));
         const isFirstStage1Clear = stage.stageNumber === 1 && highestBefore === 0;
         clearDungeonStage(stage.stageNumber);
-        if (isFirstStage1Clear && grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID)) {
-          setGotFirstClearGift(true);
+        if (isFirstStage1Clear) {
+          const gift = grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID);
+          if (gift) {
+            setFirstClearGift(gift);
+            // The generic periodic sync below only UPDATEs creatures already owned, so a brand
+            // new grant (or dupe) needs its own call or it won't survive the next hydrate.
+            grantCreatureOnServer(FIRST_CLEAR_GIFT_CREATURE_ID);
+          }
         }
+        // Push the stage-clear (and this fight's EXP gains) right away rather than waiting up to
+        // 60s for GameGate's periodic sync — losing a just-earned stage clear to a closed tab
+        // would be a much worse experience than the sync itself failing silently.
+        syncProgressToServer();
       }
       return;
     }
@@ -369,9 +380,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * rewardMultiplier} EXP each
                   </span>
                 </div>
-                {gotFirstClearGift && (
+                {firstClearGift && (
                   <p className="font-arcade text-[10px] uppercase glow-text-gold">
-                    {FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!
+                    {firstClearGift.isNew
+                      ? `${FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!`
+                      : `+1 ${FIRST_CLEAR_GIFT_CREATURE_NAME} copy! (×${firstClearGift.copies} owned)`}
                   </p>
                 )}
               </div>

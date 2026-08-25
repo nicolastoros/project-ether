@@ -84,6 +84,9 @@ export function CreatureDetailModal({
                   </h2>
                   <p className="text-xs text-zinc-500">
                     {creature.element} · Stage {creature.stage} · Lv.{creature.level}
+                    {creature.copies > 1 && (
+                      <span className="ml-1.5 font-arcade text-gold-bright">×{creature.copies} owned</span>
+                    )}
                   </p>
                   {!isHubMember && (
                     <span className="mt-1 inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600">

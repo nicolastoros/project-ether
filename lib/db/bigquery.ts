@@ -185,6 +185,7 @@ export interface AccountBundle {
     spd: number;
     isInHubTeam: boolean;
     partySlot: number | null;
+    copies: number;
   }[];
   equipment: {
     equipmentId: string;
@@ -218,7 +219,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     }),
     bq().query({
       query: `
-        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot
+        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies
         FROM ${table("user_creatures")} WHERE user_id = @userId ORDER BY acquired_at
       `,
       params: { userId },
@@ -280,6 +281,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       spd: row.spd,
       isInHubTeam: row.is_in_hub_team,
       partySlot: row.party_slot ?? null,
+      copies: row.copies ?? 1,
     })),
     equipment: equipmentRows.map((row) => ({
       equipmentId: row.equipment_id,
@@ -296,6 +298,9 @@ export async function syncPlayerProgress(
     exp: number;
     expToNextLevel: number;
     creatures: { creatureId: string; level: number; exp: number; expToNextLevel: number }[];
+    /** Highest Campaign stage cleared — only ever moves up (GREATEST), so an out-of-order sync
+     * (e.g. two tabs) can't accidentally roll progress back. */
+    dungeonHighestStageCleared?: number;
   }
 ) {
   await bq().query({
@@ -323,4 +328,66 @@ export async function syncPlayerProgress(
       },
     });
   }
+
+  if (opts.dungeonHighestStageCleared !== undefined) {
+    await bq().query({
+      query: `
+        UPDATE ${table("user_dungeon_state")}
+        SET highest_stage_cleared = GREATEST(highest_stage_cleared, @value)
+        WHERE user_id = @userId
+      `,
+      params: { userId, value: opts.dungeonHighestStageCleared },
+    });
+  }
+}
+
+/** Adds a catalog creature to the account's owned roster — or, if already owned, increments its
+ * copies count instead (creature ids are unique per account: one row per id, dupes tracked via
+ * the copies column rather than extra rows). Mirrors lib/store.ts's client-side grantCreature —
+ * this is what actually persists that grant, since syncPlayerProgress only UPDATEs creatures the
+ * account already owns and has no notion of copies at all. */
+export async function grantCreatureToUser(
+  userId: string,
+  creatureId: string
+): Promise<{ isNew: boolean; copies: number }> {
+  const [existingRows] = await bq().query({
+    query: `SELECT copies FROM ${table("user_creatures")} WHERE user_id = @userId AND creature_id = @creatureId LIMIT 1`,
+    params: { userId, creatureId },
+  });
+  if (existingRows.length > 0) {
+    const copies = (existingRows[0].copies ?? 1) + 1;
+    await bq().query({
+      query: `
+        UPDATE ${table("user_creatures")}
+        SET copies = @copies
+        WHERE user_id = @userId AND creature_id = @creatureId
+      `,
+      params: { userId, creatureId, copies },
+    });
+    return { isNew: false, copies };
+  }
+
+  const base = STARTER_CREATURES.find((c) => c.id === creatureId);
+  if (!base) throw new Error(`Unknown creature id: ${creatureId}`);
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("user_creatures")}
+        (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
+      VALUES (@id, @userId, @creatureId, @level, @exp, @expToNextLevel, @hp, @atk, @def, @spd, false, NULL, 1)
+    `,
+    params: {
+      id: randomUUID(),
+      userId,
+      creatureId,
+      level: base.level,
+      exp: base.exp,
+      expToNextLevel: base.expToNextLevel,
+      hp: base.baseStats.hp,
+      atk: base.baseStats.atk,
+      def: base.baseStats.def,
+      spd: base.baseStats.spd,
+    },
+  });
+  return { isNew: true, copies: 1 };
 }
