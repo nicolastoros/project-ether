@@ -24,13 +24,14 @@ import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { CombatantCard } from "./CombatantCard";
 import { cn, formatNumber } from "@/lib/utils";
 
-// Stone-circle marker positions in /assets/campaign/world1_1.jpeg, as % of the image box.
-const STAGE1_ARENA_BG = "/assets/campaign/world1_1.jpeg";
+// Stone-circle marker positions in /assets/campaign/world1_1.jpeg, as % of the image box. Used
+// for every World 1 stage (not just 1-1) — it's the one arena background World 1 has.
+const WORLD1_ARENA_BG = "/assets/campaign/world1_1.jpeg";
 // One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
 // check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
 const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
 const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
-const STAGE1_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
+const WORLD1_ARENA_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
   { side: "player", index: 0, left: "20.5%", top: "48%", direction: "south-east" },
   { side: "player", index: 1, left: "20.5%", top: "78%", direction: "south-east" },
   { side: "enemy", index: 0, left: "79%", top: "48%", direction: "south-west" },
@@ -181,7 +182,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
   const players = combatants.filter((c) => c.side === "player");
   const enemies = combatants.filter((c) => c.side === "enemy");
-  const hasStage1Arena = stage.id === "dg-stage-1";
+  const hasWorld1Arena = stage.world === 1;
 
   return (
     <div className="space-y-3">
@@ -192,20 +193,20 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         <p className="text-xs text-zinc-500">{stage.name} · 2v2 Turn Battle</p>
       </div>
 
-      {hasStage1Arena ? (
+      {hasWorld1Arena ? (
         <div
           className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm sm:max-w-md lg:max-w-lg xl:max-w-xl"
           style={{ aspectRatio: "704 / 1189" }}
         >
           <Image
-            src={STAGE1_ARENA_BG}
+            src={WORLD1_ARENA_BG}
             alt=""
             fill
             priority
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 448px, (max-width: 1280px) 512px, 576px"
             className="object-cover"
           />
-          {STAGE1_SLOTS.map((slot) => {
+          {WORLD1_ARENA_SLOTS.map((slot) => {
             const c = (slot.side === "player" ? players : enemies)[slot.index];
             if (!c) return null;
             return (
