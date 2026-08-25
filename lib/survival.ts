@@ -8,6 +8,23 @@ import type { Direction } from "@/components/ui/CreatureSprite";
 export const ARENA_WIDTH = 720;
 export const ARENA_HEIGHT = 1080;
 
+// Desktop windows are landscape, so the arena's container ends up height-limited instead
+// (capped by lg:max-h in SurvivalGame.tsx) — the portrait ratio above would leave most of that
+// width unused there. A wider, closer-to-square field uses the extra horizontal room instead.
+export const ARENA_WIDTH_DESKTOP = 1200;
+export const ARENA_HEIGHT_DESKTOP = 900;
+const DESKTOP_BREAKPOINT_PX = 1024; // matches Tailwind's `lg`
+
+/** Picks the arena's pixel dimensions for the current viewport — decided once per game session
+ * (not reactively on resize), since rescaling mid-run would leave existing enemies/gems stranded
+ * outside the new bounds. */
+export function getArenaDimensions(): { width: number; height: number } {
+  const isDesktop = typeof window !== "undefined" && window.innerWidth >= DESKTOP_BREAKPOINT_PX;
+  return isDesktop
+    ? { width: ARENA_WIDTH_DESKTOP, height: ARENA_HEIGHT_DESKTOP }
+    : { width: ARENA_WIDTH, height: ARENA_HEIGHT };
+}
+
 const PLAYER_RADIUS = 20;
 const ENEMY_RADIUS_GRUNT = 14;
 const ENEMY_RADIUS_ELITE = 20;
@@ -215,6 +232,9 @@ export interface SurvivalState {
   idCounter: number;
   /** Reach this elapsed time to clear the stage (see lib/survivalStages.ts). */
   targetMs: number;
+  /** Decided once at game start via getArenaDimensions() — see its comment for why. */
+  arenaWidth: number;
+  arenaHeight: number;
 }
 
 export interface Upgrade {
@@ -302,10 +322,10 @@ export function rollUpgrades(count: number): string[] {
   return shuffled.slice(0, count).map((u) => u.id);
 }
 
-function createInitialPlayer(): PlayerStats {
+function createInitialPlayer(arenaWidth: number, arenaHeight: number): PlayerStats {
   return {
-    x: ARENA_WIDTH / 2,
-    y: ARENA_HEIGHT / 2,
+    x: arenaWidth / 2,
+    y: arenaHeight / 2,
     hp: 100,
     maxHp: 100,
     speed: 160,
@@ -319,9 +339,13 @@ function createInitialPlayer(): PlayerStats {
   };
 }
 
-export function createInitialState(targetSeconds: number = Infinity): SurvivalState {
+export function createInitialState(
+  targetSeconds: number = Infinity,
+  arenaWidth: number = ARENA_WIDTH,
+  arenaHeight: number = ARENA_HEIGHT
+): SurvivalState {
   return {
-    player: createInitialPlayer(),
+    player: createInitialPlayer(arenaWidth, arenaHeight),
     enemies: [],
     projectiles: [],
     gems: [],
@@ -337,25 +361,28 @@ export function createInitialState(targetSeconds: number = Infinity): SurvivalSt
     pendingUpgradeIds: [],
     idCounter: 1,
     targetMs: targetSeconds * 1000,
+    arenaWidth,
+    arenaHeight,
   };
 }
 
 function spawnEnemy(state: SurvivalState, elapsedSec: number): void {
+  const { arenaWidth, arenaHeight } = state;
   const edge = Math.floor(Math.random() * 4);
   let x: number;
   let y: number;
   if (edge === 0) {
-    x = Math.random() * ARENA_WIDTH;
+    x = Math.random() * arenaWidth;
     y = -20;
   } else if (edge === 1) {
-    x = ARENA_WIDTH + 20;
-    y = Math.random() * ARENA_HEIGHT;
+    x = arenaWidth + 20;
+    y = Math.random() * arenaHeight;
   } else if (edge === 2) {
-    x = Math.random() * ARENA_WIDTH;
-    y = ARENA_HEIGHT + 20;
+    x = Math.random() * arenaWidth;
+    y = arenaHeight + 20;
   } else {
     x = -20;
-    y = Math.random() * ARENA_HEIGHT;
+    y = Math.random() * arenaHeight;
   }
 
   const hpScale = 1 + elapsedSec * 0.045;
@@ -430,8 +457,8 @@ export function updateSurvival(
       mx /= len;
       my /= len;
     }
-    p.x = clamp(p.x + mx * p.speed * dt, PLAYER_RADIUS, ARENA_WIDTH - PLAYER_RADIUS);
-    p.y = clamp(p.y + my * p.speed * dt, PLAYER_RADIUS, ARENA_HEIGHT - PLAYER_RADIUS);
+    p.x = clamp(p.x + mx * p.speed * dt, PLAYER_RADIUS, state.arenaWidth - PLAYER_RADIUS);
+    p.y = clamp(p.y + my * p.speed * dt, PLAYER_RADIUS, state.arenaHeight - PLAYER_RADIUS);
     p.facing = angleToDirection(mx, my);
   }
 
@@ -525,8 +552,8 @@ export function updateSurvival(
       const strikeCount = 1 + weapon.level;
       const dmg = Math.round(p.damage * meta.damageMult * Math.pow(1.2, weapon.level - 1));
       for (let i = 0; i < strikeCount; i++) {
-        const sx = 30 + Math.random() * (ARENA_WIDTH - 60);
-        const sy = 30 + Math.random() * (ARENA_HEIGHT - 60);
+        const sx = 30 + Math.random() * (state.arenaWidth - 60);
+        const sy = 30 + Math.random() * (state.arenaHeight - 60);
         state.strikes.push({ id: state.idCounter++, x: sx, y: sy, radius: 50, ttlMs: 280 });
         for (const e of state.enemies) {
           if (dist(sx, sy, e.x, e.y) < 50) e.hp -= dmg;
@@ -568,7 +595,8 @@ export function updateSurvival(
     proj.x += proj.vx * dt;
     proj.y += proj.vy * dt;
     proj.lifeMs -= dtMs;
-    const inBounds = proj.x > -20 && proj.x < ARENA_WIDTH + 20 && proj.y > -20 && proj.y < ARENA_HEIGHT + 20;
+    const inBounds =
+      proj.x > -20 && proj.x < state.arenaWidth + 20 && proj.y > -20 && proj.y < state.arenaHeight + 20;
     let consumed = false;
     if (proj.lifeMs > 0 && inBounds) {
       for (const e of state.enemies) {

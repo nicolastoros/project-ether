@@ -70,6 +70,9 @@ interface GameState {
   toggleHubTeamMember: (creatureId: string) => void;
   tickBoxExp: () => void;
   gainCreatureExp: (creatureId: string, amount: number) => void;
+  /** Adds a catalog creature to the collection at its default level, unless already owned (creature ids
+   * are unique per account — no duplicates). Returns whether it was actually newly granted. */
+  grantCreature: (creatureId: string) => boolean;
 
   addGold: (amount: number) => void;
   spendGold: (amount: number) => boolean;
@@ -87,6 +90,7 @@ interface GameState {
   setSpeedMultiplier: (speed: 1 | 2 | 4) => void;
 
   clearSurvivalStage: (stageNumber: number) => void;
+  clearDungeonStage: (stageNumber: number) => void;
 
   claimTask: (taskId: string) => void;
 }
@@ -261,6 +265,15 @@ export const useGameStore = create<GameState>()(
           ),
         })),
 
+      grantCreature: (creatureId) => {
+        const { creatures } = get();
+        if (creatures.some((c) => c.id === creatureId)) return false;
+        const template = STARTER_CREATURES.find((c) => c.id === creatureId);
+        if (!template) return false;
+        set({ creatures: [...creatures, { ...template }] });
+        return true;
+      },
+
       addGold: (amount) =>
         set((state) => ({
           currencies: { ...state.currencies, gold: state.currencies.gold + amount },
@@ -358,6 +371,14 @@ export const useGameStore = create<GameState>()(
       clearSurvivalStage: (stageNumber) =>
         set((state) => ({
           survivalHighestStageCleared: Math.max(state.survivalHighestStageCleared, stageNumber),
+        })),
+
+      clearDungeonStage: (stageNumber) =>
+        set((state) => ({
+          dungeon: {
+            ...state.dungeon,
+            highestStageCleared: Math.max(state.dungeon.highestStageCleared, stageNumber),
+          },
         })),
 
       claimTask: (taskId) =>

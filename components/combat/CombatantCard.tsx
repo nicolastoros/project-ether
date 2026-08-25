@@ -62,8 +62,11 @@ export function CombatantCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitNonce]);
 
-  const barWidth = size === "sm" ? "max-w-[7.5rem]" : "max-w-[9rem]";
-  const spriteSize = size === "sm" ? "h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]" : "h-28 w-28 sm:h-32 sm:w-32";
+  const barWidth = size === "sm" ? "max-w-[7.5rem] lg:max-w-[9rem]" : "max-w-[9rem] lg:max-w-[11rem]";
+  const spriteSize =
+    size === "sm"
+      ? "h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem] lg:h-32 lg:w-32 xl:h-36 xl:w-36"
+      : "h-28 w-28 sm:h-32 sm:w-32 lg:h-40 lg:w-40 xl:h-48 xl:w-48";
 
   return (
     <div className="flex flex-col items-center gap-1.5">

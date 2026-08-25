@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Coins, Gem, Pause, Play, Sparkles, Swords, Timer } from "lucide-react";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -9,11 +9,10 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { useGameStore } from "@/lib/store";
 import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
 import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
   UPGRADE_POOL,
   WEAPON_META,
   createInitialState,
+  getArenaDimensions,
   shieldRadius,
   updateSurvival,
   type SurvivalState,
@@ -89,23 +88,25 @@ function formatTime(ms: number): string {
 }
 
 function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, images: ImageBundle): void {
-  ctx.clearRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+  const { arenaWidth, arenaHeight } = state;
+  ctx.clearRect(0, 0, arenaWidth, arenaHeight);
 
   const bg = images.background;
   if (bg && bg.complete && bg.naturalWidth > 0) {
-    // "Cover" fit: the map art is a square, the arena is portrait, so scale up to the larger
-    // ratio and center-crop rather than letterboxing or stretching.
-    const scale = Math.max(ARENA_WIDTH / bg.naturalWidth, ARENA_HEIGHT / bg.naturalHeight);
+    // "Cover" fit: the map art is square, the arena isn't (portrait on mobile, wider on
+    // desktop — see getArenaDimensions), so scale up to the larger ratio and center-crop
+    // rather than letterboxing or stretching.
+    const scale = Math.max(arenaWidth / bg.naturalWidth, arenaHeight / bg.naturalHeight);
     const drawW = bg.naturalWidth * scale;
     const drawH = bg.naturalHeight * scale;
-    ctx.drawImage(bg, (ARENA_WIDTH - drawW) / 2, (ARENA_HEIGHT - drawH) / 2, drawW, drawH);
+    ctx.drawImage(bg, (arenaWidth - drawW) / 2, (arenaHeight - drawH) / 2, drawW, drawH);
     // A light wash over the scenery keeps enemies/projectiles/gems readable against it —
     // the art is busier than the flat backdrop this replaced.
     ctx.fillStyle = "rgba(244, 241, 232, 0.4)";
-    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+    ctx.fillRect(0, 0, arenaWidth, arenaHeight);
   } else {
     ctx.fillStyle = "#f4f1e8";
-    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+    ctx.fillRect(0, 0, arenaWidth, arenaHeight);
   }
 
   for (const s of state.strikes) {
@@ -247,8 +248,14 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   const addGems = useGameStore((s) => s.addGems);
   const clearSurvivalStage = useGameStore((s) => s.clearSurvivalStage);
 
+  // useMemo (not a ref) so it's safe to read during render below, but still only decided once
+  // per mount — not reactively on resize, since rescaling mid-run would strand existing
+  // enemies/gems outside the new bounds.
+  const arenaDims = useMemo(() => getArenaDimensions(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<SurvivalState>(createInitialState(stage.targetSeconds));
+  const stateRef = useRef<SurvivalState>(
+    createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height)
+  );
   const keysRef = useRef<Set<string>>(new Set());
   const touchMoveRef = useRef<{ x: number; y: number } | null>(null);
   const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
@@ -261,7 +268,9 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
     gemSimple: null,
     gemMedium: null,
   });
-  const [hud, setHud] = useState<Hud>(() => deriveHud(createInitialState(stage.targetSeconds)));
+  const [hud, setHud] = useState<Hud>(() =>
+    deriveHud(createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height))
+  );
 
   const mapImage = SURVIVAL_WORLDS.find((w) => w.world === stage.world)?.mapImage ?? SURVIVAL_WORLDS[0].mapImage;
 
@@ -336,7 +345,7 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   }, [hud.phase, stage.rewardGold, stage.rewardGems, stage.stageNumber, addGold, addGems, clearSurvivalStage]);
 
   function handleRestart() {
-    stateRef.current = createInitialState(stage.targetSeconds);
+    stateRef.current = createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height);
     setHud(deriveHud(stateRef.current));
   }
 
@@ -399,12 +408,13 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex shrink-0 items-start justify-between gap-3">
-        <div>
-          <h1 className="font-arcade text-lg glow-text-neon">{stage.name}</h1>
-          <p className="text-xs text-zinc-500">
-            World {stage.world}-{stage.worldStageNumber} · drag the arena to steer (or WASD)
+    <div className="flex h-full flex-col gap-1.5 sm:gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate font-arcade text-xs glow-text-neon sm:text-lg">{stage.name}</h1>
+          <p className="truncate text-[10px] text-zinc-500 sm:text-xs">
+            World {stage.world}-{stage.worldStageNumber}
+            <span className="hidden sm:inline"> · drag the arena to steer (or WASD)</span>
           </p>
         </div>
         {hud.phase === "playing" && (
@@ -412,23 +422,23 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
             type="button"
             onClick={handlePause}
             aria-label="Pause"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-600 shadow-sm transition-colors hover:border-gold hover:text-gold-bright"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-600 shadow-sm transition-colors hover:border-gold hover:text-gold-bright sm:h-8 sm:w-8"
           >
-            <Pause className="h-4 w-4" />
+            <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         )}
       </div>
 
-      <div className="grid shrink-0 grid-cols-3 gap-2">
+      <div className="grid shrink-0 grid-cols-3 gap-1.5 sm:gap-2">
         <div className="col-span-2">
           <ProgressBar percent={(hud.hp / hud.maxHp) * 100} color="hp" label={`HP ${hud.hp}/${hud.maxHp}`} />
         </div>
-        <div className="flex items-center justify-end gap-1 text-xs font-semibold text-foreground">
-          <Timer className="h-3.5 w-3.5 text-zinc-500" />
+        <div className="flex items-center justify-end gap-1 text-[10px] font-semibold text-foreground sm:text-xs">
+          <Timer className="h-3 w-3 text-zinc-500 sm:h-3.5 sm:w-3.5" />
           {formatTime(hud.elapsedMs)}/{formatTime(stage.targetSeconds * 1000)}
         </div>
       </div>
-      <div className="grid shrink-0 grid-cols-3 gap-2">
+      <div className="grid shrink-0 grid-cols-3 gap-1.5 sm:gap-2">
         <div className="col-span-2">
           <ProgressBar
             percent={(hud.xp / hud.xpToNext) * 100}
@@ -436,29 +446,39 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
             label={`Lv.${hud.level} · EXP ${hud.xp}/${hud.xpToNext}`}
           />
         </div>
-        <div className="flex items-center justify-end gap-1 text-xs font-semibold text-foreground">
-          <Swords className="h-3.5 w-3.5 text-zinc-500" />
+        <div className="flex items-center justify-end gap-1 text-[10px] font-semibold text-foreground sm:text-xs">
+          <Swords className="h-3 w-3 text-zinc-500 sm:h-3.5 sm:w-3.5" />
           {hud.kills}
         </div>
       </div>
 
+      {/* max-w-[720px] here is ARENA_WIDTH (lib/survival.ts) as a literal — Tailwind can't read
+          the constant, so keep them in sync by hand. It's mobile's cap only: on lg+ the arena
+          switches to ARENA_WIDTH_DESKTOP's wider, closer-to-square shape (getArenaDimensions),
+          and since desktop windows are landscape, height is the scarce dimension there, not
+          width — max-w-none lets the box grow as wide as that shape wants, while lg:max-h caps
+          it to whatever room is actually available. The explicit aspectRatio derives the actual
+          width from that height (rather than leaving the canvas's own object-fit to reconcile a
+          mismatched box — `object-fit` doesn't actually get applied to <canvas> in every engine
+          the way it does for <img>, so a box whose own ratio didn't already match the canvas's
+          internal resolution rendered as a non-uniformly stretched image instead of a
+          letterboxed one). self-center (instead of w-full) is required for aspectRatio to have
+          any effect here — a flex item stretches to its container's full cross-axis width by
+          default, which pins width just as firmly as an explicit w-full would, leaving
+          aspectRatio nothing to derive. */}
       <div
-        className="relative mx-auto min-h-0 w-full flex-1 touch-none select-none overflow-hidden rounded-2xl border border-arcade-border shadow-sm"
-        style={{ maxWidth: ARENA_WIDTH }}
+        className="relative mx-auto min-h-0 max-w-[720px] flex-1 touch-none select-none self-center overflow-hidden rounded-2xl border border-arcade-border shadow-sm lg:max-w-none lg:max-h-[70dvh]"
+        style={{ aspectRatio: `${arenaDims.width} / ${arenaDims.height}` }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {/* object-contain (not w-full/h-auto + a locked aspect-ratio) so the canvas grows to fill
-            whichever dimension of this flex-1 box is the limiting one — on a tall phone that's
-            still width most of the time, but this also makes use of extra height when there's
-            room, instead of leaving it as dead space below a width-only-sized box. */}
         <canvas
           ref={canvasRef}
-          width={ARENA_WIDTH}
-          height={ARENA_HEIGHT}
-          className="block h-full w-full object-contain"
+          width={arenaDims.width}
+          height={arenaDims.height}
+          className="block h-full w-full"
         />
 
         {joystick && (

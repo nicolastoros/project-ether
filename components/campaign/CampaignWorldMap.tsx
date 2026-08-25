@@ -3,24 +3,26 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, Lock } from "lucide-react";
-import type { SurvivalStage, SurvivalWorld } from "@/lib/survivalStages";
+import { Check, Lock, Swords } from "lucide-react";
+import type { DungeonStage } from "@/types/game";
+import type { CampaignWorld } from "@/lib/campaignWorlds";
 import { cn } from "@/lib/utils";
 
-// Same "S-curve" technique as CampaignWorldMap (components/campaign/CampaignWorldMap.tsx), just
-// laid out as percentages over a single square map image instead of scrolling through several worlds.
+// Same "S-curve" node layout as SurvivalWorldMap (components/survival/SurvivalWorldMap.tsx) —
+// one world's stages plotted over its own square map image, instead of stacking every world
+// into one continuously-scrolling path.
 const CENTER_X = 50;
 const AMPLITUDE = 26;
 const TOP_Y = 10;
 const BOTTOM_Y = 90;
 
 interface StageNode {
-  stage: SurvivalStage;
+  stage: DungeonStage;
   x: number;
   y: number;
 }
 
-function buildNodes(stages: SurvivalStage[]): StageNode[] {
+function buildNodes(stages: DungeonStage[]): StageNode[] {
   const span = stages.length > 1 ? BOTTOM_Y - TOP_Y : 0;
   return stages.map((stage, i) => ({
     stage,
@@ -43,17 +45,15 @@ function buildPath(nodes: StageNode[]): string {
   return d;
 }
 
-interface SurvivalWorldMapProps {
-  world: SurvivalWorld;
-  stages: SurvivalStage[];
-  highestCleared: number;
-  onSelectStage: (stage: SurvivalStage) => void;
+interface CampaignWorldMapProps {
+  world: CampaignWorld;
+  stages: DungeonStage[];
+  onSelectStage: (stage: DungeonStage) => void;
 }
 
-export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage }: SurvivalWorldMapProps) {
+export function CampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldMapProps) {
   const nodes = useMemo(() => buildNodes(stages), [stages]);
-  const nextStageNumber = highestCleared + 1;
-  const nextIndex = stages.findIndex((s) => s.stageNumber === nextStageNumber);
+  const nextIndex = useMemo(() => stages.findIndex((s) => !s.isCleared && !s.isLocked), [stages]);
   const progressEndIndex = nextIndex === -1 ? nodes.length - 1 : nextIndex;
 
   const fullPath = useMemo(() => buildPath(nodes), [nodes]);
@@ -84,22 +84,22 @@ export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage 
         <path
           d={progressPath}
           fill="none"
-          stroke="var(--color-neon)"
+          stroke="var(--color-gold)"
           strokeWidth={1.8}
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
         />
       </svg>
 
-      {nodes.map(({ stage, x, y }) => {
-        const isCleared = stage.stageNumber <= highestCleared;
-        const isNext = stage.stageNumber === nextStageNumber;
-        const isLocked = !isCleared && !isNext;
+      {nodes.map(({ stage, x, y }, i) => {
+        const isNext = i === nextIndex;
+        const isLocked = stage.isLocked;
 
         return (
           <button
             key={stage.id}
             onClick={() => onSelectStage(stage)}
+            disabled={isLocked}
             className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
             style={{ left: `${x}%`, top: `${y}%` }}
             aria-label={`${world.name} stage ${stage.worldStageNumber}: ${stage.name}`}
@@ -109,26 +109,28 @@ export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage 
                 isNext
                   ? {
                       boxShadow: [
-                        "0 0 0px 0px rgba(45,212,191,0)",
-                        "0 0 16px 6px rgba(45,212,191,0.6)",
-                        "0 0 0px 0px rgba(45,212,191,0)",
+                        "0 0 0px 0px rgba(255,184,77,0)",
+                        "0 0 16px 6px rgba(255,184,77,0.6)",
+                        "0 0 0px 0px rgba(255,184,77,0)",
                       ],
                     }
                   : undefined
               }
               transition={isNext ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : undefined}
-              whileTap={{ scale: 0.92 }}
+              whileTap={isLocked ? undefined : { scale: 0.92 }}
               className={cn(
                 "flex h-11 w-11 items-center justify-center rounded-full border-[3px] font-arcade text-xs font-bold shadow-md backdrop-blur-sm",
-                isCleared && "border-neon bg-neon text-white",
+                stage.isCleared && "border-gold bg-gold text-white",
                 isNext && "border-white bg-white/90 text-foreground",
                 isLocked && "border-white/40 bg-black/40 text-white/70"
               )}
             >
-              {isCleared ? (
+              {stage.isCleared ? (
                 <Check className="h-5 w-5" />
               ) : isLocked ? (
                 <Lock className="h-4 w-4" />
+              ) : isNext ? (
+                <Swords className="h-5 w-5" />
               ) : (
                 stage.worldStageNumber
               )}

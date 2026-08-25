@@ -86,10 +86,10 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500">
                 <Lock className="h-3.5 w-3.5" /> Clear the previous stage first
               </div>
-            ) : stage.id === "dg-stage-1" ? (
+            ) : stage.world === 1 ? (
               <Link href={`/combat?stage=${stage.id}`} className="mt-4 block" onClick={onClose}>
                 <PixelButton variant="gold" className="w-full">
-                  {stage.isCleared ? "Replay" : "Battle"}
+                  {stage.isCleared ? "Replay" : stage.worldStageNumber === 8 ? "Boss Battle" : "Battle"}
                 </PixelButton>
               </Link>
             ) : (

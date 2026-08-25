@@ -25,6 +25,10 @@ import { cn, formatNumber } from "@/lib/utils";
 
 // Stone-circle marker positions in /assets/campaign/world1_1.jpeg, as % of the image box.
 const STAGE1_ARENA_BG = "/assets/campaign/world1_1.jpeg";
+// One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
+// check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
+const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
+const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
 const STAGE1_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
   { side: "player", index: 0, left: "20.5%", top: "48%", direction: "south-east" },
   { side: "player", index: 1, left: "20.5%", top: "78%", direction: "south-east" },
@@ -34,7 +38,8 @@ const STAGE1_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top:
 
 interface BattleScreenProps {
   stage: DungeonStage;
-  playerCreatures: [Creature, Creature];
+  /** 1 or 2 creatures — Campaign no longer requires a full 2v2 lineup. */
+  playerCreatures: Creature[];
   enemyCreatures: [Creature, Creature];
   onRematch: () => void;
   onExit: () => void;
@@ -42,13 +47,9 @@ interface BattleScreenProps {
 
 type BattlePhase = "active" | "victory" | "defeat";
 
-function buildInitialCombatants(
-  playerCreatures: [Creature, Creature],
-  enemyCreatures: [Creature, Creature]
-): BattleCombatant[] {
+function buildInitialCombatants(playerCreatures: Creature[], enemyCreatures: [Creature, Creature]): BattleCombatant[] {
   return [
-    createCombatant(playerCreatures[0], "player", 0),
-    createCombatant(playerCreatures[1], "player", 1),
+    ...playerCreatures.map((creature, i) => createCombatant(creature, "player", i)),
     createCombatant(enemyCreatures[0], "enemy", 0),
     createCombatant(enemyCreatures[1], "enemy", 1),
   ];
@@ -57,6 +58,8 @@ function buildInitialCombatants(
 export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch, onExit }: BattleScreenProps) {
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
+  const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
+  const grantCreature = useGameStore((s) => s.grantCreature);
 
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
     buildInitialCombatants(playerCreatures, enemyCreatures)
@@ -74,6 +77,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     { id: nextLogId(), kind: "info", message: `${stage.name} — battle start!` },
   ]);
   const [rewardGranted, setRewardGranted] = useState(false);
+  const [gotFirstClearGift, setGotFirstClearGift] = useState(false);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -108,6 +112,14 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         setRewardGranted(true);
         addGold(stage.rewardGold);
         playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp));
+        // Read highestStageCleared *before* clearDungeonStage updates it — that's the only way to
+        // tell "first-ever clear of stage 1" apart from a replay after it's already been cleared.
+        const isFirstStage1Clear =
+          stage.stageNumber === 1 && useGameStore.getState().dungeon.highestStageCleared === 0;
+        clearDungeonStage(stage.stageNumber);
+        if (isFirstStage1Clear && grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID)) {
+          setGotFirstClearGift(true);
+        }
       }
       return;
     }
@@ -166,7 +178,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
       {hasStage1Arena ? (
         <div
-          className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
+          className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm sm:max-w-md lg:max-w-lg xl:max-w-xl"
           style={{ aspectRatio: "704 / 1189" }}
         >
           <Image
@@ -174,7 +186,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             alt=""
             fill
             priority
-            sizes="(max-width: 640px) 100vw, 384px"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 448px, (max-width: 1280px) 512px, 576px"
             className="object-cover"
           />
           {STAGE1_SLOTS.map((slot) => {
@@ -338,13 +350,20 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
               {phase === "victory" ? "Victory!" : "Defeat"}
             </h2>
             {phase === "victory" ? (
-              <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-                <span className="inline-flex items-center gap-1">
-                  <Coins className="h-3.5 w-3.5 text-gold-bright" /> +{formatNumber(stage.rewardGold)}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp} EXP each
-                </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
+                  <span className="inline-flex items-center gap-1">
+                    <Coins className="h-3.5 w-3.5 text-gold-bright" /> +{formatNumber(stage.rewardGold)}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp} EXP each
+                  </span>
+                </div>
+                {gotFirstClearGift && (
+                  <p className="font-arcade text-[10px] uppercase glow-text-gold">
+                    {FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-xs text-zinc-500">Your team was defeated. Give it another shot!</p>

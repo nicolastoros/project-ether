@@ -41,7 +41,7 @@ export function TeamSelectScreen({
           <h1 className="font-arcade text-lg glow-text-gold">
             World {stage.world}-{stage.worldStageNumber}
           </h1>
-          <p className="text-xs text-zinc-500">{stage.name} — choose 2 creatures for this 2v2 battle.</p>
+          <p className="text-xs text-zinc-500">{stage.name} — choose 1 or 2 creatures for this battle.</p>
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export function TeamSelectScreen({
       <div className="sticky bottom-3">
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3">
           <p className="text-xs text-zinc-500">{selectedIds.length}/2 creatures selected</p>
-          <PixelButton variant="neon" disabled={selectedIds.length !== 2} onClick={onStart}>
+          <PixelButton variant="neon" disabled={selectedIds.length === 0} onClick={onStart}>
             Start Battle
           </PixelButton>
         </GlowPanel>
