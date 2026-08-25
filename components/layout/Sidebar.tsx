@@ -49,7 +49,7 @@ export function Sidebar() {
   const router = useRouter();
 
   return (
-    <aside className="sidebar-surface sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex">
+    <aside className="sidebar-surface sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex">
       <nav className="scrollbar-hidden relative flex-1 overflow-y-auto px-3 pb-4 pt-5">
         {NAV_GROUPS.map((group) => (
           <div key={group.title} className="mb-6">

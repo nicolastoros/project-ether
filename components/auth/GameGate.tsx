@@ -62,7 +62,7 @@ export function GameGate({ children }: { children: ReactNode }) {
 
   if (!hasHydrated || status === "loading" || status === "unauthenticated") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-arcade-bg">
+      <div className="flex min-h-dvh items-center justify-center bg-arcade-bg">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
       </div>
     );

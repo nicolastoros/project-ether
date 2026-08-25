@@ -102,7 +102,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-arcade-bg bg-arcade-grid px-4 py-10">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-arcade-bg bg-arcade-grid px-4 py-10">
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <h1 className="font-arcade text-xl leading-tight glow-text-gold sm:text-2xl">
           CREAR PERSONAJE
