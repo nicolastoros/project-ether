@@ -78,8 +78,11 @@ CLUSTER BY user_id;
 -- Economía (cambia todo el tiempo -> primera candidata a vivir en Cloud SQL en vez de acá)
 CREATE TABLE `project-scrappy-intelic.project_ether.user_currencies` (
   user_id               STRING NOT NULL,
-  gold                  INT64 DEFAULT 0,
-  gems                  INT64 DEFAULT 0,
+  gold                  INT64 DEFAULT 0,   -- ícono: gold_coin.png — se gana en Campaign/Survival
+  gems                  INT64 DEFAULT 0,   -- ícono: crown.png ("Crown" en la UI) — moneda de pago
+  seal_coins            INT64 DEFAULT 0,   -- añadida via ALTER TABLE; ícono seal_coin.png — la
+                                            -- sueltan las etapas de Campaign (DungeonStage.equipmentDropChance),
+                                            -- se gasta crafteando equipo del Tamer
   energy                INT64 DEFAULT 0,
   energy_max            INT64 DEFAULT 120,
   energy_regen_minutes  INT64 DEFAULT 5,
@@ -88,6 +91,18 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_currencies` (
   PRIMARY KEY (user_id) NOT ENFORCED,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 );
+
+-- Equipo del Tamer (el avatar del jugador, NO sus Digimon — eso sigue siendo user_equipment).
+-- Una fila por pieza poseída; sin "copies" ni "enhancement_level" todavía, cada pieza es única.
+CREATE TABLE `project-scrappy-intelic.project_ether.user_tamer_equipment` (
+  id           STRING DEFAULT GENERATE_UUID(),
+  user_id      STRING NOT NULL,
+  item_id      STRING NOT NULL,   -- coincide con el id en lib/gameData.ts TAMER_EQUIPMENT_CATALOG
+  acquired_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (id) NOT ENFORCED,
+  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+)
+CLUSTER BY user_id;
 ```
 
 ## 4. Catálogo de contenido (monstruos, skills, equipo, items, etapas, misiones, banners)

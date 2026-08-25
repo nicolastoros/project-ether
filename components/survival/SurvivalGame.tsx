@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Coins, Gem, Pause, Play, Sparkles, Swords, Timer } from "lucide-react";
+import { Pause, Play, Sparkles, Swords, Timer } from "lucide-react";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { CrownIcon } from "@/components/icons/CrownIcon";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -586,10 +588,10 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
             </div>
             <div className="flex items-center justify-center gap-4 text-sm font-semibold text-foreground">
               <span className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-gold-bright" /> +{stage.rewardGold}
+                <GoldCoinIcon className="h-4 w-4" /> +{stage.rewardGold}
               </span>
               <span className="flex items-center gap-1">
-                <Gem className="h-4 w-4 text-violet-500" /> +{stage.rewardGems}
+                <CrownIcon className="h-4 w-4" /> +{stage.rewardGems}
               </span>
             </div>
             <PixelButton variant="neon" className="w-full" onClick={onExit}>

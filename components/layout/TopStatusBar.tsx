@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Coins, Gem, UserCircle2, LogOut } from "lucide-react";
+import { UserCircle2, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { CrownIcon } from "@/components/icons/CrownIcon";
 
 export function TopStatusBar() {
   const profile = useGameStore((s) => s.profile);
@@ -30,8 +32,8 @@ export function TopStatusBar() {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <CurrencyPill icon={Coins} value={currencies.gold} iconClassName="text-gold-bright" />
-          <CurrencyPill icon={Gem} value={currencies.gems} iconClassName="text-neon" />
+          <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5" />} value={currencies.gold} />
+          <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5" />} value={currencies.gems} />
           <button
             onClick={async () => {
               await signOut({ redirect: false });

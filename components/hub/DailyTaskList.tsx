@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, Coins, Gem } from "lucide-react";
+import { Check } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { CrownIcon } from "@/components/icons/CrownIcon";
 import { cn } from "@/lib/utils";
 
 export function DailyTaskList() {
@@ -33,13 +35,13 @@ export function DailyTaskList() {
               <div className="flex shrink-0 items-center gap-2">
                 {task.rewardGold ? (
                   <span className="flex items-center gap-0.5 text-[10px] text-gold-bright">
-                    <Coins className="h-3 w-3" />
+                    <GoldCoinIcon className="h-3 w-3" />
                     {task.rewardGold}
                   </span>
                 ) : null}
                 {task.rewardGems ? (
                   <span className="flex items-center gap-0.5 text-[10px] text-neon">
-                    <Gem className="h-3 w-3" />
+                    <CrownIcon className="h-3 w-3" />
                     {task.rewardGems}
                   </span>
                 ) : null}

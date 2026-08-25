@@ -4,11 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Coins, RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { useGameStore } from "@/lib/store";
-import { grantCreatureOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { grantCreatureOnServer, grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import {
   applyAction,
   createCombatant,
@@ -62,6 +65,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
   const grantCreature = useGameStore((s) => s.grantCreature);
+  const addSealCoins = useGameStore((s) => s.addSealCoins);
+  const grantTamerEquipment = useGameStore((s) => s.grantTamerEquipment);
 
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
     buildInitialCombatants(playerCreatures, enemyCreatures)
@@ -81,6 +86,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [rewardGranted, setRewardGranted] = useState(false);
   const [firstClearGift, setFirstClearGift] = useState<{ isNew: boolean; copies: number } | null>(null);
   const [rewardMultiplier, setRewardMultiplier] = useState(1);
+  const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
+  const [tamerGearGranted, setTamerGearGranted] = useState<string | null>(null);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -133,9 +140,30 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             grantCreatureOnServer(FIRST_CLEAR_GIFT_CREATURE_ID);
           }
         }
-        // Push the stage-clear (and this fight's EXP gains) right away rather than waiting up to
-        // 60s for GameGate's periodic sync — losing a just-earned stage clear to a closed tab
-        // would be a much worse experience than the sync itself failing silently.
+
+        // Seal Coins: every Campaign stage has a chance to drop one, using the same
+        // DungeonStage.equipmentDropChance field the stage-detail screen already shows —
+        // harder stages already roll a higher % there, so no separate curve to design.
+        if (Math.random() * 100 < stage.equipmentDropChance) {
+          setSealCoinsDropped(1);
+          addSealCoins(1);
+        }
+
+        // Tamer gear: World 1's free Crimson pieces come from specific stage clears (only on a
+        // genuine first clear of that stage, same as the Dragoon gift, so replays don't re-grant).
+        if (isFirstClearOfThisStage) {
+          const tamerPiece = TAMER_EQUIPMENT_CATALOG.find(
+            (t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id
+          );
+          if (tamerPiece && grantTamerEquipment(tamerPiece.id)) {
+            setTamerGearGranted(tamerPiece.name);
+            grantTamerEquipmentOnServer(tamerPiece.id);
+          }
+        }
+
+        // Push the stage-clear (and this fight's EXP/currency gains) right away rather than
+        // waiting up to 60s for GameGate's periodic sync — losing just-earned progress to a
+        // closed tab would be a much worse experience than the sync itself failing silently.
         syncProgressToServer();
       }
       return;
@@ -375,17 +403,27 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                 )}
                 <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
                   <span className="inline-flex items-center gap-1">
-                    <Coins className="h-3.5 w-3.5 text-gold-bright" /> +{formatNumber(stage.rewardGold * rewardMultiplier)}
+                    <GoldCoinIcon className="h-3.5 w-3.5" /> +{formatNumber(stage.rewardGold * rewardMultiplier)}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * rewardMultiplier} EXP each
                   </span>
+                  {sealCoinsDropped > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <SealCoinIcon className="h-3.5 w-3.5" /> +{sealCoinsDropped}
+                    </span>
+                  )}
                 </div>
                 {firstClearGift && (
                   <p className="font-arcade text-[10px] uppercase glow-text-gold">
                     {firstClearGift.isNew
                       ? `${FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!`
                       : `+1 ${FIRST_CLEAR_GIFT_CREATURE_NAME} copy! (×${firstClearGift.copies} owned)`}
+                  </p>
+                )}
+                {tamerGearGranted && (
+                  <p className="font-arcade text-[10px] uppercase glow-text-gold">
+                    {tamerGearGranted} unlocked for your Tamer!
                   </p>
                 )}
               </div>

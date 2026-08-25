@@ -11,6 +11,7 @@ import {
   PawPrint,
   UserPlus,
   Shield,
+  Shirt,
 } from "lucide-react";
 
 export interface NavItem {
@@ -42,6 +43,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/monsters", label: "Monsters", icon: PawPrint },
       { href: "/party", label: "Party", icon: Users },
       { href: "/inventory", label: "Inventory", icon: ShieldHalf },
+      { href: "/tamer", label: "Tamer", icon: Shirt },
     ],
   },
   {

@@ -1,15 +1,16 @@
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils";
 
 interface CurrencyPillProps {
-  icon: LucideIcon;
+  /** An already-rendered icon element, e.g. <GoldCoinIcon className="h-3.5 w-3.5" /> or a Lucide
+   * icon like <Coins className="h-3.5 w-3.5" /> — size it directly rather than via iconClassName. */
+  icon: ReactNode;
   value: number;
-  iconClassName?: string;
   className?: string;
 }
 
-export function CurrencyPill({ icon: Icon, value, iconClassName, className }: CurrencyPillProps) {
+export function CurrencyPill({ icon, value, className }: CurrencyPillProps) {
   return (
     <div
       className={cn(
@@ -17,7 +18,7 @@ export function CurrencyPill({ icon: Icon, value, iconClassName, className }: Cu
         className
       )}
     >
-      <Icon className={cn("h-3.5 w-3.5 shrink-0", iconClassName)} />
+      {icon}
       <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
         {formatNumber(value)}
       </span>

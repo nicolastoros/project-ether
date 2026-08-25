@@ -163,6 +163,7 @@ export interface AccountBundle {
   currencies: {
     gold: number;
     gems: number;
+    sealCoins: number;
     energy: number;
     energyMax: number;
     energyRegenMinutes: number;
@@ -192,46 +193,55 @@ export interface AccountBundle {
     enhancementLevel: number;
     equippedTo: string | null;
   }[];
+  tamerEquipment: { itemId: string }[];
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
-  const [userResult, currencyResult, dungeonResult, creatureResult, equipmentResult] = await Promise.all([
-    bq().query({
-      query: `
+  const [userResult, currencyResult, dungeonResult, creatureResult, equipmentResult, tamerResult] =
+    await Promise.all([
+      bq().query({
+        query: `
         SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
-      params: { userId },
-    }),
-    bq().query({
-      query: `
-        SELECT gold, gems, energy, energy_max, energy_regen_minutes
+        params: { userId },
+      }),
+      bq().query({
+        query: `
+        SELECT gold, gems, seal_coins, energy, energy_max, energy_regen_minutes
         FROM ${table("user_currencies")} WHERE user_id = @userId LIMIT 1
       `,
-      params: { userId },
-    }),
-    bq().query({
-      query: `
+        params: { userId },
+      }),
+      bq().query({
+        query: `
         SELECT highest_stage_cleared, current_wave, auto_battle_enabled, auto_dg_enabled, speed_multiplier
         FROM ${table("user_dungeon_state")} WHERE user_id = @userId LIMIT 1
       `,
-      params: { userId },
-    }),
-    bq().query({
-      query: `
+        params: { userId },
+      }),
+      bq().query({
+        query: `
         SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies
         FROM ${table("user_creatures")} WHERE user_id = @userId ORDER BY acquired_at
       `,
-      params: { userId },
-    }),
-    bq().query({
-      query: `
+        params: { userId },
+      }),
+      bq().query({
+        query: `
         SELECT equipment_id, enhancement_level, equipped_to
         FROM ${table("user_equipment")} WHERE user_id = @userId ORDER BY acquired_at
       `,
-      params: { userId },
-    }),
-  ]);
+        params: { userId },
+      }),
+      bq().query({
+        query: `
+        SELECT item_id
+        FROM ${table("user_tamer_equipment")} WHERE user_id = @userId ORDER BY acquired_at
+      `,
+        params: { userId },
+      }),
+    ]);
 
   const userRow = userResult[0][0];
   if (!userRow) return null;
@@ -239,6 +249,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const dungeonRow = dungeonResult[0][0];
   const creatureRows = creatureResult[0];
   const equipmentRows = equipmentResult[0];
+  const tamerRows = tamerResult[0];
 
   return {
     profile: {
@@ -256,11 +267,12 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       ? {
           gold: currencyRow.gold,
           gems: currencyRow.gems,
+          sealCoins: currencyRow.seal_coins ?? 0,
           energy: currencyRow.energy,
           energyMax: currencyRow.energy_max,
           energyRegenMinutes: currencyRow.energy_regen_minutes,
         }
-      : { gold: 0, gems: 0, energy: 0, energyMax: 120, energyRegenMinutes: 5 },
+      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 120, energyRegenMinutes: 5 },
     dungeon: dungeonRow
       ? {
           highestStageCleared: dungeonRow.highest_stage_cleared,
@@ -288,6 +300,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       enhancementLevel: row.enhancement_level,
       equippedTo: row.equipped_to ?? null,
     })),
+    tamerEquipment: tamerRows.map((row) => ({ itemId: row.item_id })),
   };
 }
 
@@ -301,6 +314,10 @@ export async function syncPlayerProgress(
     /** Highest Campaign stage cleared — only ever moves up (GREATEST), so an out-of-order sync
      * (e.g. two tabs) can't accidentally roll progress back. */
     dungeonHighestStageCleared?: number;
+    /** Wasn't synced at all before — gold/gems/sealCoins earned in a session only ever lived in
+     * the browser, silently reverting to whatever was last written at account-creation time on
+     * the next fresh hydrate. */
+    currencies?: { gold: number; gems: number; sealCoins: number };
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -351,6 +368,19 @@ export async function syncPlayerProgress(
           WHERE user_id = @userId
         `,
         params: { userId, value: opts.dungeonHighestStageCleared },
+      })
+    );
+  }
+
+  if (opts.currencies) {
+    queries.push(
+      bq().query({
+        query: `
+          UPDATE ${table("user_currencies")}
+          SET gold = @gold, gems = @gems, seal_coins = @sealCoins, updated_at = CURRENT_TIMESTAMP()
+          WHERE user_id = @userId
+        `,
+        params: { userId, ...opts.currencies },
       })
     );
   }
@@ -407,4 +437,23 @@ export async function grantCreatureToUser(
     },
   });
   return { isNew: true, copies: 1 };
+}
+
+/** Adds a Tamer gear piece to the account — a no-op if already owned (each piece is unique, no
+ * copies concept for gear). Used both for the free Campaign-clear pieces and crafted ones. */
+export async function grantTamerEquipmentToUser(userId: string, itemId: string): Promise<{ isNew: boolean }> {
+  const [existingRows] = await bq().query({
+    query: `SELECT 1 FROM ${table("user_tamer_equipment")} WHERE user_id = @userId AND item_id = @itemId LIMIT 1`,
+    params: { userId, itemId },
+  });
+  if (existingRows.length > 0) return { isNew: false };
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("user_tamer_equipment")} (id, user_id, item_id)
+      VALUES (@id, @userId, @itemId)
+    `,
+    params: { id: randomUUID(), userId, itemId },
+  });
+  return { isNew: true };
 }

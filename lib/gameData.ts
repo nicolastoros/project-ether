@@ -8,6 +8,7 @@ import type {
   GuildInfo,
   PvpOpponent,
   Skill,
+  TamerEquipment,
   UserProfile,
 } from "@/types/game";
 
@@ -39,6 +40,7 @@ export const STARTER_CREATURES: Creature[] = [
     expToNextLevel: 600,
     stage: 1,
     spriteKey: "emberling",
+    spriteFolder: "/assets/creatures/emberling/idle",
     baseStats: { hp: 620, atk: 148, def: 76, spd: 104 },
     skills: [
       skill("sk-em-1", "Cinder Claw", "A blazing slash dealing fire damage to one enemy.", "Attack", 140, 0),
@@ -356,6 +358,57 @@ export const STARTER_EQUIPMENT: Equipment[] = [
     rarity: "Common",
     enhancementLevel: 1,
     baseStats: { hp: 90, def: 22 },
+  },
+];
+
+// The Tamer's first gear set. Hat + Shoulders are one-time Campaign clear rewards (World 1's
+// stage 5 and its final/boss stage — see BattleScreen.tsx's TAMER_SET_STAGE_REWARDS); the rest
+// is crafted with Seal Coins, which Campaign stages also drop (DungeonStage.equipmentDropChance).
+export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
+  {
+    id: "tamer-crimson-hat",
+    name: "Crimson Hood",
+    slot: "Hat",
+    rarity: "SSR",
+    setName: "Crimson",
+    icon: "/assets/objects/tamer_gear/crimson_hat.png",
+    source: { kind: "campaign-clear", stageId: "dg-stage-5" },
+  },
+  {
+    id: "tamer-crimson-shoulders",
+    name: "Crimson Shoulders",
+    slot: "Shoulders",
+    rarity: "SSR",
+    setName: "Crimson",
+    icon: "/assets/objects/tamer_gear/crimson_shoulders.png",
+    source: { kind: "campaign-clear", stageId: "dg-stage-8" },
+  },
+  {
+    id: "tamer-crimson-chest",
+    name: "Crimson Chestplate",
+    slot: "Chest",
+    rarity: "SSR",
+    setName: "Crimson",
+    icon: "/assets/objects/tamer_gear/crimson_chest.png",
+    source: { kind: "craft", sealCoinCost: 20 },
+  },
+  {
+    id: "tamer-crimson-legs",
+    name: "Crimson Greaves",
+    slot: "Legs",
+    rarity: "SSR",
+    setName: "Crimson",
+    icon: "/assets/objects/tamer_gear/crimson_legs.png",
+    source: { kind: "craft", sealCoinCost: 15 },
+  },
+  {
+    id: "tamer-crimson-shoes",
+    name: "Crimson Boots",
+    slot: "Shoes",
+    rarity: "SSR",
+    setName: "Crimson",
+    icon: "/assets/objects/tamer_gear/crimson_shoes.png",
+    source: { kind: "craft", sealCoinCost: 15 },
   },
 ];
 

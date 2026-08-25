@@ -2,9 +2,11 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { X, Lock, Zap, Coins, Sparkles } from "lucide-react";
+import { X, Lock, Zap } from "lucide-react";
 import type { DungeonStage, DungeonDifficulty } from "@/types/game";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatNumber } from "@/lib/utils";
 
 const DIFFICULTY_STYLES: Record<DungeonDifficulty, string> = {
@@ -67,14 +69,14 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
                 <p className="text-[8px] uppercase tracking-wide text-zinc-500">Stamina</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
-                <Coins className="mx-auto h-3.5 w-3.5 text-gold-bright" />
+                <GoldCoinIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{formatNumber(stage.rewardGold)}</p>
                 <p className="text-[8px] uppercase tracking-wide text-zinc-500">Gold</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
-                <Sparkles className="mx-auto h-3.5 w-3.5 text-violet-500" />
+                <SealCoinIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{stage.equipmentDropChance}%</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Drop</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Seal Coin</p>
               </div>
             </div>
 

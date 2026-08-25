@@ -80,9 +80,28 @@ export interface Creature {
 export interface Currencies {
   gold: number;
   gems: number;
+  /** Event/crafting currency dropped by Campaign stages — spent crafting Tamer gear. */
+  sealCoins: number;
   energy: number;
   energyMax: number;
   energyRegenMinutes: number; // minutes per +1 energy
+}
+
+// The Tamer is the player's own on-screen avatar, distinct from their Digimon — its gear is
+// tracked separately from Creature.equipment (which is per-creature, e.g. weapons/armor for a
+// specific monster). Slot list is deliberately small for now; more will join Chest/Hat/etc. as
+// more sets are added.
+export type TamerSlotType = "Chest" | "Hat" | "Legs" | "Shoes" | "Shoulders" | "Gloves" | "Aura" | "Wings";
+
+export interface TamerEquipment {
+  id: string;
+  name: string;
+  slot: TamerSlotType;
+  rarity: Rarity;
+  setName: string;
+  icon: string;
+  /** How this piece is obtained — shown in the Tamer tab so a locked piece explains itself. */
+  source: { kind: "campaign-clear"; stageId: string } | { kind: "craft"; sealCoinCost: number };
 }
 
 export interface DungeonProgress {

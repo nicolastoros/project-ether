@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Lock, Coins, Gem } from "lucide-react";
+import { X, Lock } from "lucide-react";
 import type { SurvivalStage } from "@/lib/survivalStages";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { CrownIcon } from "@/components/icons/CrownIcon";
 import { formatNumber } from "@/lib/utils";
 
 function formatTargetTime(seconds: number): string {
@@ -59,14 +61,14 @@ export function SurvivalStageModal({ stage, isLocked, isCleared, onClose, onStar
 
             <div className="mt-3 grid grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
-                <Coins className="mx-auto h-3.5 w-3.5 text-gold-bright" />
+                <GoldCoinIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{formatNumber(stage.rewardGold)}</p>
                 <p className="text-[8px] uppercase tracking-wide text-zinc-500">Gold</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
-                <Gem className="mx-auto h-3.5 w-3.5 text-violet-500" />
+                <CrownIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{stage.rewardGems}</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Gems</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Crowns</p>
               </div>
             </div>
 

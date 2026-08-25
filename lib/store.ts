@@ -6,6 +6,7 @@ import type {
   DailyTask,
   DungeonProgress,
   Equipment,
+  TamerEquipment,
   UserProfile,
 } from "@/types/game";
 import {
@@ -14,6 +15,7 @@ import {
   HUB_TEAM_SIZE,
   STARTER_CREATURES,
   STARTER_EQUIPMENT,
+  TAMER_EQUIPMENT_CATALOG,
 } from "@/lib/gameData";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
@@ -53,6 +55,10 @@ interface GameState {
   hubTeamIds: string[];
   lastExpTickAt: number;
   inventory: Equipment[];
+  /** Tamer gear owned by the player — unlike creature Equipment, there's no separate "equipped"
+   * step yet: each slot has at most one obtainable item so far, so owning a piece means wearing
+   * it. See types/game.ts's TamerEquipment comment. */
+  tamerInventory: TamerEquipment[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
@@ -80,12 +86,21 @@ interface GameState {
   spendGold: (amount: number) => boolean;
   addGems: (amount: number) => void;
   spendGems: (amount: number) => boolean;
+  addSealCoins: (amount: number) => void;
+  spendSealCoins: (amount: number) => boolean;
   spendEnergy: (amount: number) => boolean;
   regenEnergy: (amount: number) => void;
 
   equipItem: (creatureId: string, equipmentId: string) => void;
   unequipItem: (creatureId: string, equipmentId: string) => void;
   enhanceEquipment: (equipmentId: string) => void;
+
+  /** Adds a Tamer gear piece if not already owned — a no-op (returns false) if it's already
+   * owned, since there's nothing to stack (unlike Creature.copies). */
+  grantTamerEquipment: (itemId: string) => boolean;
+  /** Spends Seal Coins to craft a Tamer gear piece (its cost comes from TAMER_EQUIPMENT_CATALOG's
+   * "craft" source) — false if already owned, not craftable, or not enough Seal Coins. */
+  craftTamerEquipment: (itemId: string) => boolean;
 
   toggleAutoBattle: () => void;
   toggleAutoDg: () => void;
@@ -104,6 +119,7 @@ export const useGameStore = create<GameState>()(
       currencies: {
         gold: 45230,
         gems: 1280,
+        sealCoins: 0,
         energy: 82,
         energyMax: 120,
         energyRegenMinutes: 5,
@@ -114,6 +130,7 @@ export const useGameStore = create<GameState>()(
       hubTeamIds: STARTER_CREATURES.slice(0, HUB_TEAM_SIZE).map((c) => c.id),
       lastExpTickAt: Date.now(),
       inventory: STARTER_EQUIPMENT,
+      tamerInventory: [],
       dungeon: {
         highestStageCleared: 0,
         currentWave: 0,
@@ -160,6 +177,11 @@ export const useGameStore = create<GameState>()(
           }
         }
 
+        const tamerCatalogById = new Map(TAMER_EQUIPMENT_CATALOG.map((t) => [t.id, t]));
+        const tamerInventory = bundle.tamerEquipment
+          .map((owned) => tamerCatalogById.get(owned.itemId))
+          .filter((t): t is TamerEquipment => t !== undefined);
+
         set({
           profile: {
             id: bundle.profile.id,
@@ -178,6 +200,7 @@ export const useGameStore = create<GameState>()(
           hubTeamIds,
           lastExpTickAt: Date.now(),
           inventory,
+          tamerInventory,
           dungeon: bundle.dungeon,
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
@@ -191,6 +214,7 @@ export const useGameStore = create<GameState>()(
           currencies: {
             gold: 0,
             gems: 0,
+            sealCoins: 0,
             energy: 0,
             energyMax: 120,
             energyRegenMinutes: 5,
@@ -200,6 +224,7 @@ export const useGameStore = create<GameState>()(
           partyCreatureIds: [null, null, null],
           hubTeamIds: [],
           inventory: [],
+          tamerInventory: [],
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -308,6 +333,18 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
+      addSealCoins: (amount) =>
+        set((state) => ({
+          currencies: { ...state.currencies, sealCoins: state.currencies.sealCoins + amount },
+        })),
+
+      spendSealCoins: (amount) => {
+        const { currencies } = get();
+        if (currencies.sealCoins < amount) return false;
+        set({ currencies: { ...currencies, sealCoins: currencies.sealCoins - amount } });
+        return true;
+      },
+
       spendEnergy: (amount) => {
         const { currencies } = get();
         if (currencies.energy < amount) return false;
@@ -364,6 +401,28 @@ export const useGameStore = create<GameState>()(
               : eq
           ),
         })),
+
+      grantTamerEquipment: (itemId) => {
+        const { tamerInventory } = get();
+        if (tamerInventory.some((t) => t.id === itemId)) return false;
+        const item = TAMER_EQUIPMENT_CATALOG.find((t) => t.id === itemId);
+        if (!item) return false;
+        set({ tamerInventory: [...tamerInventory, item] });
+        return true;
+      },
+
+      craftTamerEquipment: (itemId) => {
+        const { tamerInventory, currencies } = get();
+        if (tamerInventory.some((t) => t.id === itemId)) return false;
+        const item = TAMER_EQUIPMENT_CATALOG.find((t) => t.id === itemId);
+        if (!item || item.source.kind !== "craft") return false;
+        if (currencies.sealCoins < item.source.sealCoinCost) return false;
+        set({
+          currencies: { ...currencies, sealCoins: currencies.sealCoins - item.source.sealCoinCost },
+          tamerInventory: [...tamerInventory, item],
+        });
+        return true;
+      },
 
       toggleAutoBattle: () =>
         set((state) => ({
@@ -453,6 +512,17 @@ export const useGameStore = create<GameState>()(
             ? { ...item, enhancementLevel: saved.enhancementLevel, equippedTo: saved.equippedTo }
             : saved;
         });
+
+        // Tamer gear has no per-owner mutable fields (no level/exp) — just re-resolve each
+        // owned id against the current catalog, dropping any that no longer exist.
+        const tamerCatalogById = new Map(TAMER_EQUIPMENT_CATALOG.map((t) => [t.id, t]));
+        merged.tamerInventory = (persisted.tamerInventory ?? [])
+          .map((saved) => tamerCatalogById.get(saved.id))
+          .filter((t): t is TamerEquipment => t !== undefined);
+
+        // Defends against a pre-sealCoins localStorage snapshot, where persisted.currencies
+        // exists but has no sealCoins field at all (would otherwise merge in as undefined).
+        merged.currencies = { ...merged.currencies, sealCoins: merged.currencies.sealCoins ?? 0 };
 
         return merged;
       },

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Gem } from "lucide-react";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { CrownIcon } from "@/components/icons/CrownIcon";
 import type { Creature } from "@/types/game";
 
 function rollCreatures(pool: Creature[], count: number): Creature[] {
@@ -51,7 +51,7 @@ export default function GachaPage() {
           >
             <span>Summon x1</span>
             <span className="flex items-center gap-1 text-[10px] font-normal normal-case text-zinc-500 lg:text-xs">
-              <Gem className="h-3 w-3 text-neon" /> {banner.singlePullCost}
+              <CrownIcon className="h-3 w-3" /> {banner.singlePullCost}
             </span>
           </PixelButton>
           <PixelButton
@@ -62,7 +62,7 @@ export default function GachaPage() {
           >
             <span>Summon x{banner.multiPullCount}</span>
             <span className="flex items-center gap-1 text-[10px] font-normal normal-case text-white/80 lg:text-xs">
-              <Gem className="h-3 w-3" /> {banner.multiPullCost}
+              <CrownIcon className="h-3 w-3" /> {banner.multiPullCost}
             </span>
           </PixelButton>
         </div>

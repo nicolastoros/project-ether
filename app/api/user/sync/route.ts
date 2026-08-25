@@ -25,6 +25,18 @@ function isSyncCreature(value: unknown): value is SyncCreature {
   );
 }
 
+interface SyncCurrencies {
+  gold: number;
+  gems: number;
+  sealCoins: number;
+}
+
+function isSyncCurrencies(value: unknown): value is SyncCurrencies {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Record<string, unknown>;
+  return typeof c.gold === "number" && typeof c.gems === "number" && typeof c.sealCoins === "number";
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -36,13 +48,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared } = body as Record<string, unknown>;
+  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies } = body as Record<
+    string,
+    unknown
+  >;
   if (
     typeof level !== "number" ||
     typeof exp !== "number" ||
     typeof expToNextLevel !== "number" ||
     !Array.isArray(creatures) ||
-    (dungeonHighestStageCleared !== undefined && typeof dungeonHighestStageCleared !== "number")
+    (dungeonHighestStageCleared !== undefined && typeof dungeonHighestStageCleared !== "number") ||
+    (currencies !== undefined && !isSyncCurrencies(currencies))
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
@@ -54,6 +70,7 @@ export async function POST(request: Request) {
       expToNextLevel,
       creatures: creatures.filter(isSyncCreature),
       dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
+      currencies: currencies as SyncCurrencies | undefined,
     });
   } catch (err) {
     console.error("Progress sync failed", err);
