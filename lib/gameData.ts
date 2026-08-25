@@ -163,7 +163,12 @@ export const STARTER_CREATURES: Creature[] = [
     stage: 3,
     spriteKey: "crimsonguardian",
     spriteFolder: "/assets/creatures/crimsonguardian/idle",
-    baseStats: { hp: 980, atk: 205, def: 138, spd: 92 },
+    // Mythic is the top rarity — every stat here clears the best non-Mythic value by a wide
+    // margin (previously SPD 92 was actually below several Rares/SSRs — Voltling's 140 is the
+    // highest non-Mythic SPD in the roster — letting lower-rarity creatures act first and
+    // undercutting "most powerful"). CrimsonGuardian leans tanky (HP/DEF) next to SilverDragon's
+    // swift-striker profile below.
+    baseStats: { hp: 1150, atk: 215, def: 150, spd: 148 },
     skills: [
       skill("sk-cg-1", "Blazing Judgment", "A sword strike wreathed in crimson flame on one enemy.", "Attack", 172, 0),
       skill("sk-cg-2", "Aegis of Embers", "Raises own DEF sharply for 2 turns with the ceremonial shield.", "Defense", 0, 3, 5),
@@ -184,7 +189,9 @@ export const STARTER_CREATURES: Creature[] = [
     stage: 3,
     spriteKey: "silverdragon",
     spriteFolder: "/assets/creatures/silverdragon/idle",
-    baseStats: { hp: 1040, atk: 198, def: 128, spd: 108 },
+    // Swift-striker Mythic profile (higher ATK/SPD, slightly less tanky than CrimsonGuardian
+    // above) — still clears every non-Mythic creature's HP/DEF too, just by a smaller margin.
+    baseStats: { hp: 1080, atk: 230, def: 135, spd: 150 },
     skills: [
       skill("sk-sd-1", "Radiant Fang", "A blessed bite crackling with electric light on one enemy.", "Attack", 168, 0),
       skill("sk-sd-2", "Sacred Scales", "Raises own DEF and SPD for 2 turns.", "Defense", 0, 3, 5),
