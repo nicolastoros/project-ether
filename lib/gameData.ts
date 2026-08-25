@@ -411,6 +411,11 @@ const STAGE_NAMES = [
 
 const HIGHEST_STAGE_CLEARED = 0;
 
+// Stage 1-2 are most players' very first wins — the normal formula's 120/160 EXP barely dents a
+// starter creature's next-level bar (they typically need ~260-270 more), so a win there wouldn't
+// visibly reward the player with a level-up. Bumped well above that gap for stages 1-2 only.
+const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
+
 export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
   const stageNumber = i + 1;
   const difficulty = stageNumber <= 8 ? "Normal" : stageNumber <= 16 ? "Hard" : "Nightmare";
@@ -426,7 +431,7 @@ export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
     staminaCost: 6 + Math.floor(stageNumber / 3),
     recommendedPower: 800 + stageNumber * 420,
     rewardGold: 300 + stageNumber * 180,
-    rewardExp: 80 + stageNumber * 40,
+    rewardExp: EARLY_STAGE_REWARD_EXP[stageNumber] ?? 80 + stageNumber * 40,
     equipmentDropChance: Math.min(45, 10 + stageNumber * 2),
     isLocked: stageNumber > HIGHEST_STAGE_CLEARED + 1,
     isCleared: stageNumber <= HIGHEST_STAGE_CLEARED,

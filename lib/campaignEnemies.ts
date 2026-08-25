@@ -12,17 +12,29 @@ const DRAGOON = findBase("cr-dragoon");
 const VOLTLING = findBase("cr-voltling");
 const TIDEWARDEN = findBase("cr-tidewarden");
 
+// Stages 1-2 are most players' very first fights — often fought with only 1-2 starter
+// creatures against a full 2-enemy team, with no reinforcements possible yet. Damping enemy HP
+// well below the normal growth curve there keeps fights from dragging on, and a lighter ATK
+// damping keeps 2 enemies' combined damage per round from just outracing a solo creature's own
+// HP pool before it can even land the hits HP alone would need — DEF is left untouched. Stage 1
+// gets the bigger cut since it's commonly fought solo, before the stage-1-clear Dragoon gift
+// arrives; stage 2 eases back toward the normal curve.
+const EARLY_STAGE_HP_DAMPING: Record<number, number> = { 1: 0.4, 2: 0.65 };
+const EARLY_STAGE_ATK_DAMPING: Record<number, number> = { 1: 0.65, 2: 0.85 };
+
 /** Scales a catalog creature up for a given world-1 stage — a boss gets an extra bump on top
  * of the normal per-stage growth, so it clearly outclasses the regular stages leading into it. */
 function scaleForStage(base: Creature, worldStageNumber: number, isBoss: boolean): Creature {
   const growth = 1 + (worldStageNumber - 1) * 0.15;
   const mult = isBoss ? growth * 1.5 : growth;
+  const hpMult = mult * (EARLY_STAGE_HP_DAMPING[worldStageNumber] ?? 1);
+  const atkMult = mult * (EARLY_STAGE_ATK_DAMPING[worldStageNumber] ?? 1);
   return {
     ...base,
     level: Math.round(base.level + worldStageNumber * (isBoss ? 3 : 1.5)),
     baseStats: {
-      hp: Math.round(base.baseStats.hp * mult),
-      atk: Math.round(base.baseStats.atk * mult),
+      hp: Math.round(base.baseStats.hp * hpMult),
+      atk: Math.round(base.baseStats.atk * atkMult),
       def: Math.round(base.baseStats.def * mult),
       spd: Math.round(base.baseStats.spd * (1 + (worldStageNumber - 1) * 0.03)),
     },

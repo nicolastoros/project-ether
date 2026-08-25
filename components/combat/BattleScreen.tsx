@@ -78,6 +78,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   ]);
   const [rewardGranted, setRewardGranted] = useState(false);
   const [gotFirstClearGift, setGotFirstClearGift] = useState(false);
+  const [rewardMultiplier, setRewardMultiplier] = useState(1);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -110,12 +111,16 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Victory! All enemies defeated." }]);
       if (!rewardGranted) {
         setRewardGranted(true);
-        addGold(stage.rewardGold);
-        playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp));
         // Read highestStageCleared *before* clearDungeonStage updates it — that's the only way to
-        // tell "first-ever clear of stage 1" apart from a replay after it's already been cleared.
-        const isFirstStage1Clear =
-          stage.stageNumber === 1 && useGameStore.getState().dungeon.highestStageCleared === 0;
+        // tell a genuine first clear (of this stage, or specifically of stage 1 for the Dragoon
+        // gift below) apart from a replay after it's already been cleared.
+        const highestBefore = useGameStore.getState().dungeon.highestStageCleared;
+        const isFirstClearOfThisStage = stage.stageNumber > highestBefore;
+        const multiplier = isFirstClearOfThisStage ? 2 : 1;
+        setRewardMultiplier(multiplier);
+        addGold(stage.rewardGold * multiplier);
+        playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * multiplier));
+        const isFirstStage1Clear = stage.stageNumber === 1 && highestBefore === 0;
         clearDungeonStage(stage.stageNumber);
         if (isFirstStage1Clear && grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID)) {
           setGotFirstClearGift(true);
@@ -351,12 +356,17 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             </h2>
             {phase === "victory" ? (
               <div className="space-y-2">
+                {rewardMultiplier > 1 && (
+                  <p className="font-arcade text-[9px] uppercase tracking-wide text-gold-bright">
+                    First Clear Bonus ×2
+                  </p>
+                )}
                 <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
                   <span className="inline-flex items-center gap-1">
-                    <Coins className="h-3.5 w-3.5 text-gold-bright" /> +{formatNumber(stage.rewardGold)}
+                    <Coins className="h-3.5 w-3.5 text-gold-bright" /> +{formatNumber(stage.rewardGold * rewardMultiplier)}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp} EXP each
+                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * rewardMultiplier} EXP each
                   </span>
                 </div>
                 {gotFirstClearGift && (
