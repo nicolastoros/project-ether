@@ -1,5 +1,9 @@
-import { SurvivalGame } from "@/components/survival/SurvivalGame";
+import { SurvivalHome } from "@/components/survival/SurvivalHome";
 
 export default function SurvivalPage() {
-  return <SurvivalGame />;
+  return (
+    <div className="h-full">
+      <SurvivalHome />
+    </div>
+  );
 }

@@ -55,6 +55,8 @@ interface GameState {
   inventory: Equipment[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
+  /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
+  survivalHighestStageCleared: number;
   hasHydrated: boolean;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
@@ -84,6 +86,8 @@ interface GameState {
   toggleAutoDg: () => void;
   setSpeedMultiplier: (speed: 1 | 2 | 4) => void;
 
+  clearSurvivalStage: (stageNumber: number) => void;
+
   claimTask: (taskId: string) => void;
 }
 
@@ -112,6 +116,7 @@ export const useGameStore = create<GameState>()(
         speedMultiplier: 1,
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
+      survivalHighestStageCleared: 0,
       hasHydrated: false,
 
       hydrateFromServer: (bundle) => {
@@ -167,6 +172,9 @@ export const useGameStore = create<GameState>()(
           lastExpTickAt: Date.now(),
           inventory,
           dungeon: bundle.dungeon,
+          // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
+          // account signing in on this browser doesn't inherit the previous one's local progress.
+          survivalHighestStageCleared: 0,
         });
       },
 
@@ -192,6 +200,7 @@ export const useGameStore = create<GameState>()(
             autoDgEnabled: false,
             speedMultiplier: 1,
           },
+          survivalHighestStageCleared: 0,
         }),
 
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
@@ -345,6 +354,11 @@ export const useGameStore = create<GameState>()(
 
       setSpeedMultiplier: (speed) =>
         set((state) => ({ dungeon: { ...state.dungeon, speedMultiplier: speed } })),
+
+      clearSurvivalStage: (stageNumber) =>
+        set((state) => ({
+          survivalHighestStageCleared: Math.max(state.survivalHighestStageCleared, stageNumber),
+        })),
 
       claimTask: (taskId) =>
         set((state) => {

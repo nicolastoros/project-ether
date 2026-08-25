@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import Link from "next/link";
-import { Skull, Sparkles, Swords, Timer } from "lucide-react";
+import { Coins, Gem, Pause, Play, Sparkles, Swords, Timer } from "lucide-react";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { useGameStore } from "@/lib/store";
+import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
 import {
   ARENA_HEIGHT,
   ARENA_WIDTH,
@@ -45,6 +46,7 @@ const ROTATION_ORDER: Direction[] = [
 ];
 
 interface ImageBundle {
+  background: HTMLImageElement | null;
   player: Partial<Record<Direction, HTMLImageElement>>;
   grunt: HTMLImageElement | null;
   elite: HTMLImageElement | null;
@@ -88,22 +90,22 @@ function formatTime(ms: number): string {
 
 function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, images: ImageBundle): void {
   ctx.clearRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-  ctx.fillStyle = "#f4f1e8";
-  ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
-  ctx.strokeStyle = "rgba(0,0,0,0.05)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= ARENA_WIDTH; x += 40) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, ARENA_HEIGHT);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= ARENA_HEIGHT; y += 40) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(ARENA_WIDTH, y);
-    ctx.stroke();
+  const bg = images.background;
+  if (bg && bg.complete && bg.naturalWidth > 0) {
+    // "Cover" fit: the map art is a square, the arena is portrait, so scale up to the larger
+    // ratio and center-crop rather than letterboxing or stretching.
+    const scale = Math.max(ARENA_WIDTH / bg.naturalWidth, ARENA_HEIGHT / bg.naturalHeight);
+    const drawW = bg.naturalWidth * scale;
+    const drawH = bg.naturalHeight * scale;
+    ctx.drawImage(bg, (ARENA_WIDTH - drawW) / 2, (ARENA_HEIGHT - drawH) / 2, drawW, drawH);
+    // A light wash over the scenery keeps enemies/projectiles/gems readable against it —
+    // the art is busier than the flat backdrop this replaced.
+    ctx.fillStyle = "rgba(244, 241, 232, 0.4)";
+    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+  } else {
+    ctx.fillStyle = "#f4f1e8";
+    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
   }
 
   for (const s of state.strikes) {
@@ -234,13 +236,24 @@ function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, image
   });
 }
 
-export function SurvivalGame() {
+interface SurvivalGameProps {
+  stage: SurvivalStage;
+  /** Called from Pause/Game Over/Stage Cleared to return to the stage map. */
+  onExit: () => void;
+}
+
+export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
+  const addGold = useGameStore((s) => s.addGold);
+  const addGems = useGameStore((s) => s.addGems);
+  const clearSurvivalStage = useGameStore((s) => s.clearSurvivalStage);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<SurvivalState>(createInitialState());
+  const stateRef = useRef<SurvivalState>(createInitialState(stage.targetSeconds));
   const keysRef = useRef<Set<string>>(new Set());
   const touchMoveRef = useRef<{ x: number; y: number } | null>(null);
   const [joystick, setJoystick] = useState<JoystickVisual | null>(null);
   const imagesRef = useRef<ImageBundle>({
+    background: null,
     player: {},
     grunt: null,
     elite: null,
@@ -248,10 +261,14 @@ export function SurvivalGame() {
     gemSimple: null,
     gemMedium: null,
   });
-  const [started, setStarted] = useState(false);
-  const [hud, setHud] = useState<Hud>(() => deriveHud(createInitialState()));
+  const [hud, setHud] = useState<Hud>(() => deriveHud(createInitialState(stage.targetSeconds)));
+
+  const mapImage = SURVIVAL_WORLDS.find((w) => w.world === stage.world)?.mapImage ?? SURVIVAL_WORLDS[0].mapImage;
 
   useEffect(() => {
+    const background = new window.Image();
+    background.src = mapImage;
+
     const player: Partial<Record<Direction, HTMLImageElement>> = {};
     ROTATION_ORDER.forEach((dir) => {
       const img = new window.Image();
@@ -275,8 +292,8 @@ export function SurvivalGame() {
     const gemMedium = new window.Image();
     gemMedium.src = "/assets/ui/crystal_exp_medium.png";
 
-    imagesRef.current = { player, grunt, elite, weapons, gemSimple, gemMedium };
-  }, []);
+    imagesRef.current = { background, player, grunt, elite, weapons, gemSimple, gemMedium };
+  }, [mapImage]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => keysRef.current.add(e.key.toLowerCase());
@@ -290,7 +307,6 @@ export function SurvivalGame() {
   }, []);
 
   useEffect(() => {
-    if (!started) return;
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
@@ -307,16 +323,20 @@ export function SurvivalGame() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [started]);
+  }, []);
 
-  function handleStart() {
-    stateRef.current = createInitialState();
-    setHud(deriveHud(stateRef.current));
-    setStarted(true);
-  }
+  // Grant rewards and unlock the next stage exactly once, right when the run crosses the
+  // target time. hud.phase only actually changes value on that transition (rAF re-renders
+  // every frame regardless, but the dependency array only cares about the string flipping).
+  useEffect(() => {
+    if (hud.phase !== "victory") return;
+    addGold(stage.rewardGold);
+    addGems(stage.rewardGems);
+    clearSurvivalStage(stage.stageNumber);
+  }, [hud.phase, stage.rewardGold, stage.rewardGems, stage.stageNumber, addGold, addGems, clearSurvivalStage]);
 
   function handleRestart() {
-    stateRef.current = createInitialState();
+    stateRef.current = createInitialState(stage.targetSeconds);
     setHud(deriveHud(stateRef.current));
   }
 
@@ -326,6 +346,18 @@ export function SurvivalGame() {
     upgrade.apply(stateRef.current.player);
     stateRef.current.phase = "playing";
     stateRef.current.pendingUpgradeIds = [];
+    setHud(deriveHud(stateRef.current));
+  }
+
+  function handlePause() {
+    if (stateRef.current.phase !== "playing") return;
+    stateRef.current.phase = "paused";
+    setHud(deriveHud(stateRef.current));
+  }
+
+  function handleResume() {
+    if (stateRef.current.phase !== "paused") return;
+    stateRef.current.phase = "playing";
     setHud(deriveHud(stateRef.current));
   }
 
@@ -366,47 +398,37 @@ export function SurvivalGame() {
     touchMoveRef.current = null;
   }
 
-  if (!started) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <GlowPanel accent="neon" className="flex max-w-sm flex-col items-center gap-3 px-8 py-10">
-          <Skull className="h-10 w-10 text-neon" />
-          <h1 className="font-arcade text-sm glow-text-neon">Survival Mode</h1>
-          <p className="text-xs text-zinc-500">
-            Move with WASD or the arrow keys — or on mobile, drag anywhere on the arena to steer.
-            Your Dragoon auto-attacks the nearest enemy. Collect the purple gems for EXP and pick an
-            upgrade every time you level up. Survive as long as you can!
-          </p>
-          <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-600">
-            Prototype build — Dragoon only, for now
-          </p>
-          <PixelButton variant="neon" onClick={handleStart}>
-            Start Survival
-          </PixelButton>
-        </GlowPanel>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Survival Mode</h1>
-        <p className="text-xs text-zinc-500">
-          WASD / arrow keys, or drag the arena on mobile · auto-attacks the nearest foe
-        </p>
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex shrink-0 items-start justify-between gap-3">
+        <div>
+          <h1 className="font-arcade text-lg glow-text-neon">{stage.name}</h1>
+          <p className="text-xs text-zinc-500">
+            World {stage.world}-{stage.worldStageNumber} · drag the arena to steer (or WASD)
+          </p>
+        </div>
+        {hud.phase === "playing" && (
+          <button
+            type="button"
+            onClick={handlePause}
+            aria-label="Pause"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-600 shadow-sm transition-colors hover:border-gold hover:text-gold-bright"
+          >
+            <Pause className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid shrink-0 grid-cols-3 gap-2">
         <div className="col-span-2">
           <ProgressBar percent={(hud.hp / hud.maxHp) * 100} color="hp" label={`HP ${hud.hp}/${hud.maxHp}`} />
         </div>
         <div className="flex items-center justify-end gap-1 text-xs font-semibold text-foreground">
           <Timer className="h-3.5 w-3.5 text-zinc-500" />
-          {formatTime(hud.elapsedMs)}
+          {formatTime(hud.elapsedMs)}/{formatTime(stage.targetSeconds * 1000)}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid shrink-0 grid-cols-3 gap-2">
         <div className="col-span-2">
           <ProgressBar
             percent={(hud.xp / hud.xpToNext) * 100}
@@ -421,19 +443,22 @@ export function SurvivalGame() {
       </div>
 
       <div
-        className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-2xl border border-arcade-border shadow-sm"
+        className="relative mx-auto min-h-0 w-full flex-1 touch-none select-none overflow-hidden rounded-2xl border border-arcade-border shadow-sm"
         style={{ maxWidth: ARENA_WIDTH }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        {/* object-contain (not w-full/h-auto + a locked aspect-ratio) so the canvas grows to fill
+            whichever dimension of this flex-1 box is the limiting one — on a tall phone that's
+            still width most of the time, but this also makes use of extra height when there's
+            room, instead of leaving it as dead space below a width-only-sized box. */}
         <canvas
           ref={canvasRef}
           width={ARENA_WIDTH}
           height={ARENA_HEIGHT}
-          className="block h-auto w-full"
-          style={{ aspectRatio: `${ARENA_WIDTH} / ${ARENA_HEIGHT}` }}
+          className="block h-full w-full object-contain"
         />
 
         {joystick && (
@@ -447,63 +472,112 @@ export function SurvivalGame() {
             />
           </div>
         )}
-
-        {hud.phase === "levelup" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <GlowPanel accent="gold" className="w-full max-w-2xl space-y-4 p-6 text-center">
-              <h2 className="font-arcade text-lg glow-text-gold">Level {hud.level}!</h2>
-              <p className="text-sm text-zinc-500">Choose an upgrade</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {hud.pendingUpgradeIds.map((id) => {
-                  const upgrade = UPGRADE_POOL.find((u) => u.id === id);
-                  if (!upgrade) return null;
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => handleUpgrade(id)}
-                      className="rounded-2xl border border-arcade-border bg-arcade-panel-light p-4 text-left transition-colors hover:border-gold"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {upgrade.icon ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- tiny local UI icon
-                          <img src={upgrade.icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
-                        ) : (
-                          <Sparkles className="h-6 w-6 shrink-0 text-gold-bright" />
-                        )}
-                        <p className="text-base font-semibold text-foreground">{upgrade.name}</p>
-                      </div>
-                      <p className="mt-2 text-sm text-zinc-600">{upgrade.description}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </GlowPanel>
-          </div>
-        )}
-
-        {hud.phase === "gameover" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <GlowPanel accent="none" className="w-full max-w-sm space-y-4 p-5 text-center">
-              <h2 className="font-arcade text-sm text-zinc-500">You Fell</h2>
-              <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-                <span>Survived {formatTime(hud.elapsedMs)}</span>
-                <span>Lv.{hud.level}</span>
-                <span>{hud.kills} kills</span>
-              </div>
-              <div className="flex gap-2">
-                <PixelButton variant="ghost" className="flex-1" onClick={handleRestart}>
-                  Try Again
-                </PixelButton>
-                <Link href="/hub" className="flex-1">
-                  <PixelButton variant="gold" className="w-full">
-                    Back to Hub
-                  </PixelButton>
-                </Link>
-              </div>
-            </GlowPanel>
-          </div>
-        )}
       </div>
+
+      {hud.phase === "levelup" && (
+        // Fixed to the viewport, not the (short, letterboxed) arena box — anchoring this to the
+        // arena instead clipped the cards off-screen on tall phones where the canvas is barely a
+        // quarter of the screen height.
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+          <GlowPanel accent="gold" className="w-full max-w-2xl space-y-4 p-6 text-center">
+            <h2 className="font-arcade text-lg glow-text-gold">Level {hud.level}!</h2>
+            <p className="text-sm text-zinc-500">Choose an upgrade</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {hud.pendingUpgradeIds.map((id) => {
+                const upgrade = UPGRADE_POOL.find((u) => u.id === id);
+                if (!upgrade) return null;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleUpgrade(id)}
+                    className="rounded-2xl border border-arcade-border bg-arcade-panel-light p-4 text-left transition-colors hover:border-gold"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {upgrade.icon ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- tiny local UI icon
+                        <img src={upgrade.icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
+                      ) : (
+                        <Sparkles className="h-6 w-6 shrink-0 text-gold-bright" />
+                      )}
+                      <p className="text-base font-semibold text-foreground">{upgrade.name}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-600">{upgrade.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </GlowPanel>
+        </div>
+      )}
+
+      {hud.phase === "paused" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <GlowPanel accent="neon" className="w-full max-w-sm space-y-4 p-6 text-center">
+            <h2 className="font-arcade text-sm glow-text-neon">Paused</h2>
+            <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
+              <span>{formatTime(hud.elapsedMs)}</span>
+              <span>Lv.{hud.level}</span>
+              <span>{hud.kills} kills</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <PixelButton variant="neon" onClick={handleResume} className="flex items-center justify-center gap-2">
+                <Play className="h-4 w-4" /> Resume
+              </PixelButton>
+              <PixelButton variant="ghost" className="w-full" onClick={onExit}>
+                Back to Map
+              </PixelButton>
+            </div>
+          </GlowPanel>
+        </div>
+      )}
+
+      {hud.phase === "gameover" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <GlowPanel accent="none" className="w-full max-w-sm space-y-4 p-5 text-center">
+            <h2 className="font-arcade text-sm text-zinc-500">You Fell</h2>
+            <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
+              <span>Survived {formatTime(hud.elapsedMs)}</span>
+              <span>Lv.{hud.level}</span>
+              <span>{hud.kills} kills</span>
+            </div>
+            <div className="flex gap-2">
+              <PixelButton variant="ghost" className="flex-1" onClick={handleRestart}>
+                Try Again
+              </PixelButton>
+              <PixelButton variant="gold" className="flex-1" onClick={onExit}>
+                Back to Map
+              </PixelButton>
+            </div>
+          </GlowPanel>
+        </div>
+      )}
+
+      {hud.phase === "victory" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <GlowPanel accent="neon" className="w-full max-w-sm space-y-4 p-6 text-center">
+            <h2 className="font-arcade text-sm glow-text-neon">Stage Cleared!</h2>
+            <p className="text-xs text-zinc-500">
+              {stage.name} · World {stage.world}-{stage.worldStageNumber}
+            </p>
+            <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
+              <span>{formatTime(hud.elapsedMs)}</span>
+              <span>Lv.{hud.level}</span>
+              <span>{hud.kills} kills</span>
+            </div>
+            <div className="flex items-center justify-center gap-4 text-sm font-semibold text-foreground">
+              <span className="flex items-center gap-1">
+                <Coins className="h-4 w-4 text-gold-bright" /> +{stage.rewardGold}
+              </span>
+              <span className="flex items-center gap-1">
+                <Gem className="h-4 w-4 text-violet-500" /> +{stage.rewardGems}
+              </span>
+            </div>
+            <PixelButton variant="neon" className="w-full" onClick={onExit}>
+              Back to Map
+            </PixelButton>
+          </GlowPanel>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,12 @@
 import type { Direction } from "@/components/ui/CreatureSprite";
 
-export const ARENA_WIDTH = 900;
-export const ARENA_HEIGHT = 560;
+// A portrait-leaning ratio (0.8:1) rather than the original landscape 900x560 (1.61:1): on a
+// phone the arena is always width-limited no matter how tall its container is, so the only real
+// lever for making it look bigger there is making the world itself less wide relative to its
+// height. Paired with the arena's container filling the page's available height (see
+// SurvivalGame.tsx) rather than being sized off the sidebar/HUD's leftover space.
+export const ARENA_WIDTH = 720;
+export const ARENA_HEIGHT = 1080;
 
 const PLAYER_RADIUS = 20;
 const ENEMY_RADIUS_GRUNT = 14;
@@ -190,7 +195,7 @@ export interface Bolt {
   ttlMs: number;
 }
 
-export type SurvivalPhase = "playing" | "levelup" | "gameover";
+export type SurvivalPhase = "playing" | "paused" | "levelup" | "gameover" | "victory";
 
 export interface SurvivalState {
   player: PlayerStats;
@@ -208,6 +213,8 @@ export interface SurvivalState {
   phase: SurvivalPhase;
   pendingUpgradeIds: string[];
   idCounter: number;
+  /** Reach this elapsed time to clear the stage (see lib/survivalStages.ts). */
+  targetMs: number;
 }
 
 export interface Upgrade {
@@ -312,7 +319,7 @@ function createInitialPlayer(): PlayerStats {
   };
 }
 
-export function createInitialState(): SurvivalState {
+export function createInitialState(targetSeconds: number = Infinity): SurvivalState {
   return {
     player: createInitialPlayer(),
     enemies: [],
@@ -329,6 +336,7 @@ export function createInitialState(): SurvivalState {
     phase: "playing",
     pendingUpgradeIds: [],
     idCounter: 1,
+    targetMs: targetSeconds * 1000,
   };
 }
 
@@ -428,6 +436,10 @@ export function updateSurvival(
   }
 
   state.elapsedMs += dtMs;
+  if (state.elapsedMs >= state.targetMs) {
+    state.phase = "victory";
+    return;
+  }
   const elapsedSec = state.elapsedMs / 1000;
 
   state.spawnTimerMs -= dtMs;
