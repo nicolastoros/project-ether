@@ -73,6 +73,31 @@ body {
   color: var(--color-neon-ink);
 }
 
+/* "Cyber-dragon" hover for nav items: a deeper, satisfying dark-cyan tech sweep with a bright edge */
+.nav-cyber-hover {
+  position: relative;
+  overflow: hidden;
+}
+.nav-cyber-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(14, 116, 144, 0.5) 48%,
+    rgba(56, 189, 248, 0.9) 50%,
+    rgba(14, 116, 144, 0.5) 52%,
+    transparent 65%
+  );
+  transform: translateX(-150%);
+  transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.nav-cyber-hover:hover::before {
+  transform: translateX(150%);
+}
+
 .scrollbar-hidden {
   scrollbar-width: none;
 }
