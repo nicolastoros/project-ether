@@ -13,6 +13,116 @@ import { CreatureDetailModal } from "@/components/monsters/CreatureDetailModal";
 import type { Creature } from "@/types/game";
 import { cn } from "@/lib/utils";
 
+interface MonsterCardProps {
+  creature: Creature;
+  isActive: boolean;
+  isHubMember: boolean;
+  hubFull: boolean;
+  onSelect: () => void;
+  onToggleHubTeam: () => void;
+}
+
+function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onToggleHubTeam }: MonsterCardProps) {
+  // Drives both the sprite's turntable spin and a slight lift/scale on the whole card — a real
+  // React state (not just a CSS :hover) since CreatureSprite's spin is driven by a JS interval.
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect();
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="text-left"
+    >
+      <GlowPanel
+        accent={isActive ? "gold" : "none"}
+        className={cn(
+          "relative flex flex-col gap-2 p-2.5 transition-all duration-200 sm:p-3",
+          !isActive && "hover:border-gold",
+          "hover:-translate-y-1 hover:shadow-lg"
+        )}
+      >
+        {creature.rarity === "Mythic" && <MythicCardAura />}
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleHubTeam();
+          }}
+          disabled={hubFull}
+          aria-label={
+            isHubMember ? `Remove ${creature.name} from hub team` : `Add ${creature.name} to hub team`
+          }
+          aria-pressed={isHubMember}
+          className={cn(
+            "absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-colors",
+            isHubMember
+              ? "border-gold bg-gold-bright/20 text-gold-bright"
+              : "border-arcade-border bg-arcade-panel/90 text-zinc-400 hover:text-gold-bright disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-zinc-400"
+          )}
+        >
+          <Star className={cn("h-4 w-4", isHubMember && "fill-current")} />
+        </button>
+
+        <div
+          className={cn(
+            "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-gold bg-gradient-to-b pixel-frame transition-transform duration-300",
+            ELEMENT_GRADIENT[creature.element],
+            hovered && "scale-[1.04]"
+          )}
+        >
+          <CreatureSprite creature={creature} spin={hovered} className="h-4/5 w-4/5 text-gold-bright" />
+        </div>
+
+        <div className="min-w-0 text-center">
+          <div className="flex items-center justify-center gap-1.5">
+            <CreatureName creature={creature} className="truncate text-sm font-semibold sm:text-base" />
+            {isActive && <span className="font-arcade text-[8px] text-gold-bright">ACTIVE</span>}
+          </div>
+          <p className="text-[10px] text-zinc-600">
+            {creature.element} · Stage {creature.stage} · Lv.{creature.level}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
+            <RarityBadge rarity={creature.rarity} />
+            {creature.copies > 1 && (
+              <span className="rounded-full border border-gold/60 bg-gold/10 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-gold-bright">
+                ×{creature.copies}
+              </span>
+            )}
+            {!isHubMember && (
+              <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
+                <Zap className="h-2.5 w-2.5 animate-pulse" />
+                Farming EXP
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5 text-center">
+          {(
+            [
+              ["HP", creature.baseStats.hp],
+              ["ATK", creature.baseStats.atk],
+              ["DEF", creature.baseStats.def],
+              ["SPD", creature.baseStats.spd],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-arcade-border bg-arcade-panel-light py-1">
+              <p className="text-[8px] uppercase tracking-wide text-zinc-600">{label}</p>
+              <p className="font-mono text-[11px] font-semibold text-foreground sm:text-xs">{value}</p>
+            </div>
+          ))}
+        </div>
+      </GlowPanel>
+    </div>
+  );
+}
+
 export default function MonstersPage() {
   const creatures = useGameStore((s) => s.creatures);
   const activeCreatureId = useGameStore((s) => s.activeCreatureId);
@@ -34,109 +144,21 @@ export default function MonstersPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
         {creatures.map((creature) => {
           const isActive = creature.id === activeCreatureId;
           const isHubMember = hubTeamIds.includes(creature.id);
           const hubFull = !isHubMember && hubTeamIds.length >= HUB_TEAM_SIZE;
           return (
-            <div
+            <MonsterCard
               key={creature.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelected(creature)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") setSelected(creature);
-              }}
-              className="text-left"
-            >
-              <GlowPanel
-                accent={isActive ? "gold" : "none"}
-                className={cn(
-                  "relative flex flex-col gap-3 p-3 transition-colors",
-                  !isActive && "hover:border-gold"
-                )}
-              >
-                {creature.rarity === "Mythic" && <MythicCardAura />}
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleHubTeamMember(creature.id);
-                  }}
-                  disabled={hubFull}
-                  aria-label={
-                    isHubMember
-                      ? `Remove ${creature.name} from hub team`
-                      : `Add ${creature.name} to hub team`
-                  }
-                  aria-pressed={isHubMember}
-                  className={cn(
-                    "absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border transition-colors",
-                    isHubMember
-                      ? "border-gold bg-gold-bright/20 text-gold-bright"
-                      : "border-arcade-border bg-arcade-panel text-zinc-400 hover:text-gold-bright disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-zinc-400"
-                  )}
-                >
-                  <Star className={cn("h-3.5 w-3.5", isHubMember && "fill-current")} />
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-gold bg-gradient-to-b pixel-frame",
-                      ELEMENT_GRADIENT[creature.element]
-                    )}
-                  >
-                    <CreatureSprite creature={creature} className="h-7 w-7 p-0.5 text-gold-bright" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <CreatureName creature={creature} className="truncate text-sm font-semibold" />
-                      {isActive && (
-                        <span className="font-arcade text-[8px] text-gold-bright">ACTIVE</span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-zinc-600">
-                      {creature.element} · Stage {creature.stage} · Lv.{creature.level}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <RarityBadge rarity={creature.rarity} />
-                      {creature.copies > 1 && (
-                        <span className="rounded-full border border-gold/60 bg-gold/10 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-gold-bright">
-                          ×{creature.copies}
-                        </span>
-                      )}
-                      {!isHubMember && (
-                        <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
-                          <Zap className="h-2.5 w-2.5 animate-pulse" />
-                          Farming EXP
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 text-center">
-                  {(
-                    [
-                      ["HP", creature.baseStats.hp],
-                      ["ATK", creature.baseStats.atk],
-                      ["DEF", creature.baseStats.def],
-                      ["SPD", creature.baseStats.spd],
-                    ] as const
-                  ).map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="rounded-xl border border-arcade-border bg-arcade-panel-light py-1"
-                    >
-                      <p className="text-[8px] uppercase tracking-wide text-zinc-600">{label}</p>
-                      <p className="font-mono text-xs font-semibold text-foreground">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </GlowPanel>
-            </div>
+              creature={creature}
+              isActive={isActive}
+              isHubMember={isHubMember}
+              hubFull={hubFull}
+              onSelect={() => setSelected(creature)}
+              onToggleHubTeam={() => toggleHubTeamMember(creature.id)}
+            />
           );
         })}
       </div>
