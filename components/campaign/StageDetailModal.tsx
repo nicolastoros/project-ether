@@ -2,9 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { X, Lock, Zap } from "lucide-react";
 import type { DungeonStage, DungeonDifficulty } from "@/types/game";
-import { DUNGEON_STAGES } from "@/lib/gameData";
+import { DUNGEON_STAGES, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -28,6 +29,10 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
   // A stage is battle-ready once its world has a defined enemy line-up (lib/campaignEnemies.ts)
   // — the same check BattlePage.tsx uses to decide whether to fall back to the sandbox placeholder.
   const isPlayable = stage ? getStageEnemyTeam(stage) !== null : false;
+
+  const specificGear = stage
+    ? TAMER_EQUIPMENT_CATALOG.filter((t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id)
+    : [];
 
   return (
     <AnimatePresence>
@@ -97,6 +102,26 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
             <p className="mt-3 text-center text-[11px] text-zinc-500">
               Recommended power: {formatNumber(stage.recommendedPower)}
             </p>
+
+            <div className="mt-4 rounded-xl border border-arcade-border bg-arcade-panel-light p-3">
+              <p className="text-center text-[10px] uppercase tracking-wide text-zinc-500 mb-2">Possible Drops</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {specificGear.map(gear => (
+                  <div key={gear.id} className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-gold/10 border border-gold/30">
+                    <Image src={gear.icon} alt={gear.name} width={28} height={28} className="object-contain" />
+                  </div>
+                ))}
+                <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-white/5 border border-arcade-border">
+                  <Image src="/assets/objects/mancuerna_exp3.png" alt="EXP Dumbbell" width={28} height={28} className="object-contain opacity-80" />
+                </div>
+                <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-white/5 border border-arcade-border">
+                  <Image src="/assets/objects/trx_exp2.png" alt="EXP TRX" width={28} height={28} className="object-contain opacity-80" />
+                </div>
+                <div className="flex flex-col items-center justify-center h-12 w-12 rounded-lg bg-white/5 border border-arcade-border">
+                  <Image src="/assets/objects/box_exp1.png" alt="EXP Box" width={28} height={28} className="object-contain opacity-80" />
+                </div>
+              </div>
+            </div>
 
             {stage.isLocked ? (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500">
