@@ -11,6 +11,10 @@ const FIREBIT = findBase("cr-firebit");
 const DRAGOON = findBase("cr-dragoon");
 const VOLTLING = findBase("cr-voltling");
 const TIDEWARDEN = findBase("cr-tidewarden");
+const VENOMSHADE = findBase("cr-venomshade");
+const EMBERFIEND = findBase("cr-emberfiend");
+const THUNDRACOIL = findBase("cr-thundracoil");
+const SILVER_DRAGON = findBase("cr-silver-dragon");
 
 // Damps enemy HP/ATK/DEF below the raw per-stage growth curve, tapering gradually across all 8
 // stages instead of a cliff after stage 2 — smooths out what used to be a late-game difficulty
@@ -22,8 +26,11 @@ const EARLY_STAGE_HP_DAMPING: Record<number, number> = { 1: 0.4, 2: 0.55, 3: 0.6
 const EARLY_STAGE_ATK_DAMPING: Record<number, number> = { 1: 0.6, 2: 0.7, 3: 0.78, 4: 0.84, 5: 0.88, 6: 0.92, 7: 0.96, 8: 1.0 };
 const EARLY_STAGE_DEF_DAMPING: Record<number, number> = { 1: 0.5, 2: 0.6, 3: 0.68, 4: 0.75, 5: 0.82, 6: 0.88, 7: 0.94, 8: 1.0 };
 
-/** Scales a catalog creature up for a given world-1 stage — a boss gets an extra bump on top
- * of the normal per-stage growth, so it clearly outclasses the regular stages leading into it. */
+/** Scales a catalog creature up for a given world's stage (by its 1-8 position within that
+ * world, not the global stage number) — a boss gets an extra bump on top of the normal per-stage
+ * growth, so it clearly outclasses the regular stages leading into it. The curve itself is shared
+ * across worlds; each world escalates by starting from a stronger catalog tier instead (see
+ * WORLD_2_ENEMY_TEMPLATES below). */
 function scaleForStage(base: Creature, worldStageNumber: number, isBoss: boolean): Creature {
   const growth = 1 + (worldStageNumber - 1) * 0.12;
   const mult = isBoss ? growth * 1.3 : growth;
@@ -55,10 +62,28 @@ const WORLD_1_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   8: [TIDEWARDEN, VOLTLING],
 };
 
+/** World 2's fixed enemy line-up — a step up from World 1's catalog tier (Venomshade/Emberfiend
+ * are Dark, Thundracoil is SSR), same stage-by-stage shape: two early creatures alternate,
+ * a third joins at stage 6, and the Mythic Silver Dragon closes the world out as boss. */
+const WORLD_2_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
+  1: [VENOMSHADE, VENOMSHADE],
+  2: [VENOMSHADE, EMBERFIEND],
+  3: [EMBERFIEND, VENOMSHADE],
+  4: [EMBERFIEND, EMBERFIEND],
+  5: [VENOMSHADE, EMBERFIEND],
+  6: [EMBERFIEND, THUNDRACOIL],
+  7: [THUNDRACOIL, THUNDRACOIL],
+  8: [SILVER_DRAGON, THUNDRACOIL],
+};
+
+const ENEMY_TEMPLATES_BY_WORLD: Record<number, Record<number, [Creature, Creature]>> = {
+  1: WORLD_1_ENEMY_TEMPLATES,
+  2: WORLD_2_ENEMY_TEMPLATES,
+};
+
 /** Returns this stage's fixed 2-enemy team, or null for stages without defined content yet. */
 export function getStageEnemyTeam(stage: Pick<DungeonStage, "world" | "worldStageNumber">): [Creature, Creature] | null {
-  if (stage.world !== 1) return null;
-  const templates = WORLD_1_ENEMY_TEMPLATES[stage.worldStageNumber];
+  const templates = ENEMY_TEMPLATES_BY_WORLD[stage.world]?.[stage.worldStageNumber];
   if (!templates) return null;
   const isBoss = stage.worldStageNumber === 8;
   return [

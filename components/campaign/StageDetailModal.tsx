@@ -6,6 +6,7 @@ import { X, Lock, Zap } from "lucide-react";
 import type { DungeonStage, DungeonDifficulty } from "@/types/game";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
+import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
@@ -24,6 +25,9 @@ interface StageDetailModalProps {
 
 export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
   const isExpEvent = stage ? stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES) : false;
+  // A stage is battle-ready once its world has a defined enemy line-up (lib/campaignEnemies.ts)
+  // — the same check BattlePage.tsx uses to decide whether to fall back to the sandbox placeholder.
+  const isPlayable = stage ? getStageEnemyTeam(stage) !== null : false;
 
   return (
     <AnimatePresence>
@@ -98,7 +102,7 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500">
                 <Lock className="h-3.5 w-3.5" /> Clear the previous stage first
               </div>
-            ) : stage.world === 1 ? (
+            ) : isPlayable ? (
               <Link href={`/combat?stage=${stage.id}`} className="mt-4 block" onClick={onClose}>
                 <PixelButton variant="gold" className="w-full">
                   {stage.isCleared ? "Replay" : stage.worldStageNumber === 8 ? "Boss Battle" : "Battle"}

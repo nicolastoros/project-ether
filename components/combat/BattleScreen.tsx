@@ -34,14 +34,18 @@ import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { CombatantCard } from "./CombatantCard";
 import { cn, formatNumber } from "@/lib/utils";
 
-// Stone-circle marker positions in /assets/campaign/world1_1.jpeg, as % of the image box. Used
-// for every World 1 stage (not just 1-1) — it's the one arena background World 1 has.
-const WORLD1_ARENA_BG = "/assets/campaign/world1_1.jpeg";
+// One arena background per world with real battle content — each is the same portrait dimensions
+// with 4 stone-circle markers in identical spots (see ARENA_SLOTS below), so a new world's
+// background is a drop-in as long as it follows that same layout.
+const ARENA_BACKGROUNDS: Record<number, string> = {
+  1: "/assets/campaign/world1_1.jpeg",
+  2: "/assets/campaign/world2.jpg",
+};
 // One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
 // check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
 const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
 const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
-const WORLD1_ARENA_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
+const ARENA_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
   { side: "player", index: 0, left: "20.5%", top: "48%", direction: "south-east" },
   { side: "player", index: 1, left: "20.5%", top: "78%", direction: "south-east" },
   { side: "enemy", index: 0, left: "79%", top: "48%", direction: "south-west" },
@@ -251,7 +255,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
   const players = combatants.filter((c) => c.side === "player");
   const enemies = combatants.filter((c) => c.side === "enemy");
-  const hasWorld1Arena = stage.world === 1;
+  const arenaBg = ARENA_BACKGROUNDS[stage.world];
 
   return (
     <div className="space-y-3">
@@ -262,20 +266,20 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         <p className="text-xs text-zinc-500">{stage.name} · 2v2 Turn Battle</p>
       </div>
 
-      {hasWorld1Arena ? (
+      {arenaBg ? (
         <div
           className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm sm:max-w-md lg:max-w-lg xl:max-w-xl"
           style={{ aspectRatio: "704 / 1189" }}
         >
           <Image
-            src={WORLD1_ARENA_BG}
+            src={arenaBg}
             alt=""
             fill
             priority
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 448px, (max-width: 1280px) 512px, 576px"
             className="object-cover"
           />
-          {WORLD1_ARENA_SLOTS.map((slot) => {
+          {ARENA_SLOTS.map((slot) => {
             const c = (slot.side === "player" ? players : enemies)[slot.index];
             if (!c) return null;
             return (

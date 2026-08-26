@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Swords } from "lucide-react";
 import { DUNGEON_STAGES } from "@/lib/gameData";
+import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
 import { BattlePage } from "@/components/combat/BattlePage";
 
@@ -12,9 +13,9 @@ function CombatPageContent() {
   const stageId = searchParams.get("stage");
   const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
 
-  // World 1 has a defined enemy line-up per stage (lib/campaignEnemies.ts); other worlds
+  // Worlds 1 and 2 have a defined enemy line-up per stage (lib/campaignEnemies.ts); other worlds
   // don't have real battle content yet, so they still fall through to the sandbox placeholder.
-  if (stage && stage.world === 1) {
+  if (stage && getStageEnemyTeam(stage) !== null) {
     return <BattlePage stage={stage} />;
   }
 
