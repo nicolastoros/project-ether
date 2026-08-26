@@ -60,8 +60,12 @@ export function CampaignWorldMap({ world, stages, onSelectStage }: CampaignWorld
   const progressPath = useMemo(() => buildPath(nodes.slice(0, progressEndIndex + 1)), [nodes, progressEndIndex]);
 
   return (
+    // max-w-3xl matters beyond "don't let it get silly-wide" — see SurvivalWorldMap.tsx's
+    // identical comment: this box's height derives from aspect-ratio off its width whenever an
+    // ancestor's own height isn't fully definite, so an uncapped width can push it past the
+    // viewport on a wide page.
     <div
-      className="relative mx-auto h-full max-h-full w-full overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
+      className="relative mx-auto h-full max-h-full w-full max-w-3xl overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
       style={{ aspectRatio: "1 / 1" }}
     >
       <Image src={world.mapImage} alt={world.name} fill className="object-cover" priority />

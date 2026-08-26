@@ -27,7 +27,10 @@ export default function PartyPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+      {/* max-w-xl keeps these 3 aspect-square slots at a sane size — without a cap they scale
+          with the whole page's width (see AppShell's max-w), and on a wide screen 3 equal
+          columns of a square each grow far larger than a "current team" preview should be. */}
+      <div className="grid max-w-xl grid-cols-3 gap-2.5 sm:gap-3">
         {partyCreatureIds.map((id, slotIndex) => {
           const creature = creatureById(id);
           if (!creature) {

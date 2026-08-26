@@ -17,7 +17,7 @@ export function TopStatusBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-arcade-border bg-arcade-panel/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2.5 lg:px-6">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-3 py-2.5 lg:px-6">
         <div className="flex min-w-0 items-center gap-2 lg:hidden">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold bg-arcade-panel-light glow-border-gold">
             <UserCircle2 className="h-5 w-5 text-gold-bright" />
@@ -48,7 +48,7 @@ export function TopStatusBar() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-3 pb-2 lg:px-6">
+      <div className="mx-auto max-w-[1600px] px-3 pb-2 lg:px-6">
         <ProgressBar
           percent={(currencies.energy / currencies.energyMax) * 100}
           color="energy"

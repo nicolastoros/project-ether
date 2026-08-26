@@ -60,8 +60,13 @@ export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage 
   const progressPath = useMemo(() => buildPath(nodes.slice(0, progressEndIndex + 1)), [nodes, progressEndIndex]);
 
   return (
+    // max-w-3xl matters beyond "don't let it get silly-wide": this box's height comes from
+    // aspect-ratio deriving it from width whenever an ancestor's own height isn't fully definite
+    // (a min-height-only chain resolves h-full to auto here) — on a very wide page that let the
+    // square grow tall enough to push well past the viewport. Capping width caps that derived
+    // height too.
     <div
-      className="relative mx-auto h-full max-h-full w-full overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
+      className="relative mx-auto h-full max-h-full w-full max-w-3xl overflow-hidden rounded-3xl border border-arcade-border shadow-sm"
       style={{ aspectRatio: "1 / 1" }}
     >
       <Image src={world.mapImage} alt={world.name} fill className="object-cover" priority />
