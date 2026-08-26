@@ -61,6 +61,7 @@ export const STARTER_CREATURES: Creature[] = [
     expToNextLevel: 720,
     stage: 2,
     spriteKey: "tidalfin",
+    spriteFolder: "/assets/creatures/tidalfin/idle",
     baseStats: { hp: 780, atk: 132, def: 94, spd: 96 },
     skills: [
       skill("sk-ti-1", "Riptide Slash", "A pressurized water strike on one enemy.", "Attack", 132, 0),
@@ -81,6 +82,7 @@ export const STARTER_CREATURES: Creature[] = [
     expToNextLevel: 320,
     stage: 1,
     spriteKey: "gale-sprite",
+    spriteFolder: "/assets/creatures/gale_sprite/idle",
     baseStats: { hp: 480, atk: 110, def: 62, spd: 132 },
     skills: [
       skill("sk-ga-1", "Vine Whip", "A quick nature strike on one enemy.", "Attack", 105, 0),
