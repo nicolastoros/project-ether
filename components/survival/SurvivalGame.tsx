@@ -10,9 +10,11 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG } from "@/lib/gameData";
-import { CATEGORY_ICON } from "@/lib/inventoryVisuals";
+import { ItemIcon } from "@/components/ui/ItemIcon";
 import { grantItemOnServer } from "@/lib/syncProgress";
+import { survivalLoadoutForCreature } from "@/lib/survivalBalance";
 import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
+import type { Creature } from "@/types/game";
 import {
   UPGRADE_POOL,
   WEAPON_META,
@@ -244,11 +246,14 @@ function drawSurvival(ctx: CanvasRenderingContext2D, state: SurvivalState, image
 
 interface SurvivalGameProps {
   stage: SurvivalStage;
+  /** Which of the player's owned creatures fights this run — drives both the on-screen sprite
+   * and the run's starting HP/damage/speed via survivalLoadoutForCreature. */
+  creature: Creature;
   /** Called from Pause/Game Over/Stage Cleared to return to the stage map. */
   onExit: () => void;
 }
 
-export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
+export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
   const addGold = useGameStore((s) => s.addGold);
   const addGems = useGameStore((s) => s.addGems);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -260,9 +265,12 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   // per mount — not reactively on resize, since rescaling mid-run would strand existing
   // enemies/gems outside the new bounds.
   const arenaDims = useMemo(() => getArenaDimensions(), []);
+  // Also decided once per mount, same reasoning — switching the loadout mid-run would desync
+  // stateRef's already-scaled hp/damage from a freshly recomputed value.
+  const loadout = useMemo(() => survivalLoadoutForCreature(creature), []); // eslint-disable-line react-hooks/exhaustive-deps
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<SurvivalState>(
-    createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height)
+    createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height, loadout)
   );
   const keysRef = useRef<Set<string>>(new Set());
   const touchMoveRef = useRef<{ x: number; y: number } | null>(null);
@@ -277,10 +285,11 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
     gemMedium: null,
   });
   const [hud, setHud] = useState<Hud>(() =>
-    deriveHud(createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height))
+    deriveHud(createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height, loadout))
   );
 
   const mapImage = SURVIVAL_WORLDS.find((w) => w.world === stage.world)?.mapImage ?? SURVIVAL_WORLDS[0].mapImage;
+  const playerSpriteFolder = creature.spriteFolder ?? "/assets/creatures/dragoon/idle";
 
   useEffect(() => {
     const background = new window.Image();
@@ -289,7 +298,7 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
     const player: Partial<Record<Direction, HTMLImageElement>> = {};
     ROTATION_ORDER.forEach((dir) => {
       const img = new window.Image();
-      img.src = `/assets/creatures/dragoon/idle/${dir}.png`;
+      img.src = `${playerSpriteFolder}/${dir}.png`;
       player[dir] = img;
     });
     const grunt = new window.Image();
@@ -310,7 +319,7 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
     gemMedium.src = "/assets/ui/crystal_exp_medium.png";
 
     imagesRef.current = { background, player, grunt, elite, weapons, gemSimple, gemMedium };
-  }, [mapImage]);
+  }, [mapImage, playerSpriteFolder]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => keysRef.current.add(e.key.toLowerCase());
@@ -381,7 +390,7 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   ]);
 
   function handleRestart() {
-    stateRef.current = createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height);
+    stateRef.current = createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height, loadout);
     setHud(deriveHud(stateRef.current));
   }
 
@@ -632,10 +641,9 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
               (() => {
                 const item = ITEM_CATALOG.find((i) => i.id === itemDropped.itemId);
                 if (!item) return null;
-                const Icon = CATEGORY_ICON[item.category];
                 return (
                   <span className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground">
-                    <Icon className="h-3 w-3" /> +{itemDropped.quantity} {item.name}
+                    <ItemIcon item={item} className="h-3 w-3" /> +{itemDropped.quantity} {item.name}
                   </span>
                 );
               })()}

@@ -102,6 +102,25 @@ export interface TamerEquipment {
   icon: string;
   /** How this piece is obtained — shown in the Tamer tab so a locked piece explains itself. */
   source: { kind: "campaign-clear"; stageId: string } | { kind: "craft"; sealCoinCost: number };
+  /** Percent stat bonus this piece grants to every Digimon in battle (e.g. hp: 3 -> +3% HP). */
+  statBonus?: Partial<Record<"hp" | "atk" | "def" | "spd", number>>;
+}
+
+/** The player's own on-screen avatar — distinct from TamerEquipment (which is gear worn ON a
+ * Tamer). Owning/equipping one applies its `buffs` to every Digimon in battle (lib/tamerBuffs.ts). */
+export interface TamerAvatar {
+  id: string;
+  name: string;
+  /** Folder holding 8-directional idle frames, same convention as Creature.spriteFolder. */
+  spriteFolder: string;
+  price?: { gold?: number; gems?: number };
+  buffs: {
+    hpPercent?: number;
+    atkPercent?: number;
+    defPercent?: number;
+    spdPercent?: number;
+    elementAtkBonus?: Partial<Record<Element, number>>;
+  };
 }
 
 export type InventoryItemCategory = "Consumable" | "Quest" | "Evolution" | "Skin" | "Crafting";
@@ -112,11 +131,27 @@ export interface InventoryItem {
   category: InventoryItemCategory;
   rarity: Rarity;
   description: string;
+  /** Real art path, e.g. "/assets/objects/rotten_egg.png" — falls back to CATEGORY_ICON when absent. */
+  icon?: string;
+  /** Sellable in the Shop for this much gold, if set. */
+  sellPriceGold?: number;
+  /** Usable from Inventory to restore this much Tamer energy, if set. */
+  energyRestore?: number;
+  /** Usable from Inventory on a chosen creature to grant this much EXP, if set. */
+  creatureExpValue?: number;
 }
 
 export interface OwnedInventoryItem {
   itemId: string;
   quantity: number;
+}
+
+export interface ActiveExpedition {
+  id: string;
+  defId: string;
+  creatureIds: string[];
+  startedAt: number;
+  durationMs: number;
 }
 
 export interface DungeonProgress {

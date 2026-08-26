@@ -2,11 +2,15 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Lock } from "lucide-react";
+import type { Creature } from "@/types/game";
 import type { SurvivalStage } from "@/lib/survivalStages";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { RarityBadge } from "@/components/ui/RarityBadge";
+import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 function formatTargetTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -18,11 +22,23 @@ interface SurvivalStageModalProps {
   stage: SurvivalStage | null;
   isLocked: boolean;
   isCleared: boolean;
+  creatures: Creature[];
+  selectedCreatureId: string | null;
+  onSelectCreature: (creatureId: string) => void;
   onClose: () => void;
   onStart: () => void;
 }
 
-export function SurvivalStageModal({ stage, isLocked, isCleared, onClose, onStart }: SurvivalStageModalProps) {
+export function SurvivalStageModal({
+  stage,
+  isLocked,
+  isCleared,
+  creatures,
+  selectedCreatureId,
+  onSelectCreature,
+  onClose,
+  onStart,
+}: SurvivalStageModalProps) {
   return (
     <AnimatePresence>
       {stage && (
@@ -40,7 +56,7 @@ export function SurvivalStageModal({ stage, isLocked, isCleared, onClose, onStar
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
-            className="relative w-full max-w-sm rounded-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl"
+            className="relative w-full max-w-sm rounded-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl sm:max-w-md lg:max-w-2xl"
           >
             <button
               onClick={onClose}
@@ -72,12 +88,52 @@ export function SurvivalStageModal({ stage, isLocked, isCleared, onClose, onStar
               </div>
             </div>
 
+            {!isLocked && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                  Choose your creature
+                </p>
+                {/* Wraps into a grid instead of scrolling sideways, so widening the modal on
+                    larger screens (lg:max-w-2xl above) actually gives every card more room
+                    instead of just fitting more off-screen. */}
+                <div className="scrollbar-hidden grid max-h-64 grid-cols-4 gap-3 overflow-y-auto pb-1 sm:grid-cols-5 lg:grid-cols-6">
+                  {creatures.map((creature) => {
+                    const isSelected = creature.id === selectedCreatureId;
+                    return (
+                      <button
+                        key={creature.id}
+                        onClick={() => onSelectCreature(creature.id)}
+                        className="text-center"
+                      >
+                        <div
+                          className={cn(
+                            "flex aspect-square w-full items-center justify-center rounded-xl border-2 bg-gradient-to-b pixel-frame transition-colors",
+                            ELEMENT_GRADIENT[creature.element],
+                            isSelected ? "border-neon" : "border-arcade-border"
+                          )}
+                        >
+                          <CreatureSprite creature={creature} className="h-4/5 w-4/5 p-0.5 text-gold-bright" />
+                        </div>
+                        <p className="mt-1 truncate text-[10px] text-zinc-600">{creature.name}</p>
+                        <RarityBadge rarity={creature.rarity} className="mt-0.5 px-1 py-0 text-[7px]" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {isLocked ? (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500">
                 <Lock className="h-3.5 w-3.5" /> Clear the previous stage first
               </div>
             ) : (
-              <PixelButton variant="neon" className="mt-4 w-full" onClick={onStart}>
+              <PixelButton
+                variant="neon"
+                className="mt-4 w-full"
+                disabled={!selectedCreatureId}
+                onClick={onStart}
+              >
                 {isCleared ? "Replay" : "Start"}
               </PixelButton>
             )}

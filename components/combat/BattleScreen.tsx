@@ -10,9 +10,10 @@ import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { useGameStore } from "@/lib/store";
-import { DUNGEON_STAGES, ITEM_CATALOG, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
-import { CATEGORY_ICON } from "@/lib/inventoryVisuals";
+import { ItemIcon } from "@/components/ui/ItemIcon";
+import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
   grantCreatureOnServer,
   grantItemOnServer,
@@ -80,9 +81,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const addSealCoins = useGameStore((s) => s.addSealCoins);
   const grantTamerEquipment = useGameStore((s) => s.grantTamerEquipment);
   const grantItem = useGameStore((s) => s.grantItem);
+  const tamerInventory = useGameStore((s) => s.tamerInventory);
+  const equippedTamerId = useGameStore((s) => s.equippedTamerId);
 
+  // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
+  // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
+  // unbuffed playerCreatures since only their ids matter there, not baseStats.
+  const buffedPlayerCreatures = useMemo(
+    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
-    buildInitialCombatants(playerCreatures, enemyCreatures)
+    buildInitialCombatants(buffedPlayerCreatures, enemyCreatures)
   );
   const turnOrder = useMemo(
     () => [...combatants].sort((a, b) => b.creature.baseStats.spd - a.creature.baseStats.spd).map((c) => c.uid),
@@ -186,16 +197,21 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           }
         }
 
-        // Item drop: rolls the same equipmentDropChance field again (already reused for Seal
-        // Coins) for a chance at one Evolution/Crafting material.
-        const materialPool = ITEM_CATALOG.filter(
-          (i) => i.category === "Evolution" || i.category === "Crafting"
-        );
-        if (materialPool.length > 0 && Math.random() * 100 < stage.equipmentDropChance) {
-          const picked = materialPool[Math.floor(Math.random() * materialPool.length)];
-          grantItem(picked.id, 1);
-          grantItemOnServer(picked.id, 1);
-          setItemsDropped((prev) => [...prev, { itemId: picked.id, quantity: 1 }]);
+        // Item drops: rotten_egg and chicken roll independently at their own flat rates; the
+        // training-item tier is gated on equipmentDropChance (the field already scaling 10-45%
+        // by stage, already reused for Seal Coins) since a harder stage should have better odds
+        // at the better tiers, not just any drop at all — first-pass balanced numbers.
+        const drop = (itemId: string, chance: number) => {
+          if (Math.random() * 100 < chance) {
+            grantItem(itemId, 1);
+            grantItemOnServer(itemId, 1);
+            setItemsDropped((prev) => [...prev, { itemId, quantity: 1 }]);
+          }
+        };
+        drop("it-rotten-egg", 35);
+        drop("it-chicken", 20);
+        if (Math.random() * 100 < stage.equipmentDropChance) {
+          drop(pickWeightedTrainingItemId(), 100);
         }
 
         // World 1's boss clear guarantees a Quest item, once — same isFirstClearOfThisStage
@@ -469,13 +485,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     {itemsDropped.map((drop, i) => {
                       const item = ITEM_CATALOG.find((it) => it.id === drop.itemId);
                       if (!item) return null;
-                      const Icon = CATEGORY_ICON[item.category];
                       return (
                         <span
                           key={i}
                           className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground"
                         >
-                          <Icon className="h-3 w-3" /> +{drop.quantity} {item.name}
+                          <ItemIcon item={item} className="h-3 w-3" /> +{drop.quantity} {item.name}
                         </span>
                       );
                     })}

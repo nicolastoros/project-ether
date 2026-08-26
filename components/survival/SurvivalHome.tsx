@@ -8,19 +8,33 @@ import { SurvivalWorldMap } from "@/components/survival/SurvivalWorldMap";
 import { SurvivalStageModal } from "@/components/survival/SurvivalStageModal";
 import { SurvivalGame } from "@/components/survival/SurvivalGame";
 import { GlowPanel } from "@/components/ui/GlowPanel";
+import type { Creature } from "@/types/game";
 import { cn } from "@/lib/utils";
 
 export function SurvivalHome() {
   const highestCleared = useGameStore((s) => s.survivalHighestStageCleared);
+  const creatures = useGameStore((s) => s.creatures);
+  const activeCreatureId = useGameStore((s) => s.activeCreatureId);
   const [activeWorld, setActiveWorld] = useState(1);
   const [selectedStage, setSelectedStage] = useState<SurvivalStage | null>(null);
+  const [selectedCreatureId, setSelectedCreatureId] = useState<string | null>(null);
   const [playingStage, setPlayingStage] = useState<SurvivalStage | null>(null);
+  const [playingCreature, setPlayingCreature] = useState<Creature | null>(null);
 
-  if (playingStage) {
-    // Keyed by stage id so switching stages (Next Stage from the victory screen) gets a
-    // fully-fresh SurvivalGame instance instead of trying to reuse/reset internal refs.
+  if (playingStage && playingCreature) {
+    // Keyed by stage+creature id so switching either (Next Stage from the victory screen, or a
+    // different pick next run) gets a fully-fresh SurvivalGame instance instead of trying to
+    // reuse/reset internal refs.
     return (
-      <SurvivalGame key={playingStage.id} stage={playingStage} onExit={() => setPlayingStage(null)} />
+      <SurvivalGame
+        key={`${playingStage.id}-${playingCreature.id}`}
+        stage={playingStage}
+        creature={playingCreature}
+        onExit={() => {
+          setPlayingStage(null);
+          setPlayingCreature(null);
+        }}
+      />
     );
   }
 
@@ -74,10 +88,17 @@ export function SurvivalHome() {
         stage={selectedStage}
         isLocked={!!selectedStage && selectedStage.stageNumber > nextStageNumber}
         isCleared={!!selectedStage && selectedStage.stageNumber <= highestCleared}
+        creatures={creatures}
+        selectedCreatureId={selectedCreatureId ?? activeCreatureId}
+        onSelectCreature={setSelectedCreatureId}
         onClose={() => setSelectedStage(null)}
         onStart={() => {
           if (!selectedStage) return;
+          const creature =
+            creatures.find((c) => c.id === (selectedCreatureId ?? activeCreatureId)) ?? creatures[0];
+          if (!creature) return;
           setPlayingStage(selectedStage);
+          setPlayingCreature(creature);
           setSelectedStage(null);
         }}
       />

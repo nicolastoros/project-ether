@@ -195,11 +195,24 @@ export interface AccountBundle {
   }[];
   tamerEquipment: { itemId: string }[];
   items: { itemId: string; quantity: number }[];
+  /** Always includes "tamer1" (the free default) even though it's never actually inserted as a
+   * row — only avatars bought beyond that show up in user_tamer_avatars. */
+  ownedTamerIds: string[];
+  expeditions: { id: string; defId: string; creatureIds: string[]; startedAt: number; durationMs: number }[];
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
-  const [userResult, currencyResult, dungeonResult, creatureResult, equipmentResult, tamerResult, itemsResult] =
-    await Promise.all([
+  const [
+    userResult,
+    currencyResult,
+    dungeonResult,
+    creatureResult,
+    equipmentResult,
+    tamerResult,
+    itemsResult,
+    tamerAvatarResult,
+    expeditionsResult,
+  ] = await Promise.all([
       bq().query({
         query: `
         SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin
@@ -249,6 +262,20 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT tamer_id
+        FROM ${table("user_tamer_avatars")} WHERE user_id = @userId ORDER BY acquired_at
+      `,
+        params: { userId },
+      }),
+      bq().query({
+        query: `
+        SELECT id, def_id, creature_ids, started_at, duration_ms
+        FROM ${table("user_expeditions")} WHERE user_id = @userId
+      `,
+        params: { userId },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -259,6 +286,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const equipmentRows = equipmentResult[0];
   const tamerRows = tamerResult[0];
   const itemsRows = itemsResult[0];
+  const tamerAvatarRows = tamerAvatarResult[0];
+  const expeditionRows = expeditionsResult[0];
 
   return {
     profile: {
@@ -311,6 +340,14 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     })),
     tamerEquipment: tamerRows.map((row) => ({ itemId: row.item_id })),
     items: itemsRows.map((row) => ({ itemId: row.item_id, quantity: row.quantity })),
+    ownedTamerIds: ["tamer1", ...tamerAvatarRows.map((row) => row.tamer_id)],
+    expeditions: expeditionRows.map((row) => ({
+      id: row.id,
+      defId: row.def_id,
+      creatureIds: row.creature_ids ?? [],
+      startedAt: row.started_at,
+      durationMs: row.duration_ms,
+    })),
   };
 }
 
@@ -493,5 +530,70 @@ export async function grantItemToUser(userId: string, itemId: string, quantity: 
       VALUES (@userId, @itemId, @quantity)
     `,
     params: { userId, itemId, quantity },
+  });
+}
+
+/** Removes `quantity` of an owned item — used by Inventory's "Use" action and Shop sales. Clamps
+ * at 0 rather than erroring if the client and server have drifted (e.g. a stale local quantity). */
+export async function consumeItemForUser(userId: string, itemId: string, quantity: number): Promise<void> {
+  await bq().query({
+    query: `
+      UPDATE ${table("user_items")}
+      SET quantity = GREATEST(0, quantity - @quantity), updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId AND item_id = @itemId
+    `,
+    params: { userId, itemId, quantity },
+  });
+}
+
+/** Adds a purchased Tamer avatar to the account — a no-op if already owned. "tamer1" (the free
+ * default) is never inserted here; it's implied for every account (see getAccountBundle). */
+export async function grantTamerAvatarToUser(userId: string, tamerId: string): Promise<{ isNew: boolean }> {
+  const [existingRows] = await bq().query({
+    query: `SELECT 1 FROM ${table("user_tamer_avatars")} WHERE user_id = @userId AND tamer_id = @tamerId LIMIT 1`,
+    params: { userId, tamerId },
+  });
+  if (existingRows.length > 0) return { isNew: false };
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("user_tamer_avatars")} (id, user_id, tamer_id)
+      VALUES (@id, @userId, @tamerId)
+    `,
+    params: { id: randomUUID(), userId, tamerId },
+  });
+  return { isNew: true };
+}
+
+/** Records a newly-sent expedition — startedAt/durationMs are plain epoch-ms numbers (INT64), not
+ * BigQuery TIMESTAMPs, so the client's own Date.now()-based clock round-trips exactly. */
+export async function startExpeditionForUser(
+  userId: string,
+  expedition: { id: string; defId: string; creatureIds: string[]; startedAt: number; durationMs: number }
+): Promise<void> {
+  await bq().query({
+    query: `
+      INSERT INTO ${table("user_expeditions")} (id, user_id, def_id, creature_ids, started_at, duration_ms)
+      VALUES (@id, @userId, @defId, @creatureIds, @startedAt, @durationMs)
+    `,
+    params: {
+      id: expedition.id,
+      userId,
+      defId: expedition.defId,
+      creatureIds: expedition.creatureIds,
+      startedAt: expedition.startedAt,
+      durationMs: expedition.durationMs,
+    },
+    types: { creatureIds: ["STRING"] },
+  });
+}
+
+/** Removes a resolved expedition — collection is one-shot client-side (lib/store.ts's
+ * collectExpedition already deletes it from local state before this fires), so there's nothing
+ * to update, just clear the row. */
+export async function collectExpeditionForUser(userId: string, expeditionId: string): Promise<void> {
+  await bq().query({
+    query: `DELETE FROM ${table("user_expeditions")} WHERE user_id = @userId AND id = @expeditionId`,
+    params: { userId, expeditionId },
   });
 }

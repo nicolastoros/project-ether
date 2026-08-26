@@ -1,4 +1,5 @@
 import type { Direction } from "@/components/ui/CreatureSprite";
+import { DEFAULT_SURVIVAL_LOADOUT, type SurvivalLoadout } from "@/lib/survivalBalance";
 
 // A portrait-leaning ratio (0.8:1) rather than the original landscape 900x560 (1.61:1): on a
 // phone the arena is always width-limited no matter how tall its container is, so the only real
@@ -322,18 +323,18 @@ export function rollUpgrades(count: number): string[] {
   return shuffled.slice(0, count).map((u) => u.id);
 }
 
-function createInitialPlayer(arenaWidth: number, arenaHeight: number): PlayerStats {
+function createInitialPlayer(arenaWidth: number, arenaHeight: number, loadout: SurvivalLoadout): PlayerStats {
   return {
     x: arenaWidth / 2,
     y: arenaHeight / 2,
-    hp: 100,
-    maxHp: 100,
-    speed: 160,
-    damage: 18,
+    hp: Math.round(100 * loadout.hpMult),
+    maxHp: Math.round(100 * loadout.hpMult),
+    speed: Math.round(160 * loadout.speedMult),
+    damage: Math.round(18 * loadout.dmgMult),
     attackCooldownMs: 650,
     attackTimerMs: 0,
     projectileCount: 1,
-    pickupRadius: 95,
+    pickupRadius: Math.round(95 * loadout.speedMult),
     facing: "south",
     weapons: [],
   };
@@ -342,10 +343,11 @@ function createInitialPlayer(arenaWidth: number, arenaHeight: number): PlayerSta
 export function createInitialState(
   targetSeconds: number = Infinity,
   arenaWidth: number = ARENA_WIDTH,
-  arenaHeight: number = ARENA_HEIGHT
+  arenaHeight: number = ARENA_HEIGHT,
+  loadout: SurvivalLoadout = DEFAULT_SURVIVAL_LOADOUT
 ): SurvivalState {
   return {
-    player: createInitialPlayer(arenaWidth, arenaHeight),
+    player: createInitialPlayer(arenaWidth, arenaHeight, loadout),
     enemies: [],
     projectiles: [],
     gems: [],

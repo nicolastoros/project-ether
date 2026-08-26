@@ -8,7 +8,9 @@ import type {
   GuildInfo,
   InventoryItem,
   PvpOpponent,
+  Rarity,
   Skill,
+  TamerAvatar,
   TamerEquipment,
   UserProfile,
 } from "@/types/game";
@@ -385,6 +387,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_hat.png",
     source: { kind: "campaign-clear", stageId: "dg-stage-5" },
+    statBonus: { hp: 2 },
   },
   {
     id: "tamer-crimson-shoulders",
@@ -394,6 +397,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoulders.png",
     source: { kind: "campaign-clear", stageId: "dg-stage-8" },
+    statBonus: { def: 2 },
   },
   {
     id: "tamer-crimson-chest",
@@ -403,6 +407,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_chest.png",
     source: { kind: "craft", sealCoinCost: 20 },
+    statBonus: { hp: 3 },
   },
   {
     id: "tamer-crimson-legs",
@@ -412,6 +417,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_legs.png",
     source: { kind: "craft", sealCoinCost: 15 },
+    statBonus: { spd: 2 },
   },
   {
     id: "tamer-crimson-shoes",
@@ -421,6 +427,19 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoes.png",
     source: { kind: "craft", sealCoinCost: 15 },
+    statBonus: { spd: 2, atk: 1 },
+  },
+];
+
+// The player's own on-screen avatar (distinct from Digimon) — owning/equipping one applies its
+// buffs to every Digimon in battle (lib/tamerBuffs.ts). tamer1 is the free default every account
+// starts with; future purchasable Tamers slot into this same catalog (see SHOP_LISTINGS).
+export const TAMER_CATALOG: TamerAvatar[] = [
+  {
+    id: "tamer1",
+    name: "Novice Tamer",
+    spriteFolder: "/assets/tamers/tamer1/idle",
+    buffs: { hpPercent: 15, elementAtkBonus: { Light: 10 } },
   },
 ];
 
@@ -441,9 +460,51 @@ export const DEFAULT_PROFILE: UserProfile = {
 // stays in its own richer catalog above (STARTER_EQUIPMENT/Equipment type) since it has slot/
 // enhancement/equipped-to fields this simpler stackable-quantity model doesn't need.
 export const ITEM_CATALOG: InventoryItem[] = [
-  { id: "it-exp-potion-s", name: "Small EXP Potion", category: "Consumable", rarity: "Common", description: "A minor potion brimming with training energy." },
-  { id: "it-exp-potion-m", name: "Medium EXP Potion", category: "Consumable", rarity: "Rare", description: "A stronger draught for faster training." },
-  { id: "it-revive-feather", name: "Revive Feather", category: "Consumable", rarity: "Rare", description: "A feather said to pull a fallen partner back to their feet." },
+  {
+    id: "it-rotten-egg",
+    name: "Rotten Egg",
+    category: "Crafting",
+    rarity: "Common",
+    description: "Not fit to eat, but the Shop will still pay gold for it.",
+    icon: "/assets/objects/rotten_egg.png",
+    sellPriceGold: 80,
+  },
+  {
+    id: "it-chicken",
+    name: "Chicken",
+    category: "Consumable",
+    rarity: "Common",
+    description: "A hearty meal that restores some of the Tamer's energy.",
+    icon: "/assets/objects/chicken.png",
+    energyRestore: 20,
+  },
+  {
+    id: "it-training-box",
+    name: "Training Box",
+    category: "Consumable",
+    rarity: "Common",
+    description: "Basic training gear — a small dose of EXP for one Digimon.",
+    icon: "/assets/objects/box_exp1.png",
+    creatureExpValue: 200,
+  },
+  {
+    id: "it-training-trx",
+    name: "Training TRX",
+    category: "Consumable",
+    rarity: "Rare",
+    description: "Resistance bands for a solid training session — a medium dose of EXP.",
+    icon: "/assets/objects/trx_exp2.png",
+    creatureExpValue: 600,
+  },
+  {
+    id: "it-training-dumbbell",
+    name: "Training Dumbbells",
+    category: "Consumable",
+    rarity: "SSR",
+    description: "Serious training gear — the biggest single dose of EXP for one Digimon.",
+    icon: "/assets/objects/mancuerna_exp3.png",
+    creatureExpValue: 1500,
+  },
   { id: "it-frontier-emblem", name: "Frontier Reaches Emblem", category: "Quest", rarity: "SSR", description: "Proof of clearing World 1's toughest guardian." },
   { id: "it-sealed-key", name: "Sealed Ruins Key", category: "Quest", rarity: "Rare", description: "An old key that hums faintly. It must open something." },
   { id: "it-ember-shard", name: "Ember Shard", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Fire-aligned energy." },
@@ -451,9 +512,131 @@ export const ITEM_CATALOG: InventoryItem[] = [
   { id: "it-verdant-seed", name: "Verdant Seed", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Nature-aligned energy." },
   { id: "it-storm-crystal", name: "Storm Crystal", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Electric-aligned energy." },
   { id: "it-skin-crimson-emberling", name: "Crimson Emberling Skin", category: "Skin", rarity: "Mythic", description: "An alternate look for Emberling, wreathed in deeper crimson flame." },
-  { id: "it-iron-scrap", name: "Iron Scrap", category: "Crafting", rarity: "Common", description: "Salvaged metal, useful for crafting gear." },
-  { id: "it-mystic-thread", name: "Mystic Thread", category: "Crafting", rarity: "Common", description: "Thread woven with a faint arcane shimmer." },
-  { id: "it-arcane-dust", name: "Arcane Dust", category: "Crafting", rarity: "Rare", description: "Fine dust left behind by a dissipated spell." },
+];
+
+// Weighted 60/30/10 draw across the three training-item tiers — shared by Campaign's stage-clear
+// drop roll (BattleScreen.tsx) and the "Expedition" tier's guaranteed reward below.
+export function pickWeightedTrainingItemId(): string {
+  const roll = Math.random() * 100;
+  if (roll < 60) return "it-training-box";
+  if (roll < 90) return "it-training-trx";
+  return "it-training-dumbbell";
+}
+
+export interface ExpeditionDef {
+  id: string;
+  name: string;
+  durationMs: number;
+  baseSuccessRate: number; // 0-100
+  requiredPower: number;
+  rewardGoldMin: number;
+  rewardGoldMax: number;
+  /** Independent chance (0-100) at one of these items on success. */
+  rewardItemChances: { itemId: string; chance: number }[];
+  /** Independent chance (0-100) at +1 Seal Coin on success — a currency, not an ITEM_CATALOG entry. */
+  rewardSealCoinChance?: number;
+  guaranteedTrainingItem?: boolean;
+}
+
+export const EXPEDITION_DEFS: ExpeditionDef[] = [
+  {
+    id: "exp-scout-run",
+    name: "Scout Run",
+    durationMs: 30 * 60 * 1000,
+    baseSuccessRate: 85,
+    requiredPower: 500,
+    rewardGoldMin: 300,
+    rewardGoldMax: 600,
+    rewardItemChances: [{ itemId: "it-rotten-egg", chance: 30 }],
+  },
+  {
+    id: "exp-patrol",
+    name: "Patrol",
+    durationMs: 2 * 60 * 60 * 1000,
+    baseSuccessRate: 70,
+    requiredPower: 1500,
+    rewardGoldMin: 1200,
+    rewardGoldMax: 2000,
+    rewardItemChances: [{ itemId: "it-chicken", chance: 40 }],
+    rewardSealCoinChance: 15,
+  },
+  {
+    id: "exp-expedition",
+    name: "Expedition",
+    durationMs: 6 * 60 * 60 * 1000,
+    baseSuccessRate: 55,
+    requiredPower: 4000,
+    rewardGoldMin: 4000,
+    rewardGoldMax: 7000,
+    rewardItemChances: [{ itemId: "it-frontier-emblem", chance: 10 }],
+    guaranteedTrainingItem: true,
+  },
+];
+
+export interface ShopListing {
+  id: string;
+  description: string;
+  rarity: Rarity;
+  price: { gold?: number; gems?: number };
+  grants:
+    | { kind: "item"; itemId: string }
+    | { kind: "creature"; creatureId: string }
+    | { kind: "tamer"; tamerId: string };
+}
+
+// No standalone icon field — the Shop page resolves art at render time from whatever the listing
+// grants (ITEM_CATALOG's icon/CATEGORY_ICON for items, the creature's own sprite for creatures,
+// the Tamer's own sprite for avatars), so nothing here can drift out of sync with the real catalog.
+export const SHOP_LISTINGS: ShopListing[] = [
+  {
+    id: "shop-chicken",
+    description: "Restores 20 Tamer energy.",
+    rarity: "Common",
+    price: { gold: 150 },
+    grants: { kind: "item", itemId: "it-chicken" },
+  },
+  {
+    id: "shop-training-box",
+    description: "Grants 200 EXP to one Digimon.",
+    rarity: "Common",
+    price: { gold: 300 },
+    grants: { kind: "item", itemId: "it-training-box" },
+  },
+  {
+    id: "shop-training-trx",
+    description: "Grants 600 EXP to one Digimon.",
+    rarity: "Rare",
+    price: { gold: 900 },
+    grants: { kind: "item", itemId: "it-training-trx" },
+  },
+  {
+    id: "shop-training-dumbbell",
+    description: "Grants 1500 EXP to one Digimon.",
+    rarity: "SSR",
+    price: { gold: 2200 },
+    grants: { kind: "item", itemId: "it-training-dumbbell" },
+  },
+  {
+    id: "shop-skin-crimson-emberling",
+    description: "An alternate look for Emberling.",
+    rarity: "Mythic",
+    price: { gems: 500 },
+    grants: { kind: "item", itemId: "it-skin-crimson-emberling" },
+  },
+  {
+    id: "shop-creature-venomshade",
+    description: "A Dark-type Digimon, available directly for gems.",
+    rarity: "Rare",
+    price: { gems: 300 },
+    grants: { kind: "creature", creatureId: "cr-venomshade" },
+  },
+  {
+    id: "shop-creature-tidewarden",
+    description: "A Water-type Digimon, available directly for gems.",
+    rarity: "Rare",
+    price: { gems: 300 },
+    grants: { kind: "creature", creatureId: "cr-tidewarden" },
+  },
 ];
 
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [

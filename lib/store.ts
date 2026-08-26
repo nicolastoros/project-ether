@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
+  ActiveExpedition,
   Creature,
   Currencies,
   DailyTask,
@@ -13,14 +14,18 @@ import type {
 import {
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
+  EXPEDITION_DEFS,
   HUB_TEAM_SIZE,
   ITEM_CATALOG,
   MAX_LEVEL,
   nextLevelExpRequirement,
+  pickWeightedTrainingItemId,
+  SHOP_LISTINGS,
   STARTER_CREATURES,
   STARTER_EQUIPMENT,
   TAMER_EQUIPMENT_CATALOG,
 } from "@/lib/gameData";
+import { partyPower } from "@/lib/power";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -98,6 +103,10 @@ interface GameState {
   /** True once an item lands in `ownedItems` that the player hasn't opened Inventory to see yet —
    * drives the notification dot on the Inventory nav link. */
   hasUnseenInventory: boolean;
+  /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
+  equippedTamerId: string;
+  ownedTamerIds: string[];
+  activeExpeditions: ActiveExpedition[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
@@ -147,6 +156,26 @@ interface GameState {
   grantItem: (itemId: string, quantity?: number) => void;
   /** Clears the Inventory nav dot — called once when the Inventory page mounts. */
   markInventorySeen: () => void;
+  /** Removes `quantity` of an owned item (Inventory's "Use" action, or a Shop sale) — false if
+   * fewer than `quantity` are owned. */
+  consumeItem: (itemId: string, quantity?: number) => boolean;
+  /** Sells `quantity` of an item with a sellPriceGold set — false if not sellable or not owned. */
+  sellItem: (itemId: string, quantity?: number) => boolean;
+  /** Buys one SHOP_LISTINGS entry — false if unaffordable or the listing id is unknown. */
+  buyListing: (listingId: string) => boolean;
+
+  /** Sends up to 6 owned, not-already-busy creatures on an expedition — null if the def id is
+   * invalid, no creatures were given, or any are already on another expedition. */
+  startExpedition: (defId: string, creatureIds: string[]) => ActiveExpedition | null;
+  /** Resolves an expedition once its timer has elapsed — rolls success, grants rewards, and
+   * frees its creatures. Null if the expedition doesn't exist or hasn't finished yet. */
+  collectExpedition: (expeditionId: string) => {
+    success: boolean;
+    gold: number;
+    sealCoins: number;
+    items: { itemId: string; quantity: number }[];
+  } | null;
+  isOnExpedition: (creatureId: string) => boolean;
 
   toggleAutoBattle: () => void;
   toggleAutoDg: () => void;
@@ -163,8 +192,8 @@ export const useGameStore = create<GameState>()(
     (set, get) => ({
       profile: DEFAULT_PROFILE,
       currencies: {
-        gold: 45230,
-        gems: 1280,
+        gold: 0,
+        gems: 0,
         sealCoins: 0,
         energy: 82,
         energyMax: 120,
@@ -179,6 +208,9 @@ export const useGameStore = create<GameState>()(
       tamerInventory: [],
       ownedItems: [],
       hasUnseenInventory: false,
+      equippedTamerId: "tamer1",
+      ownedTamerIds: ["tamer1"],
+      activeExpeditions: [],
       dungeon: {
         highestStageCleared: 0,
         currentWave: 0,
@@ -254,6 +286,17 @@ export const useGameStore = create<GameState>()(
           tamerInventory,
           ownedItems,
           hasUnseenInventory: false,
+          // No "switch avatar" UI exists yet (only tamer1, the free default) — only ownership
+          // is server-persisted for now; which one is equipped stays client-side.
+          equippedTamerId: "tamer1",
+          ownedTamerIds: bundle.ownedTamerIds.length ? bundle.ownedTamerIds : ["tamer1"],
+          activeExpeditions: bundle.expeditions.map((e) => ({
+            id: e.id,
+            defId: e.defId,
+            creatureIds: e.creatureIds,
+            startedAt: e.startedAt,
+            durationMs: e.durationMs,
+          })),
           dungeon: bundle.dungeon,
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
@@ -280,6 +323,9 @@ export const useGameStore = create<GameState>()(
           tamerInventory: [],
           ownedItems: [],
           hasUnseenInventory: false,
+          equippedTamerId: "tamer1",
+          ownedTamerIds: ["tamer1"],
+          activeExpeditions: [],
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -497,6 +543,114 @@ export const useGameStore = create<GameState>()(
 
       markInventorySeen: () => set({ hasUnseenInventory: false }),
 
+      consumeItem: (itemId, quantity = 1) => {
+        const { ownedItems } = get();
+        const existing = ownedItems.find((o) => o.itemId === itemId);
+        if (!existing || existing.quantity < quantity) return false;
+        const nextQuantity = existing.quantity - quantity;
+        set({
+          ownedItems:
+            nextQuantity > 0
+              ? ownedItems.map((o) => (o.itemId === itemId ? { ...o, quantity: nextQuantity } : o))
+              : ownedItems.filter((o) => o.itemId !== itemId),
+        });
+        return true;
+      },
+
+      sellItem: (itemId, quantity = 1) => {
+        const item = ITEM_CATALOG.find((i) => i.id === itemId);
+        if (!item?.sellPriceGold) return false;
+        if (!get().consumeItem(itemId, quantity)) return false;
+        get().addGold(item.sellPriceGold * quantity);
+        return true;
+      },
+
+      buyListing: (listingId) => {
+        const listing = SHOP_LISTINGS.find((l) => l.id === listingId);
+        if (!listing) return false;
+        const { currencies, ownedTamerIds } = get();
+        if (listing.price.gold && currencies.gold < listing.price.gold) return false;
+        if (listing.price.gems && currencies.gems < listing.price.gems) return false;
+        if (listing.price.gold) get().spendGold(listing.price.gold);
+        if (listing.price.gems) get().spendGems(listing.price.gems);
+
+        if (listing.grants.kind === "item") {
+          get().grantItem(listing.grants.itemId, 1);
+        } else if (listing.grants.kind === "creature") {
+          get().grantCreature(listing.grants.creatureId);
+        } else if (!ownedTamerIds.includes(listing.grants.tamerId)) {
+          set({ ownedTamerIds: [...ownedTamerIds, listing.grants.tamerId] });
+        }
+        return true;
+      },
+
+      startExpedition: (defId, creatureIds) => {
+        const def = EXPEDITION_DEFS.find((d) => d.id === defId);
+        if (!def || creatureIds.length === 0 || creatureIds.length > 6) return null;
+        const { activeExpeditions } = get();
+        const busy = new Set(activeExpeditions.flatMap((e) => e.creatureIds));
+        if (creatureIds.some((id) => busy.has(id))) return null;
+
+        const expedition: ActiveExpedition = {
+          id: `exp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          defId,
+          creatureIds,
+          startedAt: Date.now(),
+          durationMs: def.durationMs,
+        };
+        set({ activeExpeditions: [...activeExpeditions, expedition] });
+        return expedition;
+      },
+
+      collectExpedition: (expeditionId) => {
+        const { activeExpeditions, creatures } = get();
+        const expedition = activeExpeditions.find((e) => e.id === expeditionId);
+        if (!expedition) return null;
+        if (Date.now() < expedition.startedAt + expedition.durationMs) return null;
+        const def = EXPEDITION_DEFS.find((d) => d.id === expedition.defId);
+        if (!def) return null;
+
+        set({ activeExpeditions: activeExpeditions.filter((e) => e.id !== expeditionId) });
+
+        const sentCreatures = expedition.creatureIds
+          .map((id) => creatures.find((c) => c.id === id))
+          .filter((c): c is Creature => Boolean(c));
+        const power = partyPower(sentCreatures);
+        const chance = Math.min(
+          98,
+          Math.max(20, def.baseSuccessRate + ((power - def.requiredPower) / def.requiredPower) * 40)
+        );
+        const success = Math.random() * 100 < chance;
+        if (!success) return { success: false, gold: 0, sealCoins: 0, items: [] };
+
+        const gold = Math.round(def.rewardGoldMin + Math.random() * (def.rewardGoldMax - def.rewardGoldMin));
+        get().addGold(gold);
+
+        let sealCoins = 0;
+        if (def.rewardSealCoinChance && Math.random() * 100 < def.rewardSealCoinChance) {
+          sealCoins = 1;
+          get().addSealCoins(1);
+        }
+
+        const items: { itemId: string; quantity: number }[] = [];
+        for (const { itemId, chance: itemChance } of def.rewardItemChances) {
+          if (Math.random() * 100 < itemChance) {
+            get().grantItem(itemId, 1);
+            items.push({ itemId, quantity: 1 });
+          }
+        }
+        if (def.guaranteedTrainingItem) {
+          const itemId = pickWeightedTrainingItemId();
+          get().grantItem(itemId, 1);
+          items.push({ itemId, quantity: 1 });
+        }
+
+        return { success: true, gold, sealCoins, items };
+      },
+
+      isOnExpedition: (creatureId) =>
+        get().activeExpeditions.some((e) => e.creatureIds.includes(creatureId)),
+
       toggleAutoBattle: () =>
         set((state) => ({
           dungeon: { ...state.dungeon, autoBattleEnabled: !state.dungeon.autoBattleEnabled },
@@ -603,6 +757,12 @@ export const useGameStore = create<GameState>()(
         merged.ownedItems = (persisted.ownedItems ?? []).filter((o) => itemCatalogById.has(o.itemId));
         // Defends against a pre-Inventory localStorage snapshot with no hasUnseenInventory field.
         merged.hasUnseenInventory = persisted.hasUnseenInventory ?? false;
+
+        // Defends against a pre-Tamer-avatar/Expeditions localStorage snapshot with none of these
+        // fields at all.
+        merged.equippedTamerId = persisted.equippedTamerId ?? "tamer1";
+        merged.ownedTamerIds = persisted.ownedTamerIds?.length ? persisted.ownedTamerIds : ["tamer1"];
+        merged.activeExpeditions = persisted.activeExpeditions ?? [];
 
         return merged;
       },

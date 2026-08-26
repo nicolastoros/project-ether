@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Swords } from "lucide-react";
+import { Map } from "lucide-react";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
@@ -14,16 +14,18 @@ function CombatPageContent() {
   const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
 
   // Worlds 1 and 2 have a defined enemy line-up per stage (lib/campaignEnemies.ts); other worlds
-  // don't have real battle content yet, so they still fall through to the sandbox placeholder.
+  // don't have real battle content yet. This route only exists to serve those real Campaign
+  // battles via ?stage= (see StageDetailModal.tsx) — there's no standalone "sandbox" mode here
+  // anymore (see Raid Battle / Expeditions for that).
   if (stage && getStageEnemyTeam(stage) !== null) {
     return <BattlePage stage={stage} />;
   }
 
   return (
     <PlaceholderView
-      icon={Swords}
-      title="Auto-DG / Combat Sandbox"
-      description="The full ATB lane battle arena lands next. For now, try World 1-1 from the Campaign to test the new 2v2 turn-based battle."
+      icon={Map}
+      title="Pick a stage from Campaign"
+      description="This screen only runs real Campaign battles — head to Campaign and select a stage to fight."
     />
   );
 }

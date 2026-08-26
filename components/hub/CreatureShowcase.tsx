@@ -3,12 +3,14 @@
 import { motion } from "framer-motion";
 import { useActiveCreature, useGameStore } from "@/lib/store";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
+import { TAMER_CATALOG } from "@/lib/gameData";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
 import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { TamerSprite } from "@/components/ui/TamerSprite";
 import { xpPercent, cn } from "@/lib/utils";
 
 export function CreatureShowcase() {
@@ -16,12 +18,18 @@ export function CreatureShowcase() {
   const creatures = useGameStore((s) => s.creatures);
   const hubTeamIds = useGameStore((s) => s.hubTeamIds);
   const setActiveCreature = useGameStore((s) => s.setActiveCreature);
+  const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const hubTeam = hubTeamIds
     .map((id) => creatures.find((c) => c.id === id))
     .filter((c): c is (typeof creatures)[number] => Boolean(c));
 
   // Briefly true right after login/registration, before the account bundle finishes loading.
   if (!creature) return null;
+
+  // The Tamer stays put here no matter which Digimon is active below (swapping active creature
+  // via the hub-team row, or leveling/evolving it) — it's the constant "partner" pairing, not
+  // tied to a specific Digimon.
+  const equippedTamer = TAMER_CATALOG.find((t) => t.id === equippedTamerId) ?? TAMER_CATALOG[0];
 
   return (
     <GlowPanel className="p-4">
@@ -44,15 +52,22 @@ export function CreatureShowcase() {
 
       <div
         className={cn(
-          "relative flex h-40 items-center justify-center overflow-hidden rounded-xl border border-arcade-border bg-gradient-to-b",
+          "relative flex h-40 items-center justify-center gap-2 overflow-hidden rounded-xl border border-arcade-border bg-gradient-to-b",
           ELEMENT_GRADIENT[creature.element]
         )}
       >
+        <div className="flex h-36 w-36 shrink-0 items-center justify-center">
+          <TamerSprite
+            spriteFolder={equippedTamer.spriteFolder}
+            name={equippedTamer.name}
+            className="h-full w-full drop-shadow-md"
+          />
+        </div>
         <motion.div
           animate={{ y: [0, -10, 0] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           className={cn(
-            "flex items-center justify-center",
+            "flex shrink-0 items-center justify-center",
             creature.spriteFolder
               ? "h-32 w-32"
               : "h-20 w-20 rounded-xl border-2 border-gold bg-arcade-panel pixel-frame glow-border-gold"

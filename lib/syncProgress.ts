@@ -65,3 +65,56 @@ export function grantItemOnServer(itemId: string, quantity = 1): void {
     // Non-fatal — see grantCreatureOnServer's comment above.
   });
 }
+
+/** Persists an item consumption (Inventory's "Use" action, or a Shop sale) server-side. */
+export function consumeItemOnServer(itemId: string, quantity = 1): void {
+  fetch("/api/user/items/consume", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemId, quantity }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  });
+}
+
+/** Persists a purchased Tamer avatar server-side — same insert-if-missing reasoning as
+ * grantTamerEquipmentOnServer above. */
+export function grantTamerAvatarOnServer(tamerId: string): void {
+  fetch("/api/user/tamer-avatar/grant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tamerId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  });
+}
+
+/** Persists a newly-sent expedition server-side — see lib/store.ts's startExpedition, which
+ * returns the same shape this expects. */
+export function startExpeditionOnServer(expedition: {
+  id: string;
+  defId: string;
+  creatureIds: string[];
+  startedAt: number;
+  durationMs: number;
+}): void {
+  fetch("/api/user/expeditions/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(expedition),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  });
+}
+
+/** Persists an expedition's resolution server-side — clears the row so it doesn't reappear as
+ * still-active on the next hydrate (lib/store.ts's collectExpedition already removed it locally). */
+export function collectExpeditionOnServer(expeditionId: string): void {
+  fetch("/api/user/expeditions/collect", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ expeditionId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  });
+}

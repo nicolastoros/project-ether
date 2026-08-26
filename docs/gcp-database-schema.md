@@ -117,6 +117,33 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_items` (
   PRIMARY KEY (user_id, item_id) NOT ENFORCED,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 );
+
+-- Avatares del Tamer comprados — "tamer1" (el default gratis) nunca se inserta acá, se asume
+-- implícito para toda cuenta (ver getAccountBundle en lib/db/bigquery.ts). Cuál está equipado
+-- todavía no se persiste (no existe UI para cambiar de avatar mientras solo haya uno comprable).
+CREATE TABLE `project-scrappy-intelic.project_ether.user_tamer_avatars` (
+  id           STRING DEFAULT GENERATE_UUID(),
+  user_id      STRING NOT NULL,
+  tamer_id     STRING NOT NULL,   -- coincide con el id en lib/gameData.ts TAMER_CATALOG
+  acquired_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (id) NOT ENFORCED,
+  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+)
+CLUSTER BY user_id;
+
+-- Expediciones activas — una fila por envío en curso; se borra al recolectar (no queda historial,
+-- la resolución es de una sola vez del lado del cliente). started_at/duration_ms son epoch-ms
+-- (INT64), no TIMESTAMP, para que calcen exactamente con el reloj Date.now() del cliente.
+CREATE TABLE `project-scrappy-intelic.project_ether.user_expeditions` (
+  id            STRING NOT NULL,
+  user_id       STRING NOT NULL,
+  def_id        STRING NOT NULL,   -- coincide con el id en lib/gameData.ts EXPEDITION_DEFS
+  creature_ids  ARRAY<STRING>,
+  started_at    INT64 NOT NULL,
+  duration_ms   INT64 NOT NULL,
+  PRIMARY KEY (id) NOT ENFORCED,
+  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+);
 ```
 
 ## 4. Catálogo de contenido (monstruos, skills, equipo, items, etapas, misiones, banners)

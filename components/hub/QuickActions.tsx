@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Swords, Sparkles, ShieldHalf, Trophy } from "lucide-react";
+import { Flame, Sparkles, ShieldHalf, Trophy } from "lucide-react";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 
 const ACTIONS = [
-  { href: "/combat", label: "Quick Battle", icon: Swords, accent: "text-red-500" },
+  { href: "/raid", label: "Raid Battle", icon: Flame, accent: "text-red-500" },
   { href: "/gacha", label: "Summon", icon: Sparkles, accent: "text-neon" },
   { href: "/inventory", label: "Blacksmith", icon: ShieldHalf, accent: "text-gold-bright" },
   { href: "/pvp", label: "Arena", icon: Trophy, accent: "text-violet-500" },

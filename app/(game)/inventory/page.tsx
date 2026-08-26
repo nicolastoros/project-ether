@@ -5,11 +5,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Sparkles, X } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG } from "@/lib/gameData";
-import { CATEGORY_ICON } from "@/lib/inventoryVisuals";
+import { consumeItemOnServer } from "@/lib/syncProgress";
+import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import type { Equipment, InventoryItem, InventoryItemCategory } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { CurrencyPill } from "@/components/ui/CurrencyPill";
+import { ItemIcon } from "@/components/ui/ItemIcon";
+import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
+import { CrownIcon } from "@/components/icons/CrownIcon";
+import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn } from "@/lib/utils";
 
 type TabId = "Equipment" | InventoryItemCategory;
@@ -54,12 +60,11 @@ function ItemCard({
   quantity: number;
   onClick: () => void;
 }) {
-  const Icon = CATEGORY_ICON[item.category];
   return (
     <button onClick={onClick} className="text-left">
       <GlowPanel accent="none" className="flex flex-col items-center gap-1.5 p-3 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light">
-          <Icon className="h-6 w-6 text-zinc-500" />
+          <ItemIcon item={item} className="h-9 w-9 text-zinc-500" />
         </div>
         <p className="truncate text-[11px] font-semibold text-foreground">{item.name}</p>
         <RarityBadge rarity={item.rarity} />
@@ -81,6 +86,7 @@ function EmptyTab({ label }: { label: string }) {
 }
 
 export default function InventoryPage() {
+  const currencies = useGameStore((s) => s.currencies);
   const inventory = useGameStore((s) => s.inventory);
   const ownedItems = useGameStore((s) => s.ownedItems);
   const markInventorySeen = useGameStore((s) => s.markInventorySeen);
@@ -89,10 +95,15 @@ export default function InventoryPage() {
   const equipItem = useGameStore((s) => s.equipItem);
   const unequipItem = useGameStore((s) => s.unequipItem);
   const enhanceEquipment = useGameStore((s) => s.enhanceEquipment);
+  const consumeItem = useGameStore((s) => s.consumeItem);
+  const regenEnergy = useGameStore((s) => s.regenEnergy);
+  const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
 
   const [activeTab, setActiveTab] = useState<TabId>("Equipment");
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [usingItemForCreature, setUsingItemForCreature] = useState<InventoryItem | null>(null);
+  const [pickedCreatureId, setPickedCreatureId] = useState<string | null>(null);
 
   useEffect(() => {
     markInventorySeen();
@@ -105,11 +116,18 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Inventory</h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          Everything you&apos;ve found across Campaign, Survival, and beyond.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-arcade text-lg glow-text-gold">Inventory</h1>
+          <p className="mt-1 text-xs text-zinc-500">
+            Everything you&apos;ve found across Campaign, Survival, and beyond.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5" />} value={currencies.gold} />
+          <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5" />} value={currencies.gems} />
+          <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5" />} value={currencies.sealCoins} />
+        </div>
       </div>
 
       <div className="scrollbar-hidden flex gap-1.5 overflow-x-auto pb-1">
@@ -279,6 +297,93 @@ export default function InventoryPage() {
                 </span>
               </div>
               <p className="mt-3 text-xs text-zinc-600">{selectedItem.description}</p>
+
+              <div className="mt-4 space-y-2">
+                {selectedItem.energyRestore && (
+                  <PixelButton
+                    variant="gold"
+                    className="w-full"
+                    onClick={() => {
+                      regenEnergy(selectedItem.energyRestore as number);
+                      consumeItem(selectedItem.id, 1);
+                      consumeItemOnServer(selectedItem.id, 1);
+                      setSelectedItem(null);
+                    }}
+                  >
+                    Use (+{selectedItem.energyRestore} Energy)
+                  </PixelButton>
+                )}
+                {selectedItem.creatureExpValue && (
+                  <PixelButton
+                    variant="gold"
+                    className="w-full"
+                    onClick={() => {
+                      setUsingItemForCreature(selectedItem);
+                      setSelectedItem(null);
+                    }}
+                  >
+                    Use on a Digimon
+                  </PixelButton>
+                )}
+                {selectedItem.sellPriceGold && (
+                  <p className="text-center text-[10px] text-zinc-500">
+                    Sell this in the Shop for {selectedItem.sellPriceGold} gold.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {usingItemForCreature && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setUsingItemForCreature(null);
+                setPickedCreatureId(null);
+              }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="relative w-full max-w-md space-y-3 rounded-t-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl sm:rounded-3xl"
+            >
+              <button
+                onClick={() => {
+                  setUsingItemForCreature(null);
+                  setPickedCreatureId(null);
+                }}
+                aria-label="Close"
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <h2 className="text-sm font-bold text-foreground">
+                Use {usingItemForCreature.name} on which Digimon?
+              </h2>
+              <MultiCreaturePicker
+                creatures={creatures}
+                selectedIds={pickedCreatureId ? [pickedCreatureId] : []}
+                maxCount={1}
+                onToggle={(id) => setPickedCreatureId(id)}
+                confirmLabel="Use"
+                onConfirm={() => {
+                  if (!pickedCreatureId) return;
+                  gainCreatureExp(pickedCreatureId, usingItemForCreature.creatureExpValue as number);
+                  consumeItem(usingItemForCreature.id, 1);
+                  consumeItemOnServer(usingItemForCreature.id, 1);
+                  setUsingItemForCreature(null);
+                  setPickedCreatureId(null);
+                }}
+              />
             </motion.div>
           </div>
         )}

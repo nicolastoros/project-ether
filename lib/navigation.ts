@@ -1,12 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Castle,
+  Compass,
+  Flame,
   Map,
   Skull,
   Sparkles,
+  Store,
   Users,
   ShieldHalf,
-  Swords,
   Trophy,
   PawPrint,
   UserPlus,
@@ -32,7 +34,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/hub", label: "Hub", icon: Castle },
       { href: "/campaign", label: "Campaign", icon: Map },
       { href: "/survival", label: "Survival", icon: Skull },
-      { href: "/combat", label: "Combat Sandbox", icon: Swords },
+      { href: "/raid", label: "Raid Battle", icon: Flame },
+      { href: "/expeditions", label: "Expeditions", icon: Compass },
       { href: "/gacha", label: "Summon", icon: Sparkles },
       { href: "/pvp", label: "PvP Arena", icon: Trophy },
     ],
@@ -44,6 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/party", label: "Party", icon: Users },
       { href: "/inventory", label: "Inventory", icon: ShieldHalf },
       { href: "/tamer", label: "Tamer", icon: Shirt },
+      { href: "/shop", label: "Shop", icon: Store },
     ],
   },
   {
