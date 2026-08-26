@@ -4,14 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw, Sparkles, Zap } from "lucide-react";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { useGameStore } from "@/lib/store";
-import { TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
-import { grantCreatureOnServer, grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { DUNGEON_STAGES, ITEM_CATALOG, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { getDailyExpEventStageId } from "@/lib/expEvent";
+import { CATEGORY_ICON } from "@/lib/inventoryVisuals";
+import {
+  grantCreatureOnServer,
+  grantItemOnServer,
+  grantTamerEquipmentOnServer,
+  syncProgressToServer,
+} from "@/lib/syncProgress";
 import {
   applyAction,
   createCombatant,
@@ -63,10 +70,12 @@ function buildInitialCombatants(playerCreatures: Creature[], enemyCreatures: [Cr
 export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch, onExit }: BattleScreenProps) {
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
+  const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
   const grantCreature = useGameStore((s) => s.grantCreature);
   const addSealCoins = useGameStore((s) => s.addSealCoins);
   const grantTamerEquipment = useGameStore((s) => s.grantTamerEquipment);
+  const grantItem = useGameStore((s) => s.grantItem);
 
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
     buildInitialCombatants(playerCreatures, enemyCreatures)
@@ -86,8 +95,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [rewardGranted, setRewardGranted] = useState(false);
   const [firstClearGift, setFirstClearGift] = useState<{ isNew: boolean; copies: number } | null>(null);
   const [rewardMultiplier, setRewardMultiplier] = useState(1);
+  const [expRewardMultiplier, setExpRewardMultiplier] = useState(1);
+  const [isExpEventStage, setIsExpEventStage] = useState(false);
   const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
   const [tamerGearGranted, setTamerGearGranted] = useState<string | null>(null);
+  const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -127,8 +139,17 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         const isFirstClearOfThisStage = stage.stageNumber > highestBefore;
         const multiplier = isFirstClearOfThisStage ? 2 : 1;
         setRewardMultiplier(multiplier);
+
+        // Blue-aura event stage: doubles EXP only (gold and the first-clear bonus above are
+        // unaffected) — rotates daily, same stage id for every player (lib/expEvent.ts).
+        const expEventActive = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
+        setIsExpEventStage(expEventActive);
+        const expMultiplier = multiplier * (expEventActive ? 2 : 1);
+        setExpRewardMultiplier(expMultiplier);
+
         addGold(stage.rewardGold * multiplier);
-        playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * multiplier));
+        playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * expMultiplier));
+        gainProfileExp(stage.rewardExp * expMultiplier);
         const isFirstStage1Clear = stage.stageNumber === 1 && highestBefore === 0;
         clearDungeonStage(stage.stageNumber);
         if (isFirstStage1Clear) {
@@ -159,6 +180,26 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             setTamerGearGranted(tamerPiece.name);
             grantTamerEquipmentOnServer(tamerPiece.id);
           }
+        }
+
+        // Item drop: rolls the same equipmentDropChance field again (already reused for Seal
+        // Coins) for a chance at one Evolution/Crafting material.
+        const materialPool = ITEM_CATALOG.filter(
+          (i) => i.category === "Evolution" || i.category === "Crafting"
+        );
+        if (materialPool.length > 0 && Math.random() * 100 < stage.equipmentDropChance) {
+          const picked = materialPool[Math.floor(Math.random() * materialPool.length)];
+          grantItem(picked.id, 1);
+          grantItemOnServer(picked.id, 1);
+          setItemsDropped((prev) => [...prev, { itemId: picked.id, quantity: 1 }]);
+        }
+
+        // World 1's boss clear guarantees a Quest item, once — same isFirstClearOfThisStage
+        // guard as the Dragoon/Tamer-gear grants above, so replays don't re-grant it.
+        if (isFirstClearOfThisStage && stage.world === 1 && stage.worldStageNumber === 8) {
+          grantItem("it-frontier-emblem", 1);
+          grantItemOnServer("it-frontier-emblem", 1);
+          setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
         }
 
         // Push the stage-clear (and this fight's EXP/currency gains) right away rather than
@@ -401,12 +442,17 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     First Clear Bonus ×2
                   </p>
                 )}
+                {isExpEventStage && (
+                  <p className="inline-flex items-center gap-1 font-arcade text-[9px] uppercase tracking-wide text-sky-500">
+                    <Zap className="h-3 w-3 fill-current" /> 2x EXP Event!
+                  </p>
+                )}
                 <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
                   <span className="inline-flex items-center gap-1">
                     <GoldCoinIcon className="h-3.5 w-3.5" /> +{formatNumber(stage.rewardGold * rewardMultiplier)}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * rewardMultiplier} EXP each
+                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * expRewardMultiplier} EXP each
                   </span>
                   {sealCoinsDropped > 0 && (
                     <span className="inline-flex items-center gap-1">
@@ -414,6 +460,23 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     </span>
                   )}
                 </div>
+                {itemsDropped.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {itemsDropped.map((drop, i) => {
+                      const item = ITEM_CATALOG.find((it) => it.id === drop.itemId);
+                      if (!item) return null;
+                      const Icon = CATEGORY_ICON[item.category];
+                      return (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground"
+                        >
+                          <Icon className="h-3 w-3" /> +{drop.quantity} {item.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 {firstClearGift && (
                   <p className="font-arcade text-[10px] uppercase glow-text-gold">
                     {firstClearGift.isNew

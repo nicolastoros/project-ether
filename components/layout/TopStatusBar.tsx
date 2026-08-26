@@ -3,11 +3,13 @@
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { UserCircle2, LogOut } from "lucide-react";
+import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
+import { xpPercent } from "@/lib/utils";
 
 export function TopStatusBar() {
   const profile = useGameStore((s) => s.profile);
@@ -22,12 +24,19 @@ export function TopStatusBar() {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold bg-arcade-panel-light glow-border-gold">
             <UserCircle2 className="h-5 w-5 text-gold-bright" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-foreground">
               {profile.name}{" "}
               <span className="text-zinc-600">Lv.{profile.level}</span>
             </p>
             <p className="truncate text-[10px] text-zinc-600">{profile.title}</p>
+            {profile.level < MAX_LEVEL && (
+              <ProgressBar
+                percent={xpPercent(profile.exp, profile.expToNextLevel)}
+                color="exp"
+                className="mt-1 max-w-32"
+              />
+            )}
           </div>
         </div>
 

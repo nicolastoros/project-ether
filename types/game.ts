@@ -104,6 +104,21 @@ export interface TamerEquipment {
   source: { kind: "campaign-clear"; stageId: string } | { kind: "craft"; sealCoinCost: number };
 }
 
+export type InventoryItemCategory = "Consumable" | "Quest" | "Evolution" | "Skin" | "Crafting";
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: InventoryItemCategory;
+  rarity: Rarity;
+  description: string;
+}
+
+export interface OwnedInventoryItem {
+  itemId: string;
+  quantity: number;
+}
+
 export interface DungeonProgress {
   highestStageCleared: number;
   currentWave: number;

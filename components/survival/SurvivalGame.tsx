@@ -9,6 +9,9 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { useGameStore } from "@/lib/store";
+import { ITEM_CATALOG } from "@/lib/gameData";
+import { CATEGORY_ICON } from "@/lib/inventoryVisuals";
+import { grantItemOnServer } from "@/lib/syncProgress";
 import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
 import {
   UPGRADE_POOL,
@@ -248,7 +251,10 @@ interface SurvivalGameProps {
 export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
   const addGold = useGameStore((s) => s.addGold);
   const addGems = useGameStore((s) => s.addGems);
+  const gainProfileExp = useGameStore((s) => s.gainProfileExp);
+  const grantItem = useGameStore((s) => s.grantItem);
   const clearSurvivalStage = useGameStore((s) => s.clearSurvivalStage);
+  const [itemDropped, setItemDropped] = useState<{ itemId: string; quantity: number } | null>(null);
 
   // useMemo (not a ref) so it's safe to read during render below, but still only decided once
   // per mount — not reactively on resize, since rescaling mid-run would strand existing
@@ -343,8 +349,36 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
     if (hud.phase !== "victory") return;
     addGold(stage.rewardGold);
     addGems(stage.rewardGems);
+    // Survival has no rewardExp field like Campaign's DungeonStage — this is a simple formula of
+    // its own, consistent in shape with its other stage-number-scaled reward numbers.
+    gainProfileExp(stage.stageNumber * 15);
     clearSurvivalStage(stage.stageNumber);
-  }, [hud.phase, stage.rewardGold, stage.rewardGems, stage.stageNumber, addGold, addGems, clearSurvivalStage]);
+
+    // A modest chance at a Consumable, same spirit as Campaign's seal-coin/item rolls but with
+    // Survival's own flat rate since it has no equipmentDropChance field to reuse. The local UI
+    // state update is deferred a frame (same technique the game loop below already relies on for
+    // its own setHud call) so it isn't a direct setState-in-effect.
+    const consumablePool = ITEM_CATALOG.filter((i) => i.category === "Consumable");
+    const picked =
+      consumablePool.length > 0 && Math.random() < 0.25
+        ? consumablePool[Math.floor(Math.random() * consumablePool.length)]
+        : null;
+    if (picked) {
+      grantItem(picked.id, 1);
+      grantItemOnServer(picked.id, 1);
+    }
+    requestAnimationFrame(() => setItemDropped(picked ? { itemId: picked.id, quantity: 1 } : null));
+  }, [
+    hud.phase,
+    stage.rewardGold,
+    stage.rewardGems,
+    stage.stageNumber,
+    addGold,
+    addGems,
+    gainProfileExp,
+    grantItem,
+    clearSurvivalStage,
+  ]);
 
   function handleRestart() {
     stateRef.current = createInitialState(stage.targetSeconds, arenaDims.width, arenaDims.height);
@@ -594,6 +628,17 @@ export function SurvivalGame({ stage, onExit }: SurvivalGameProps) {
                 <CrownIcon className="h-4 w-4" /> +{stage.rewardGems}
               </span>
             </div>
+            {itemDropped &&
+              (() => {
+                const item = ITEM_CATALOG.find((i) => i.id === itemDropped.itemId);
+                if (!item) return null;
+                const Icon = CATEGORY_ICON[item.category];
+                return (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground">
+                    <Icon className="h-3 w-3" /> +{itemDropped.quantity} {item.name}
+                  </span>
+                );
+              })()}
             <PixelButton variant="neon" className="w-full" onClick={onExit}>
               Back to Map
             </PixelButton>

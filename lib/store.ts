@@ -6,6 +6,7 @@ import type {
   DailyTask,
   DungeonProgress,
   Equipment,
+  OwnedInventoryItem,
   TamerEquipment,
   UserProfile,
 } from "@/types/game";
@@ -13,6 +14,9 @@ import {
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
   HUB_TEAM_SIZE,
+  ITEM_CATALOG,
+  MAX_LEVEL,
+  nextLevelExpRequirement,
   STARTER_CREATURES,
   STARTER_EQUIPMENT,
   TAMER_EQUIPMENT_CATALOG,
@@ -26,15 +30,16 @@ const BOX_EXP_PER_SECOND = 1.5;
 const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
 
 function applyExpGain(creature: Creature, gained: number): Creature {
+  if (creature.level >= MAX_LEVEL) return creature;
   let exp = creature.exp + gained;
   let level = creature.level;
   let expToNextLevel = creature.expToNextLevel;
   let baseStats = creature.baseStats;
 
-  while (exp >= expToNextLevel) {
+  while (exp >= expToNextLevel && level < MAX_LEVEL) {
     exp -= expToNextLevel;
     level += 1;
-    expToNextLevel = Math.round(expToNextLevel * 1.15);
+    expToNextLevel = nextLevelExpRequirement(expToNextLevel, level);
     baseStats = {
       hp: baseStats.hp + 8,
       atk: baseStats.atk + 3,
@@ -42,8 +47,36 @@ function applyExpGain(creature: Creature, gained: number): Creature {
       spd: baseStats.spd + 1,
     };
   }
+  if (level >= MAX_LEVEL) {
+    level = MAX_LEVEL;
+    exp = 0;
+  }
 
-  return { ...creature, level, exp, expToNextLevel, baseStats };
+  // tickBoxExp's per-second gains are fractional (BOX_EXP_PER_SECOND * elapsed seconds) — round
+  // here so the persisted value always stays a whole number. BigQuery's sync query types
+  // user_creatures.exp as INT64 and rejects a fractional value outright, silently breaking that
+  // creature's progress sync (discovered via a real 400 from BigQuery: "Bad int64 value: 275.9705").
+  return { ...creature, level, exp: Math.round(exp), expToNextLevel, baseStats };
+}
+
+function applyProfileExpGain(profile: UserProfile, gained: number): UserProfile {
+  if (profile.level >= MAX_LEVEL) return profile;
+  let exp = profile.exp + gained;
+  let level = profile.level;
+  let expToNextLevel = profile.expToNextLevel;
+
+  while (exp >= expToNextLevel && level < MAX_LEVEL) {
+    exp -= expToNextLevel;
+    level += 1;
+    expToNextLevel = nextLevelExpRequirement(expToNextLevel, level);
+  }
+  if (level >= MAX_LEVEL) {
+    level = MAX_LEVEL;
+    exp = 0;
+  }
+
+  // Same rounding reasoning as applyExpGain above — keeps this INT64-typed on the sync path too.
+  return { ...profile, level, exp: Math.round(exp), expToNextLevel };
 }
 
 interface GameState {
@@ -59,6 +92,12 @@ interface GameState {
    * step yet: each slot has at most one obtainable item so far, so owning a piece means wearing
    * it. See types/game.ts's TamerEquipment comment. */
   tamerInventory: TamerEquipment[];
+  /** Generic collectible items (Consumable/Quest/Evolution/Skin/Crafting) — Equipment stays in
+   * `inventory` above. Quantities stack per item id via OwnedInventoryItem.quantity. */
+  ownedItems: OwnedInventoryItem[];
+  /** True once an item lands in `ownedItems` that the player hasn't opened Inventory to see yet —
+   * drives the notification dot on the Inventory nav link. */
+  hasUnseenInventory: boolean;
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
@@ -76,6 +115,7 @@ interface GameState {
   toggleHubTeamMember: (creatureId: string) => void;
   tickBoxExp: () => void;
   gainCreatureExp: (creatureId: string, amount: number) => void;
+  gainProfileExp: (amount: number) => void;
   /** Adds a catalog creature to the collection at its default level, or — if already owned —
    * increments its dupe count instead (creature ids are unique per account, but duplicates are
    * tracked via Creature.copies rather than being rejected; a future "overlock" system will spend
@@ -101,6 +141,12 @@ interface GameState {
   /** Spends Seal Coins to craft a Tamer gear piece (its cost comes from TAMER_EQUIPMENT_CATALOG's
    * "craft" source) — false if already owned, not craftable, or not enough Seal Coins. */
   craftTamerEquipment: (itemId: string) => boolean;
+
+  /** Adds (or stacks) a generic collectible item and flags the Inventory nav dot. No-op if
+   * itemId isn't a real ITEM_CATALOG id. */
+  grantItem: (itemId: string, quantity?: number) => void;
+  /** Clears the Inventory nav dot — called once when the Inventory page mounts. */
+  markInventorySeen: () => void;
 
   toggleAutoBattle: () => void;
   toggleAutoDg: () => void;
@@ -131,6 +177,8 @@ export const useGameStore = create<GameState>()(
       lastExpTickAt: Date.now(),
       inventory: STARTER_EQUIPMENT,
       tamerInventory: [],
+      ownedItems: [],
+      hasUnseenInventory: false,
       dungeon: {
         highestStageCleared: 0,
         currentWave: 0,
@@ -182,6 +230,9 @@ export const useGameStore = create<GameState>()(
           .map((owned) => tamerCatalogById.get(owned.itemId))
           .filter((t): t is TamerEquipment => t !== undefined);
 
+        const itemCatalogIds = new Set(ITEM_CATALOG.map((i) => i.id));
+        const ownedItems = bundle.items.filter((owned) => itemCatalogIds.has(owned.itemId));
+
         set({
           profile: {
             id: bundle.profile.id,
@@ -201,6 +252,8 @@ export const useGameStore = create<GameState>()(
           lastExpTickAt: Date.now(),
           inventory,
           tamerInventory,
+          ownedItems,
+          hasUnseenInventory: false,
           dungeon: bundle.dungeon,
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
@@ -225,6 +278,8 @@ export const useGameStore = create<GameState>()(
           hubTeamIds: [],
           inventory: [],
           tamerInventory: [],
+          ownedItems: [],
+          hasUnseenInventory: false,
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -292,6 +347,9 @@ export const useGameStore = create<GameState>()(
             c.id === creatureId ? applyExpGain(c, amount) : c
           ),
         })),
+
+      gainProfileExp: (amount) =>
+        set((state) => ({ profile: applyProfileExpGain(state.profile, amount) })),
 
       grantCreature: (creatureId) => {
         const { creatures } = get();
@@ -424,6 +482,21 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
+      grantItem: (itemId, quantity = 1) => {
+        if (!ITEM_CATALOG.some((i) => i.id === itemId)) return;
+        set((state) => {
+          const existing = state.ownedItems.find((o) => o.itemId === itemId);
+          const ownedItems = existing
+            ? state.ownedItems.map((o) =>
+                o.itemId === itemId ? { ...o, quantity: o.quantity + quantity } : o
+              )
+            : [...state.ownedItems, { itemId, quantity }];
+          return { ownedItems, hasUnseenInventory: true };
+        });
+      },
+
+      markInventorySeen: () => set({ hasUnseenInventory: false }),
+
       toggleAutoBattle: () =>
         set((state) => ({
           dungeon: { ...state.dungeon, autoBattleEnabled: !state.dungeon.autoBattleEnabled },
@@ -523,6 +596,13 @@ export const useGameStore = create<GameState>()(
         // Defends against a pre-sealCoins localStorage snapshot, where persisted.currencies
         // exists but has no sealCoins field at all (would otherwise merge in as undefined).
         merged.currencies = { ...merged.currencies, sealCoins: merged.currencies.sealCoins ?? 0 };
+
+        // Generic items, same re-resolve-by-id rule as tamerInventory above — drop any id that
+        // no longer exists in ITEM_CATALOG.
+        const itemCatalogById = new Set(ITEM_CATALOG.map((i) => i.id));
+        merged.ownedItems = (persisted.ownedItems ?? []).filter((o) => itemCatalogById.has(o.itemId));
+        // Defends against a pre-Inventory localStorage snapshot with no hasUnseenInventory field.
+        merged.hasUnseenInventory = persisted.hasUnseenInventory ?? false;
 
         return merged;
       },

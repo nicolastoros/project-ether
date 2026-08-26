@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { X, Lock, Zap } from "lucide-react";
 import type { DungeonStage, DungeonDifficulty } from "@/types/game";
+import { DUNGEON_STAGES } from "@/lib/gameData";
+import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
@@ -21,6 +23,8 @@ interface StageDetailModalProps {
 }
 
 export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
+  const isExpEvent = stage ? stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES) : false;
+
   return (
     <AnimatePresence>
       {stage && (
@@ -61,6 +65,12 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
             >
               {stage.difficulty}
             </span>
+
+            {isExpEvent && (
+              <p className="mt-2 flex items-center gap-1 font-arcade text-[9px] font-semibold uppercase tracking-wide text-sky-500">
+                <Zap className="h-3 w-3 fill-current" /> 2x EXP Event Today
+              </p>
+            )}
 
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">

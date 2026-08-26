@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, Lock, Swords } from "lucide-react";
+import { Check, Lock, Swords, Zap } from "lucide-react";
 import type { DungeonStage } from "@/types/game";
 import type { CampaignWorld } from "@/lib/campaignWorlds";
+import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { cn } from "@/lib/utils";
 
 // Same "S-curve" node layout as SurvivalWorldMap (components/survival/SurvivalWorldMap.tsx) —
@@ -55,6 +56,7 @@ export function CampaignWorldMap({ world, stages, onSelectStage }: CampaignWorld
   const nodes = useMemo(() => buildNodes(stages), [stages]);
   const nextIndex = useMemo(() => stages.findIndex((s) => !s.isCleared && !s.isLocked), [stages]);
   const progressEndIndex = nextIndex === -1 ? nodes.length - 1 : nextIndex;
+  const eventStageId = useMemo(() => getDailyExpEventStageId(world.world, stages), [world.world, stages]);
 
   const fullPath = useMemo(() => buildPath(nodes), [nodes]);
   const progressPath = useMemo(() => buildPath(nodes.slice(0, progressEndIndex + 1)), [nodes, progressEndIndex]);
@@ -98,6 +100,7 @@ export function CampaignWorldMap({ world, stages, onSelectStage }: CampaignWorld
       {nodes.map(({ stage, x, y }, i) => {
         const isNext = i === nextIndex;
         const isLocked = stage.isLocked;
+        const isExpEvent = stage.id === eventStageId;
 
         return (
           <button
@@ -106,39 +109,55 @@ export function CampaignWorldMap({ world, stages, onSelectStage }: CampaignWorld
             disabled={isLocked}
             className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
             style={{ left: `${x}%`, top: `${y}%` }}
-            aria-label={`${world.name} stage ${stage.worldStageNumber}: ${stage.name}`}
+            aria-label={`${world.name} stage ${stage.worldStageNumber}: ${stage.name}${isExpEvent ? " — 2x EXP event today" : ""}`}
           >
-            <motion.div
-              animate={
-                isNext
-                  ? {
-                      boxShadow: [
-                        "0 0 0px 0px rgba(255,184,77,0)",
-                        "0 0 16px 6px rgba(255,184,77,0.6)",
-                        "0 0 0px 0px rgba(255,184,77,0)",
-                      ],
-                    }
-                  : undefined
-              }
-              transition={isNext ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : undefined}
-              whileTap={isLocked ? undefined : { scale: 0.92 }}
-              className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-full border-[3px] font-arcade text-xs font-bold shadow-md backdrop-blur-sm",
-                stage.isCleared && "border-gold bg-gold text-white",
-                isNext && "border-white bg-white/90 text-foreground",
-                isLocked && "border-white/40 bg-black/40 text-white/70"
+            <div className="relative">
+              {isExpEvent && (
+                <span className="absolute -right-1.5 -top-1.5 z-10 flex items-center gap-0.5 rounded-full bg-sky-500 px-1.5 py-0.5 font-arcade text-[7px] font-bold text-white shadow-sm ring-2 ring-white">
+                  <Zap className="h-2 w-2 fill-current" /> x2
+                </span>
               )}
-            >
-              {stage.isCleared ? (
-                <Check className="h-5 w-5" />
-              ) : isLocked ? (
-                <Lock className="h-4 w-4" />
-              ) : isNext ? (
-                <Swords className="h-5 w-5" />
-              ) : (
-                stage.worldStageNumber
-              )}
-            </motion.div>
+              <motion.div
+                animate={
+                  isExpEvent
+                    ? {
+                        boxShadow: [
+                          "0 0 0px 0px rgba(56,189,248,0)",
+                          "0 0 16px 6px rgba(56,189,248,0.65)",
+                          "0 0 0px 0px rgba(56,189,248,0)",
+                        ],
+                      }
+                    : isNext
+                      ? {
+                          boxShadow: [
+                            "0 0 0px 0px rgba(255,184,77,0)",
+                            "0 0 16px 6px rgba(255,184,77,0.6)",
+                            "0 0 0px 0px rgba(255,184,77,0)",
+                          ],
+                        }
+                      : undefined
+                }
+                transition={isNext || isExpEvent ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : undefined}
+                whileTap={isLocked ? undefined : { scale: 0.92 }}
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-full border-[3px] font-arcade text-xs font-bold shadow-md backdrop-blur-sm",
+                  stage.isCleared && "border-gold bg-gold text-white",
+                  isNext && "border-white bg-white/90 text-foreground",
+                  isLocked && "border-white/40 bg-black/40 text-white/70",
+                  isExpEvent && !isNext && "border-sky-400"
+                )}
+              >
+                {stage.isCleared ? (
+                  <Check className="h-5 w-5" />
+                ) : isLocked ? (
+                  <Lock className="h-4 w-4" />
+                ) : isNext ? (
+                  <Swords className="h-5 w-5" />
+                ) : (
+                  stage.worldStageNumber
+                )}
+              </motion.div>
+            </div>
             <span className="rounded-full bg-black/55 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-white">
               {stage.worldStageNumber}
             </span>

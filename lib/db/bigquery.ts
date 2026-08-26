@@ -194,10 +194,11 @@ export interface AccountBundle {
     equippedTo: string | null;
   }[];
   tamerEquipment: { itemId: string }[];
+  items: { itemId: string; quantity: number }[];
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
-  const [userResult, currencyResult, dungeonResult, creatureResult, equipmentResult, tamerResult] =
+  const [userResult, currencyResult, dungeonResult, creatureResult, equipmentResult, tamerResult, itemsResult] =
     await Promise.all([
       bq().query({
         query: `
@@ -241,6 +242,13 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT item_id, quantity
+        FROM ${table("user_items")} WHERE user_id = @userId
+      `,
+        params: { userId },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -250,6 +258,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const creatureRows = creatureResult[0];
   const equipmentRows = equipmentResult[0];
   const tamerRows = tamerResult[0];
+  const itemsRows = itemsResult[0];
 
   return {
     profile: {
@@ -301,6 +310,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       equippedTo: row.equipped_to ?? null,
     })),
     tamerEquipment: tamerRows.map((row) => ({ itemId: row.item_id })),
+    items: itemsRows.map((row) => ({ itemId: row.item_id, quantity: row.quantity })),
   };
 }
 
@@ -456,4 +466,32 @@ export async function grantTamerEquipmentToUser(userId: string, itemId: string):
     params: { id: randomUUID(), userId, itemId },
   });
   return { isNew: true };
+}
+
+/** Adds (or stacks onto) a generic collectible item — Consumable/Quest/Evolution/Skin/Crafting.
+ * Unlike Tamer gear, these stack by quantity rather than being unique-per-account. */
+export async function grantItemToUser(userId: string, itemId: string, quantity: number): Promise<void> {
+  const [existingRows] = await bq().query({
+    query: `SELECT quantity FROM ${table("user_items")} WHERE user_id = @userId AND item_id = @itemId LIMIT 1`,
+    params: { userId, itemId },
+  });
+  if (existingRows.length > 0) {
+    await bq().query({
+      query: `
+        UPDATE ${table("user_items")}
+        SET quantity = quantity + @quantity, updated_at = CURRENT_TIMESTAMP()
+        WHERE user_id = @userId AND item_id = @itemId
+      `,
+      params: { userId, itemId, quantity },
+    });
+    return;
+  }
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("user_items")} (user_id, item_id, quantity)
+      VALUES (@userId, @itemId, @quantity)
+    `,
+    params: { userId, itemId, quantity },
+  });
 }

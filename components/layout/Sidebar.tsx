@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Settings, UserCircle2, LogOut } from "lucide-react";
+import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
-import { cn } from "@/lib/utils";
+import { cn, xpPercent } from "@/lib/utils";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 
 /**
  * Decorative watermark for the empty space below the nav groups.
@@ -46,6 +48,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const profile = useGameStore((s) => s.profile);
   const logout = useGameStore((s) => s.logout);
+  const hasUnseenInventory = useGameStore((s) => s.hasUnseenInventory);
   const router = useRouter();
 
   return (
@@ -76,13 +79,18 @@ export function Sidebar() {
                       {isActive && (
                         <span className="absolute left-0.5 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gold" />
                       )}
-                      <Icon
-                        strokeWidth={2.25}
-                        className={cn(
-                          "h-4 w-4 shrink-0 transition-colors",
-                          isActive ? "text-gold-bright" : "text-slate-400 group-hover:text-neon"
+                      <span className="relative flex shrink-0 items-center justify-center">
+                        <Icon
+                          strokeWidth={2.25}
+                          className={cn(
+                            "h-4 w-4 transition-colors",
+                            isActive ? "text-gold-bright" : "text-slate-400 group-hover:text-neon"
+                          )}
+                        />
+                        {href === "/inventory" && hasUnseenInventory && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-white" />
                         )}
-                      />
+                      </span>
                       <span className="truncate">{label}</span>
                     </Link>
                   </li>
@@ -105,6 +113,15 @@ export function Sidebar() {
               {profile.name} <span className="font-normal text-slate-400">Lv.{profile.level}</span>
             </p>
             <p className="truncate text-[10px] text-slate-400">{profile.title}</p>
+            {profile.level < MAX_LEVEL ? (
+              <ProgressBar
+                percent={xpPercent(profile.exp, profile.expToNextLevel)}
+                color="exp"
+                className="mt-1"
+              />
+            ) : (
+              <p className="mt-1 font-arcade text-[8px] uppercase tracking-wide text-gold-bright">Max level</p>
+            )}
           </div>
           <button
             type="button"

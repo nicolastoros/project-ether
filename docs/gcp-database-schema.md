@@ -103,6 +103,20 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_tamer_equipment` (
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 )
 CLUSTER BY user_id;
+
+-- Inventario genérico (Consumable/Quest/Evolution/Skin/Crafting — Equipment sigue en user_equipment
+-- más abajo, tiene forma propia con slot/enhancement/equipped_to). Una fila por (user_id, item_id),
+-- los duplicados suman a `quantity` en vez de crear otra fila. item_id coincide con el id en
+-- lib/gameData.ts ITEM_CATALOG — no hay tabla items_catalog en BigQuery (mismo criterio que
+-- TAMER_EQUIPMENT_CATALOG arriba: el contenido vive en código, no en la base).
+CREATE TABLE `project-scrappy-intelic.project_ether.user_items` (
+  user_id     STRING NOT NULL,
+  item_id     STRING NOT NULL,
+  quantity    INT64 DEFAULT 0,
+  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (user_id, item_id) NOT ENFORCED,
+  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+);
 ```
 
 ## 4. Catálogo de contenido (monstruos, skills, equipo, items, etapas, misiones, banners)
@@ -261,16 +275,9 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_equipment` (
 )
 CLUSTER BY user_id;
 
--- Materiales/consumibles, se acumulan por cantidad (no son instancias únicas)
-CREATE TABLE `project-scrappy-intelic.project_ether.user_items` (
-  user_id      STRING NOT NULL,
-  item_id      STRING NOT NULL,
-  quantity     INT64 DEFAULT 0,  -- >= 0, validar en la app
-  updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-  PRIMARY KEY (user_id, item_id) NOT ENFORCED,
-  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED,
-  FOREIGN KEY (item_id) REFERENCES `project-scrappy-intelic.project_ether.items_catalog`(id) NOT ENFORCED
-);
+-- user_items (materiales/consumibles, se acumulan por cantidad) ya está creada en la sección 3,
+-- junto a user_tamer_equipment — sin FK a items_catalog, porque esa tabla nunca se creó: el
+-- contenido vive en lib/gameData.ts ITEM_CATALOG, igual que TAMER_EQUIPMENT_CATALOG.
 ```
 
 ## 6. Progreso de campaña (etapa en la que está)

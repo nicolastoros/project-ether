@@ -53,3 +53,15 @@ export function grantTamerEquipmentOnServer(itemId: string): void {
     // Non-fatal — see grantCreatureOnServer's comment above.
   });
 }
+
+/** Persists a generic collectible item grant (Consumable/Quest/Evolution/Skin/Crafting) server-
+ * side — same insert-or-stack reasoning as grantTamerEquipmentOnServer above. */
+export function grantItemOnServer(itemId: string, quantity = 1): void {
+  fetch("/api/user/items/grant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemId, quantity }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  });
+}

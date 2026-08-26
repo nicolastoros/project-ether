@@ -6,6 +6,7 @@ import type {
   Friend,
   GachaBanner,
   GuildInfo,
+  InventoryItem,
   PvpOpponent,
   Skill,
   TamerEquipment,
@@ -16,6 +17,15 @@ import type {
 // deciding how many of an admin account's creatures go into the hub team — can read it
 // without pulling zustand/React into a server bundle.
 export const HUB_TEAM_SIZE = 7;
+
+// Shared by both creature and Tamer leveling (lib/store.ts's applyExpGain/applyProfileExpGain).
+// Early levels stay quick so the opening hours feel generous; the climb visibly steepens at 25,
+// then again at 60, so late-game leveling reads as real, slower progress instead of a flat grind.
+export const MAX_LEVEL = 100;
+export function nextLevelExpRequirement(currentRequirement: number, newLevel: number): number {
+  const rate = newLevel < 25 ? 1.12 : newLevel < 60 ? 1.18 : 1.24;
+  return Math.round(currentRequirement * rate);
+}
 
 function skill(
   id: string,
@@ -414,16 +424,37 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
   },
 ];
 
+// Matches the real DB default createAccount() inserts (lib/db/bigquery.ts) — kept in sync so the
+// pre-hydrate flash and the real server value agree once Tamer leveling is actually visible.
 export const DEFAULT_PROFILE: UserProfile = {
   id: "player-1",
   name: "Summoner",
   title: "Novice Tamer",
-  level: 7,
-  exp: 240,
-  expToNextLevel: 500,
+  level: 1,
+  exp: 0,
+  expToNextLevel: 100,
   avatarKey: "avatar-default",
   isAdmin: false,
 };
+
+// Generic collectible items — Consumable/Quest/Evolution/Skin/Crafting. Equipment (creature gear)
+// stays in its own richer catalog above (STARTER_EQUIPMENT/Equipment type) since it has slot/
+// enhancement/equipped-to fields this simpler stackable-quantity model doesn't need.
+export const ITEM_CATALOG: InventoryItem[] = [
+  { id: "it-exp-potion-s", name: "Small EXP Potion", category: "Consumable", rarity: "Common", description: "A minor potion brimming with training energy." },
+  { id: "it-exp-potion-m", name: "Medium EXP Potion", category: "Consumable", rarity: "Rare", description: "A stronger draught for faster training." },
+  { id: "it-revive-feather", name: "Revive Feather", category: "Consumable", rarity: "Rare", description: "A feather said to pull a fallen partner back to their feet." },
+  { id: "it-frontier-emblem", name: "Frontier Reaches Emblem", category: "Quest", rarity: "SSR", description: "Proof of clearing World 1's toughest guardian." },
+  { id: "it-sealed-key", name: "Sealed Ruins Key", category: "Quest", rarity: "Rare", description: "An old key that hums faintly. It must open something." },
+  { id: "it-ember-shard", name: "Ember Shard", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Fire-aligned energy." },
+  { id: "it-aqua-core", name: "Aqua Core", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Water-aligned energy." },
+  { id: "it-verdant-seed", name: "Verdant Seed", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Nature-aligned energy." },
+  { id: "it-storm-crystal", name: "Storm Crystal", category: "Evolution", rarity: "Rare", description: "A crystallized fragment of pure Electric-aligned energy." },
+  { id: "it-skin-crimson-emberling", name: "Crimson Emberling Skin", category: "Skin", rarity: "Mythic", description: "An alternate look for Emberling, wreathed in deeper crimson flame." },
+  { id: "it-iron-scrap", name: "Iron Scrap", category: "Crafting", rarity: "Common", description: "Salvaged metal, useful for crafting gear." },
+  { id: "it-mystic-thread", name: "Mystic Thread", category: "Crafting", rarity: "Common", description: "Thread woven with a faint arcane shimmer." },
+  { id: "it-arcane-dust", name: "Arcane Dust", category: "Crafting", rarity: "Rare", description: "Fine dust left behind by a dissipated spell." },
+];
 
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [
   { id: "task-login", description: "Log in to the city hub", progress: 1, target: 1, rewardGold: 500, claimed: false },
