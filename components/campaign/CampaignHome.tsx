@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, Lock, Zap, Coins, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, Lock, Zap, Coins, Sparkles, ChevronLeft, ChevronRight, Hammer } from "lucide-react";
 import { DUNGEON_STAGES, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { CAMPAIGN_WORLDS } from "@/lib/campaignWorlds";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
@@ -269,6 +269,7 @@ export function CampaignHome() {
                 <div className="flex flex-col gap-3">
                   {worldGear.map((item) => {
                     const owned = ownedGearIds.has(item.id);
+                    const source = item.source;
                     return (
                       <div
                         key={item.id}
@@ -294,6 +295,17 @@ export function CampaignHome() {
                             {item.name}
                           </p>
                           <RarityBadge rarity={item.rarity} className="mt-1" />
+                          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] xl:text-[11px] font-medium uppercase tracking-wider">
+                            {source.kind === "campaign-clear" ? (
+                              <span className="text-sky-600/80 bg-sky-100/50 px-1.5 py-0.5 rounded-md">
+                                Drops: Stage {DUNGEON_STAGES.find(s => s.id === source.stageId)?.worldStageNumber}
+                              </span>
+                            ) : (
+                              <span className="text-amber-600/80 bg-amber-100/50 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                                <Hammer className="h-3 w-3" /> Forge ({source.sealCoinCost} SC)
+                              </span>
+                            )}
+                          </div>
                         </div>
                         
                         {owned && (
