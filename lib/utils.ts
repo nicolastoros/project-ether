@@ -1,8 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { TamerEquipment } from "@/types/game";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/** Formats a TamerEquipment piece's percent stat bonuses (e.g. "+2% HP · +1% ATK") — shared by
+ * the Tamer page and Inventory's Equipment tab so both list a piece's bonus the same way. */
+export function formatTamerStatBonus(bonus?: TamerEquipment["statBonus"]): string | null {
+  if (!bonus) return null;
+  const parts = Object.entries(bonus)
+    .filter(([, value]) => value)
+    .map(([stat, value]) => `+${value}% ${stat.toUpperCase()}`);
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function formatNumber(value: number): string {

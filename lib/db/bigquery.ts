@@ -410,20 +410,36 @@ export async function syncPlayerProgress(
   }
 
   if (opts.dungeonHighestStageCleared !== undefined || opts.dungeonPerfectStages) {
+    // Built dynamically rather than passing null for whichever field isn't being synced this
+    // round: BigQuery can't infer an untyped null param's type on its own (throws "Parameter
+    // types must be provided for null values"), and declaring perfectStages as an ARRAY<STRING>
+    // type while its value is null crashes the client's own param encoding instead ("Cannot read
+    // properties of null (reading 'map')") — so only ever include a param when it has a real
+    // value, one SET clause per included field.
+    const setClauses: string[] = [];
+    // Shape depends on which fields are present, and the bigquery client's own QueryParamTypes
+    // type isn't built for that — any is the pragmatic escape hatch for both dynamic dicts.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: Record<string, any> = { userId };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const types: Record<string, any> = { userId: "STRING" };
+
+    if (opts.dungeonHighestStageCleared !== undefined) {
+      setClauses.push("highest_stage_cleared = GREATEST(highest_stage_cleared, @highest)");
+      params.highest = opts.dungeonHighestStageCleared;
+      types.highest = "INT64";
+    }
+    if (opts.dungeonPerfectStages) {
+      setClauses.push("perfect_stages = @perfectStages");
+      params.perfectStages = opts.dungeonPerfectStages;
+      types.perfectStages = ["STRING"];
+    }
+
     queries.push(
       bq().query({
-        query: `
-          UPDATE ${table("user_dungeon_state")}
-          SET 
-            highest_stage_cleared = GREATEST(highest_stage_cleared, COALESCE(@highest, highest_stage_cleared)),
-            perfect_stages = COALESCE(@perfectStages, perfect_stages)
-          WHERE user_id = @userId
-        `,
-        params: { 
-          userId, 
-          highest: opts.dungeonHighestStageCleared ?? null,
-          perfectStages: opts.dungeonPerfectStages ?? null 
-        },
+        query: `UPDATE ${table("user_dungeon_state")} SET ${setClauses.join(", ")} WHERE user_id = @userId`,
+        params,
+        types,
       })
     );
   }

@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Sparkles, X } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG } from "@/lib/gameData";
 import { consumeItemOnServer } from "@/lib/syncProgress";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
-import type { Equipment, InventoryItem, InventoryItemCategory } from "@/types/game";
+import type { Equipment, InventoryItem, InventoryItemCategory, TamerEquipment } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ItemIcon } from "@/components/ui/ItemIcon";
+import { EquippedBadge } from "@/components/ui/EquippedBadge";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
-import { cn } from "@/lib/utils";
+import { cn, formatTamerStatBonus } from "@/lib/utils";
 
 type TabId = "Equipment" | InventoryItemCategory;
 
@@ -45,6 +47,29 @@ function EquipmentCard({ item, onClick }: { item: Equipment; onClick: () => void
           <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
             <Check className="h-2.5 w-2.5" /> Equipped
           </span>
+        )}
+      </GlowPanel>
+    </button>
+  );
+}
+
+// Tamer gear (e.g. the Crimson set) is a separate system from Digimon Equipment above — owning a
+// piece means wearing it (no per-creature assignment), so every card here shows the "E" badge.
+function TamerGearCard({ item, onClick }: { item: TamerEquipment; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left">
+      <GlowPanel accent="gold" className="flex flex-col items-center gap-1.5 p-3 text-center">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
+          <Image src={item.icon} alt="" width={40} height={40} className="h-9 w-9 object-contain" />
+          <EquippedBadge />
+        </div>
+        <p className="truncate text-[11px] font-semibold text-foreground">{item.name}</p>
+        <p className="text-[9px] uppercase tracking-wide text-zinc-500">
+          {item.slot} · {item.setName}
+        </p>
+        <RarityBadge rarity={item.rarity} />
+        {formatTamerStatBonus(item.statBonus) && (
+          <p className="text-[8px] font-semibold text-emerald-600">{formatTamerStatBonus(item.statBonus)}</p>
         )}
       </GlowPanel>
     </button>
@@ -88,6 +113,7 @@ function EmptyTab({ label }: { label: string }) {
 export default function InventoryPage() {
   const currencies = useGameStore((s) => s.currencies);
   const inventory = useGameStore((s) => s.inventory);
+  const tamerInventory = useGameStore((s) => s.tamerInventory);
   const ownedItems = useGameStore((s) => s.ownedItems);
   const markInventorySeen = useGameStore((s) => s.markInventorySeen);
   const activeCreatureId = useGameStore((s) => s.activeCreatureId);
@@ -101,6 +127,7 @@ export default function InventoryPage() {
 
   const [activeTab, setActiveTab] = useState<TabId>("Equipment");
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [selectedTamerGear, setSelectedTamerGear] = useState<TamerEquipment | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [usingItemForCreature, setUsingItemForCreature] = useState<InventoryItem | null>(null);
   const [pickedCreatureId, setPickedCreatureId] = useState<string | null>(null);
@@ -148,13 +175,35 @@ export default function InventoryPage() {
       </div>
 
       {activeTab === "Equipment" ? (
-        inventory.length === 0 ? (
+        inventory.length === 0 && tamerInventory.length === 0 ? (
           <EmptyTab label="Equipment" />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {inventory.map((item) => (
-              <EquipmentCard key={item.id} item={item} onClick={() => setSelectedEquipment(item)} />
-            ))}
+          <div className="space-y-4">
+            {tamerInventory.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">
+                  Tamer Gear — separate from your Digimon&apos;s equipment
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {tamerInventory.map((item) => (
+                    <TamerGearCard key={item.id} item={item} onClick={() => setSelectedTamerGear(item)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {inventory.length > 0 && (
+              <div className="space-y-2">
+                {tamerInventory.length > 0 && (
+                  <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Digimon Equipment</p>
+                )}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {inventory.map((item) => (
+                    <EquipmentCard key={item.id} item={item} onClick={() => setSelectedEquipment(item)} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )
       ) : (
@@ -258,6 +307,61 @@ export default function InventoryPage() {
                   {selectedEquipment.enhancementLevel >= 10 ? "Max Enhancement" : "Enhance"}
                 </PixelButton>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedTamerGear && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTamerGear(null)}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="relative w-full max-w-sm rounded-t-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl sm:rounded-3xl"
+            >
+              <button
+                onClick={() => setSelectedTamerGear(null)}
+                aria-label="Close"
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
+                <Image src={selectedTamerGear.icon} alt="" width={48} height={48} className="h-11 w-11 object-contain" />
+                <EquippedBadge />
+              </div>
+
+              <p className="mt-3 text-center text-[10px] uppercase tracking-wide text-zinc-500">
+                {selectedTamerGear.slot} · {selectedTamerGear.setName} Set
+              </p>
+              <h2 className="text-center text-xl font-bold text-foreground">{selectedTamerGear.name}</h2>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <RarityBadge rarity={selectedTamerGear.rarity} />
+              </div>
+
+              {formatTamerStatBonus(selectedTamerGear.statBonus) && (
+                <div className="mt-3 rounded-xl border border-arcade-border bg-arcade-panel-light py-2 text-center">
+                  <p className="text-[9px] uppercase tracking-wide text-zinc-500">Bonus</p>
+                  <p className="text-sm font-semibold text-emerald-600">
+                    {formatTamerStatBonus(selectedTamerGear.statBonus)}
+                  </p>
+                </div>
+              )}
+
+              <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-zinc-500">
+                <Check className="h-3.5 w-3.5 text-emerald-600" /> Equipped on your Tamer
+              </p>
             </motion.div>
           </div>
         )}

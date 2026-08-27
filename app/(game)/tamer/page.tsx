@@ -7,14 +7,15 @@ import { Lock, Check, Pause, RotateCw, Copy } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { TAMER_EQUIPMENT_CATALOG, TAMER_CATALOG, DUNGEON_STAGES } from "@/lib/gameData";
 import { grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
-import type { TamerAvatar, TamerEquipment, TamerSlotType } from "@/types/game";
+import type { TamerAvatar, TamerSlotType } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { TamerSprite } from "@/components/ui/TamerSprite";
+import { EquippedBadge } from "@/components/ui/EquippedBadge";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
-import { cn } from "@/lib/utils";
+import { cn, formatTamerStatBonus } from "@/lib/utils";
 
 // Head-to-toe, with the two cosmetic-only slots (no gear exists for them yet) trailing at the end.
 const SLOT_ORDER: TamerSlotType[] = ["Hat", "Shoulders", "Chest", "Gloves", "Legs", "Shoes", "Aura", "Wings"];
@@ -23,14 +24,6 @@ function campaignClearLabel(stageId: string): string {
   const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
   if (!stage) return "Clear a Campaign stage";
   return `Clear World ${stage.world}-${stage.worldStageNumber}`;
-}
-
-function formatStatBonus(bonus?: TamerEquipment["statBonus"]): string | null {
-  if (!bonus) return null;
-  const parts = Object.entries(bonus)
-    .filter(([, value]) => value)
-    .map(([stat, value]) => `+${value}% ${stat.toUpperCase()}`);
-  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function formatAvatarBuffs(avatar: TamerAvatar): string[] {
@@ -148,8 +141,9 @@ export default function TamerPage() {
             if (owned) {
               return (
                 <GlowPanel key={slot} accent="gold" className="flex flex-col items-center gap-2 p-3 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
                     <Image src={owned.icon} alt="" width={48} height={48} className="h-11 w-11 object-contain" />
+                    <EquippedBadge />
                   </div>
                   <div className="min-w-0">
                     <p className="font-arcade text-xs font-bold text-foreground">{slot}</p>
@@ -158,8 +152,8 @@ export default function TamerPage() {
                     </p>
                   </div>
                   <RarityBadge rarity={owned.rarity} />
-                  {formatStatBonus(owned.statBonus) && (
-                    <p className="text-[8px] font-semibold text-emerald-600">{formatStatBonus(owned.statBonus)}</p>
+                  {formatTamerStatBonus(owned.statBonus) && (
+                    <p className="text-[8px] font-semibold text-emerald-600">{formatTamerStatBonus(owned.statBonus)}</p>
                   )}
                   <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600">
                     <Check className="h-2.5 w-2.5" /> Equipped
@@ -209,8 +203,8 @@ export default function TamerPage() {
                   <p className="truncate text-[9px] text-zinc-400">
                     {catalogItem.name} · {catalogItem.setName}
                   </p>
-                  {formatStatBonus(catalogItem.statBonus) && (
-                    <p className="text-[8px] text-zinc-400">{formatStatBonus(catalogItem.statBonus)}</p>
+                  {formatTamerStatBonus(catalogItem.statBonus) && (
+                    <p className="text-[8px] text-zinc-400">{formatTamerStatBonus(catalogItem.statBonus)}</p>
                   )}
                 </div>
                 {canCraft ? (
