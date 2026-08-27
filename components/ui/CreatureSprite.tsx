@@ -38,6 +38,23 @@ const AURA_PARTICLES: AuraParticle[] = [
   { color: "#ec4899", inset: "14%", duration: 6.1, reverse: true, delay: 0.45 },
 ];
 
+// LR (Legendary) sits one tier above Mythic — denser, brighter particle ring (12 vs 8) plus a
+// pulsing golden halo behind the sprite (added separately below), for a visibly richer shine.
+const LEGENDARY_AURA_PARTICLES: AuraParticle[] = [
+  { color: "#f59e0b", inset: "-8%", duration: 4.6, reverse: false, delay: 0 },
+  { color: "#ec4899", inset: "8%", duration: 5.3, reverse: true, delay: 0.18 },
+  { color: "#eab308", inset: "-3%", duration: 4.1, reverse: false, delay: 0.35 },
+  { color: "#22c55e", inset: "12%", duration: 6.0, reverse: true, delay: 0.08 },
+  { color: "#06b6d4", inset: "-12%", duration: 4.3, reverse: false, delay: 0.28 },
+  { color: "#3b82f6", inset: "3%", duration: 5.6, reverse: true, delay: 0.5 },
+  { color: "#8b5cf6", inset: "-16%", duration: 4.9, reverse: false, delay: 0.14 },
+  { color: "#f43f5e", inset: "16%", duration: 5.1, reverse: true, delay: 0.4 },
+  { color: "#fbbf24", inset: "-5%", duration: 4.4, reverse: true, delay: 0.6 },
+  { color: "#38bdf8", inset: "10%", duration: 5.8, reverse: false, delay: 0.22 },
+  { color: "#a855f7", inset: "-10%", duration: 5.0, reverse: true, delay: 0.32 },
+  { color: "#fb7185", inset: "6%", duration: 4.7, reverse: false, delay: 0.48 },
+];
+
 export type Direction = (typeof ROTATION_ORDER)[number];
 
 interface CreatureSpriteProps {
@@ -53,6 +70,7 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
   const [frameIndex, setFrameIndex] = useState(0);
   const folder = creature.spriteFolder;
   const isMythic = creature.rarity === "Mythic";
+  const isLegendary = creature.rarity === "LR";
 
   // Warm the browser cache for every frame so the spin loop never flickers on first pass.
   useEffect(() => {
@@ -94,13 +112,28 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
     })()
   );
 
-  if (!isMythic) {
+  if (!isMythic && !isLegendary) {
     return <span className={cn("relative inline-block", className)}>{content}</span>;
   }
 
+  const particles = isLegendary ? LEGENDARY_AURA_PARTICLES : AURA_PARTICLES;
+  const particleSize = isLegendary ? 6 : 5;
+
   return (
     <span className={cn("relative inline-flex items-center justify-center", className)}>
-      {AURA_PARTICLES.map((p, i) => (
+      {isLegendary && (
+        <motion.span
+          aria-hidden
+          className="absolute inset-[-18%] rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(245,158,11,0.35) 0%, rgba(236,72,153,0.22) 45%, transparent 75%)",
+          }}
+          animate={{ opacity: [0.5, 1, 0.5], scale: [0.94, 1.08, 0.94] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        />
+      )}
+      {particles.map((p, i) => (
         <motion.span
           key={i}
           aria-hidden
@@ -111,7 +144,7 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
         >
           <motion.span
             className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{ width: 5, height: 5, backgroundColor: p.color, boxShadow: `0 0 5px ${p.color}` }}
+            style={{ width: particleSize, height: particleSize, backgroundColor: p.color, boxShadow: `0 0 5px ${p.color}` }}
             animate={{ opacity: [0.25, 1, 0.25], scale: [0.6, 1.3, 0.6] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
           />

@@ -1,7 +1,7 @@
 // Core domain types for the Monster Gacha prototype.
 // All data here is mock/client-side only — no backend contracts yet.
 
-export type Rarity = "Common" | "Rare" | "SSR" | "Mythic";
+export type Rarity = "Common" | "Rare" | "SSR" | "Mythic" | "LR";
 
 export type Element =
   | "Fire"

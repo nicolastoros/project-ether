@@ -9,7 +9,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { TamerSprite } from "@/components/ui/TamerSprite";
 import { xpPercent, cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ export function CreatureShowcase() {
 
   return (
     <GlowPanel className="p-4">
-      {creature.rarity === "Mythic" && <MythicCardAura />}
+      <RarityCardAura rarity={creature.rarity} />
 
       <div className="mb-3 flex items-center justify-between">
         <div>

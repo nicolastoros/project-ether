@@ -1,0 +1,36 @@
+{
+  "group_id": "8466f580-e52b-4acc-8dd5-d74e3ac1465b",
+  "states": [
+    {
+      "character": {
+        "id": "b2abe779-bf46-479b-8df1-dcd6d3277f9b",
+        "name": "Idle",
+        "prompt": "Plaintext\nPixel art character sprite of a supreme Royal Knight Holy Fusion warrior inspired by Omegamon / Omnimon, heroic upright battle stance, three-quarter front view.\n\nVisual Design:\n- Body & Armor: Slender, tall humanoid knight body in pure white Chrome Digizoid plate armor, gold filigree trim, segmented black-and-gold waist, and a long flowing dual-tone cape (pure white outside, vibrant crimson-red inside) billowing behind the shoulders.\n- Head & Helm: Elegant white cyber-knight helmet crowned with sharp golden v-shaped antenna horns, sharp blue visor eye-slits, and a pointed golden forehead crest.\n- Left Arm (WarGreymon Dragon Head): Massive golden-and-orange horned dragon skull shoulder armor and gauntlet, jaw open extending a colossal, polished silver two-handed broadsword (Grey Sword) with glowing golden digi-code engraved along the blade.\n- Right Arm (MetalGarurumon Wolf Head): Sleek metallic navy-and-silver cyber-wolf head shoulder armor and gauntlet, jaws housing a massive high-tech blue-and-gold railgun / laser cannon barrel (Garuru Cannon).\n- Legs & Sabatons: Slender white armored greaves with sharp gold knee guards, black inner mechanical joints, and pointed white-and-gold armored sabatons.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- High-contrast metallic reflections, clean bold dark pixel outlines, vibrant white, gold, crimson, and cobalt-blue color palette.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T17:36:14.295409+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:23:56.683099"
+}

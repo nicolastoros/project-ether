@@ -21,6 +21,7 @@
   --color-rarity-rare: #2563eb;
   --color-rarity-ssr: #d9770b;
   --color-rarity-mythic: #db2777;
+  --color-rarity-lr: #a855f7;
 }
 
 @theme inline {
@@ -40,6 +41,7 @@
   --color-rarity-rare: var(--color-rarity-rare);
   --color-rarity-ssr: var(--color-rarity-ssr);
   --color-rarity-mythic: var(--color-rarity-mythic);
+  --color-rarity-lr: var(--color-rarity-lr);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-arcade: var(--font-display);
@@ -96,6 +98,22 @@ body {
 }
 .nav-cyber-hover:hover::before {
   transform: translateX(150%);
+}
+
+/* LR (Legendary) rarity badge — a slow prismatic shimmer, one tier flashier than Mythic's flat
+   pink badge, reflecting that LR sits above Mythic as the strongest rarity. */
+@keyframes lr-badge-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+.badge-lr-shimmer {
+  background-image: linear-gradient(115deg, #f59e0b, #ec4899, #8b5cf6, #06b6d4, #f59e0b);
+  background-size: 200% 100%;
+  animation: lr-badge-shimmer 3s linear infinite;
 }
 
 .scrollbar-hidden {

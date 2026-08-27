@@ -87,6 +87,90 @@ function applyProfileExpGain(profile: UserProfile, gained: number): UserProfile 
   return { ...profile, level, exp: Math.round(exp), expToNextLevel };
 }
 
+/** Shared server-bundle → store-fields mapping used by both hydrateFromServer (fresh sign-in,
+ * full reset) and refreshFromServer (an already-open session picking up server-side changes) —
+ * see their respective doc comments on GameState for how the two differ. */
+function bundleToStateFields(bundle: AccountBundle) {
+  const creatureCatalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
+  const creatures = bundle.creatures
+    .map((owned): Creature | null => {
+      const base = creatureCatalogById.get(owned.creatureId);
+      if (!base) return null;
+      return {
+        ...base,
+        level: owned.level,
+        exp: owned.exp,
+        expToNextLevel: owned.expToNextLevel,
+        baseStats: {
+          hp: base.baseStats.hp + 8 * (owned.level - 1),
+          atk: base.baseStats.atk + 3 * (owned.level - 1),
+          def: base.baseStats.def + 2 * (owned.level - 1),
+          spd: base.baseStats.spd + 1 * (owned.level - 1),
+        },
+        equipment: {},
+        copies: owned.copies,
+      };
+    })
+    .filter((c): c is Creature => c !== null);
+
+  const equipmentCatalogById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
+  const inventory = bundle.equipment
+    .map((owned): Equipment | null => {
+      const base = equipmentCatalogById.get(owned.equipmentId);
+      if (!base) return null;
+      return { ...base, enhancementLevel: owned.enhancementLevel, equippedTo: owned.equippedTo ?? undefined };
+    })
+    .filter((e): e is Equipment => e !== null);
+
+  const hubTeamIds = bundle.creatures.filter((c) => c.isInHubTeam).map((c) => c.creatureId);
+  const partyCreatureIds: (string | null)[] = [null, null, null];
+  for (const c of bundle.creatures) {
+    if (c.partySlot && c.partySlot >= 1 && c.partySlot <= 3) {
+      partyCreatureIds[c.partySlot - 1] = c.creatureId;
+    }
+  }
+
+  const tamerCatalogById = new Map(TAMER_EQUIPMENT_CATALOG.map((t) => [t.id, t]));
+  const tamerInventory = bundle.tamerEquipment
+    .map((owned) => tamerCatalogById.get(owned.itemId))
+    .filter((t): t is TamerEquipment => t !== undefined);
+
+  const itemCatalogIds = new Set(ITEM_CATALOG.map((i) => i.id));
+  const ownedItems = bundle.items.filter((owned) => itemCatalogIds.has(owned.itemId));
+
+  return {
+    profile: {
+      id: bundle.profile.id,
+      name: bundle.profile.displayName,
+      title: bundle.profile.title,
+      level: bundle.profile.level,
+      exp: bundle.profile.exp,
+      expToNextLevel: bundle.profile.expToNextLevel,
+      avatarKey: bundle.profile.avatarKey,
+      isAdmin: bundle.profile.isAdmin,
+    },
+    currencies: bundle.currencies,
+    creatures,
+    partyCreatureIds,
+    hubTeamIds,
+    inventory,
+    tamerInventory,
+    ownedItems,
+    ownedTamerIds: bundle.ownedTamerIds.length ? bundle.ownedTamerIds : ["tamer1"],
+    activeExpeditions: bundle.expeditions.map((e) => ({
+      id: e.id,
+      defId: e.defId,
+      creatureIds: e.creatureIds,
+      startedAt: e.startedAt,
+      durationMs: e.durationMs,
+    })),
+    dungeon: {
+      ...bundle.dungeon,
+      perfectStages: bundle.dungeon.perfectStages || [],
+    },
+  };
+}
+
 interface GameState {
   profile: UserProfile;
   currencies: Currencies;
@@ -118,6 +202,12 @@ interface GameState {
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
+  /** Same server data as hydrateFromServer, but for an already-open session (see GameGate.tsx,
+   * which calls this once per app load) rather than a fresh sign-in: preserves local-only
+   * selections (active creature, equipped Tamer, Survival progress) instead of resetting them,
+   * so picking up server-side changes — e.g. new creatures an admin granted directly in BigQuery —
+   * doesn't discard what the player was doing in this tab. */
+  refreshFromServer: (bundle: AccountBundle) => void;
   /** Clears account-specific local state so a different account signing in next doesn't inherit it. */
   logout: () => void;
   setHasHydrated: (hydrated: boolean) => void;
@@ -229,93 +319,32 @@ export const useGameStore = create<GameState>()(
       hasHydrated: false,
 
       hydrateFromServer: (bundle) => {
-        const creatureCatalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
-        const creatures = bundle.creatures
-          .map((owned): Creature | null => {
-            const base = creatureCatalogById.get(owned.creatureId);
-            if (!base) return null;
-            return {
-              ...base,
-              level: owned.level,
-              exp: owned.exp,
-              expToNextLevel: owned.expToNextLevel,
-              baseStats: { 
-                hp: base.baseStats.hp + 8 * (owned.level - 1), 
-                atk: base.baseStats.atk + 3 * (owned.level - 1), 
-                def: base.baseStats.def + 2 * (owned.level - 1), 
-                spd: base.baseStats.spd + 1 * (owned.level - 1) 
-              },
-              equipment: {},
-              copies: owned.copies,
-            };
-          })
-          .filter((c): c is Creature => c !== null);
-
-        const equipmentCatalogById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
-        const inventory = bundle.equipment
-          .map((owned): Equipment | null => {
-            const base = equipmentCatalogById.get(owned.equipmentId);
-            if (!base) return null;
-            return { ...base, enhancementLevel: owned.enhancementLevel, equippedTo: owned.equippedTo ?? undefined };
-          })
-          .filter((e): e is Equipment => e !== null);
-
-        const hubTeamIds = bundle.creatures.filter((c) => c.isInHubTeam).map((c) => c.creatureId);
-        const partyCreatureIds: (string | null)[] = [null, null, null];
-        for (const c of bundle.creatures) {
-          if (c.partySlot && c.partySlot >= 1 && c.partySlot <= 3) {
-            partyCreatureIds[c.partySlot - 1] = c.creatureId;
-          }
-        }
-
-        const tamerCatalogById = new Map(TAMER_EQUIPMENT_CATALOG.map((t) => [t.id, t]));
-        const tamerInventory = bundle.tamerEquipment
-          .map((owned) => tamerCatalogById.get(owned.itemId))
-          .filter((t): t is TamerEquipment => t !== undefined);
-
-        const itemCatalogIds = new Set(ITEM_CATALOG.map((i) => i.id));
-        const ownedItems = bundle.items.filter((owned) => itemCatalogIds.has(owned.itemId));
-
+        const fields = bundleToStateFields(bundle);
         set({
-          profile: {
-            id: bundle.profile.id,
-            name: bundle.profile.displayName,
-            title: bundle.profile.title,
-            level: bundle.profile.level,
-            exp: bundle.profile.exp,
-            expToNextLevel: bundle.profile.expToNextLevel,
-            avatarKey: bundle.profile.avatarKey,
-            isAdmin: bundle.profile.isAdmin,
-          },
-          currencies: bundle.currencies,
-          creatures,
-          activeCreatureId: creatures[0]?.id ?? "",
-          partyCreatureIds,
-          hubTeamIds,
+          ...fields,
+          activeCreatureId: fields.creatures[0]?.id ?? "",
           lastExpTickAt: Date.now(),
-          inventory,
-          tamerInventory,
-          ownedItems,
           hasUnseenInventory: false,
           // No "switch avatar" UI exists yet (only tamer1, the free default) — only ownership
           // is server-persisted for now; which one is equipped stays client-side.
           equippedTamerId: "tamer1",
-          ownedTamerIds: bundle.ownedTamerIds.length ? bundle.ownedTamerIds : ["tamer1"],
-          activeExpeditions: bundle.expeditions.map((e) => ({
-            id: e.id,
-            defId: e.defId,
-            creatureIds: e.creatureIds,
-            startedAt: e.startedAt,
-            durationMs: e.durationMs,
-          })),
-          dungeon: {
-            ...bundle.dungeon,
-            perfectStages: bundle.dungeon.perfectStages || [],
-          },
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
           survivalHighestStageCleared: 0,
         });
+      },
+
+      refreshFromServer: (bundle) => {
+        const fields = bundleToStateFields(bundle);
+        set((state) => ({
+          ...fields,
+          // Only fall back to the bundle's first creature if the previously active one is no
+          // longer owned (shouldn't normally happen mid-session) — otherwise keep whatever the
+          // player currently has selected instead of yanking it back to creatures[0].
+          activeCreatureId: fields.creatures.some((c) => c.id === state.activeCreatureId)
+            ? state.activeCreatureId
+            : (fields.creatures[0]?.id ?? ""),
+        }));
       },
 
       logout: () =>

@@ -1,0 +1,36 @@
+{
+  "group_id": "ee6eb2b0-5748-41f2-a253-ae145d4acf2c",
+  "states": [
+    {
+      "character": {
+        "id": "cbf3b676-f200-4e73-b0bf-e838d32029c0",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of an original Mega/Ultra-level cosmic anomaly entity inspired by Abaddomon Core, ominous floating stance, front/three-quarter view.\n\nVisual Design:\n- Core Sphere: Massive floating dark void sphere composed of swirling obsidian-black matter and crimson digital distortion glitches, featuring a giant central glowing blood-red demonic eye with a vertical golden slit pupil.\n- Armor & Cyber Shell: Segmented white and gold Chrome Digizoid outer armor plates orbiting and partially enclosing the dark sphere like cracked planetary rings, pulsing with glowing purple circuit traces.\n- Eldritch Appendages: Multiple writhing cyber-organic tentacles and segmented bladed cables made of gunmetal steel emerging from the core's shadows, tipped with red laser emitters and sharp talons.\n- Minor Eyes & Hazard Markings: Several smaller glowing cyan sensor eyes scattered across the floating outer armor pieces, accompanied by glowing red digital hazard triangle runes.\n- Aura & FX: Glitching digital particle mist, black void aura, and flickering red lightning sparks radiating around the entire entity.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- High-contrast eldritch glow effects, sharp dark pixel outlines, surreal cybernetic horror palette.\n- Centered sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T17:22:37.505037+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:23:47.192988"
+}

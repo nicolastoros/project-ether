@@ -6,6 +6,9 @@ const rarityStyles: Record<Rarity, string> = {
   Rare: "bg-rarity-rare",
   SSR: "bg-rarity-ssr",
   Mythic: "bg-rarity-mythic",
+  // LR is the top rarity, above Mythic — a shimmering prismatic gradient (see .badge-lr-shimmer
+  // in globals.css) instead of a flat color, so it visibly reads as a cut above Mythic's badge.
+  LR: "badge-lr-shimmer",
 };
 
 export function RarityBadge({ rarity, className }: { rarity: Rarity; className?: string }) {

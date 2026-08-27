@@ -1,0 +1,36 @@
+{
+  "group_id": "8fdf4d19-eb9f-4ab3-9626-d901eea25117",
+  "states": [
+    {
+      "character": {
+        "id": "3f2b49e7-7919-4cc2-bd87-d72d595c6b47",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a heavy Mega-level artillery cyborg dragon warrior inspired by BlitzGreymon, imposing wide combat stance, three-quarter front view.\n\nVisual Design:\n- Body & Build: Bulky muscular bipedal dragon humanoid framed in heavy, angular crimson-red and gunmetal-black Chrome Digizoid armor, with exposed mechanical joints and red power cables.\n- Arms & Weaponry (Twin Plasma Cannons): Massive high-caliber plasma railgun cannons (Plasma Stakes) replacing standard gauntlets on both forearms, featuring heavy silver barrels, glowing yellow energy chambers, and hydraulic recoil pistons.\n- Back Armament & Thrusters: Massive pair of heavy dark-crimson armor binders on the upper back housing multi-missile launcher pods, twin vertical exhaust vents spewing red lightning sparks, and a spiked armored tail.\n- Head & Visor: Brutal red dragon cyber-helm with twin sharp black horns, sweeping swept-back golden crest fins, and a glowing yellow visor slit over a heavy mechanical jaw.\n- Lower Body & Greaves: Reinforced crimson-and-black armored legs with heavy yellow knee guards and massive mechanical clawed stomper boots built to absorb high-impact recoil.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- High-contrast metallic red and gunmetal shading, glowing yellow electric plasma effects, sharp dark pixel outlines.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T17:41:47.115456+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:24:07.414586"
+}

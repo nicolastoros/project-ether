@@ -7,7 +7,7 @@ import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +68,7 @@ export function SummonRevealModal({ results, onClose }: SummonRevealModalProps) 
                     isSingle && "w-40"
                   )}
                 >
-                  {creature.rarity === "Mythic" && <MythicCardAura />}
+                  <RarityCardAura rarity={creature.rarity} />
                   <CreatureSprite
                     creature={creature}
                     spin={isSingle}

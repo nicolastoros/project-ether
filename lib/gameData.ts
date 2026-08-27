@@ -179,11 +179,11 @@ export const STARTER_CREATURES: Creature[] = [
     stage: 3,
     spriteKey: "crimsonguardian",
     spriteFolder: "/assets/creatures/crimsonguardian/idle",
-    // Mythic is the top rarity — every stat here clears the best non-Mythic value by a wide
-    // margin (previously SPD 92 was actually below several Rares/SSRs — Voltling's 140 is the
-    // highest non-Mythic SPD in the roster — letting lower-rarity creatures act first and
-    // undercutting "most powerful"). CrimsonGuardian leans tanky (HP/DEF) next to SilverDragon's
-    // swift-striker profile below.
+    // Mythic sits below only LR (the top rarity) — every stat here clears the best SSR-or-lower
+    // value by a wide margin (previously SPD 92 was actually below several Rares/SSRs —
+    // Voltling's 140 is the highest SSR-or-lower SPD in the roster — letting lower-rarity
+    // creatures act first and undercutting "most powerful"). CrimsonGuardian leans tanky (HP/DEF)
+    // next to SilverDragon's swift-striker profile below.
     baseStats: { hp: 1150, atk: 215, def: 150, spd: 148 },
     skills: [
       skill("sk-cg-1", "Blazing Judgment", "A sword strike wreathed in crimson flame on one enemy.", "Attack", 172, 0),
@@ -318,6 +318,217 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sw-2", "Astral Shield", "Shields the lowest-HP ally for 2 turns.", "Support", 0, 3, 5),
       skill("sk-sw-3", "Nova Cascade", "A burst of starlight damaging all enemies.", "Attack", 96, 4, 11),
       skill("sk-sw-4", "Guiding Light", "Passively restores HP to the lowest-HP ally each turn.", "Passive", 0, 0, 15),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+
+  // --- Mythic tier ---
+  // Every stat here clears the SSR ceiling (Thundracoil's 780hp/168atk/98def/140spd band) by a
+  // wide margin, matching CrimsonGuardian/SilverDragon above — same "Mythic clearly beats SSR"
+  // rule the pre-existing pair already established. Each leans into its own combat profile
+  // (swift striker, tank, balanced, glass-cannon-aerial, heavy bruiser) rather than being flat
+  // stat clones of each other.
+  {
+    id: "cr-wargek",
+    name: "Wargek",
+    element: "Fire",
+    rarity: "Mythic",
+    level: 31,
+    exp: 820,
+    expToNextLevel: 2050,
+    stage: 3,
+    spriteKey: "wargek",
+    spriteFolder: "/assets/creatures/wargek/idle",
+    // Swift striker — highest ATK/SPD of the new Mythics, echoing SilverDragon's profile.
+    baseStats: { hp: 1100, atk: 235, def: 140, spd: 152 },
+    skills: [
+      skill("sk-wg-1", "Dramon Claw Rend", "Twin golden dragon-claw gauntlets tear into one enemy.", "Attack", 178, 0),
+      skill("sk-wg-2", "Brave Shield Guard", "Raises own DEF sharply for 2 turns behind the Brave Shield.", "Defense", 0, 3, 5),
+      skill("sk-wg-3", "Terra Force", "A devastating energy sphere scorches all enemies.", "Attack", 140, 5, 15),
+      skill("sk-wg-4", "Warrior's Instinct", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 20),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-goldak",
+    name: "Goldak",
+    element: "Water",
+    rarity: "Mythic",
+    level: 29,
+    exp: 760,
+    expToNextLevel: 1950,
+    stage: 3,
+    spriteKey: "goldak",
+    spriteFolder: "/assets/creatures/goldak/idle",
+    // Tank — highest HP/DEF of the new Mythics, trading off the lowest SPD.
+    baseStats: { hp: 1200, atk: 210, def: 155, spd: 140 },
+    skills: [
+      skill("sk-gd-1", "Hydro Drill Impale", "The spinning hydro-drill gauntlet bores into one enemy.", "Attack", 165, 0),
+      skill("sk-gd-2", "Tower Barrier", "Raises own DEF sharply for 2 turns behind a holographic barrier.", "Defense", 0, 3, 5),
+      skill("sk-gd-3", "Abyssal Tentacle Storm", "Four cybernetic tentacles lash all enemies with a chance to slow.", "Attack", 128, 4, 14),
+      skill("sk-gd-4", "Pressure Hide", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 19),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-gallantknight",
+    name: "GallantKnight",
+    element: "Light",
+    rarity: "Mythic",
+    level: 30,
+    exp: 800,
+    expToNextLevel: 2000,
+    stage: 3,
+    spriteKey: "gallantknight",
+    spriteFolder: "/assets/creatures/gallantknight/idle",
+    // Balanced all-rounder, splitting the difference between Wargek's speed and Goldak's bulk.
+    baseStats: { hp: 1130, atk: 222, def: 148, spd: 146 },
+    skills: [
+      skill("sk-gk-1", "Lightning Joust", "A holy lance thrust crackling with judgment light on one enemy.", "Attack", 170, 0),
+      skill("sk-gk-2", "Aegis Cape", "Raises own DEF for 2 turns behind the flowing cape-shield.", "Defense", 0, 3, 5),
+      skill("sk-gk-3", "Final Elysion", "A holy energy blast judges all enemies.", "Attack", 134, 5, 15),
+      skill("sk-gk-4", "Knight's Vow", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 20),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-firefex",
+    name: "Firefex",
+    element: "Fire",
+    rarity: "Mythic",
+    level: 28,
+    exp: 700,
+    expToNextLevel: 1900,
+    stage: 3,
+    spriteKey: "firefex",
+    spriteFolder: "/assets/creatures/firefex/idle",
+    // Aerial glass-cannon — highest SPD of any Mythic (player or enemy) in the roster, lowest DEF.
+    baseStats: { hp: 1070, atk: 228, def: 132, spd: 155 },
+    skills: [
+      skill("sk-fx-1", "Solar Talon Rake", "Golden talons wreathed in radiant plasma strike one enemy.", "Attack", 174, 0),
+      skill("sk-fx-2", "Radiant Wingspan", "Raises own SPD and DEF for 2 turns.", "Defense", 0, 3, 5),
+      skill("sk-fx-3", "Phoenix Flare", "A cascade of solar embers burns all enemies with a chance to burn.", "Attack", 136, 4, 14),
+      skill("sk-fx-4", "Solar Rebirth", "Passively regenerates HP each turn, fueled by the reactor core.", "Passive", 0, 0, 18),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-blitzfire",
+    name: "Blitzfire",
+    element: "Fire",
+    rarity: "Mythic",
+    level: 33,
+    exp: 880,
+    expToNextLevel: 2150,
+    stage: 3,
+    spriteKey: "blitzfire",
+    spriteFolder: "/assets/creatures/blitzfire/idle",
+    // Heavy artillery bruiser — highest single-target power of the new Mythics, slowest SPD.
+    baseStats: { hp: 1180, atk: 232, def: 145, spd: 135 },
+    skills: [
+      skill("sk-bf-1", "Plasma Stake Barrage", "Twin plasma railguns unload on one enemy.", "Attack", 180, 0),
+      skill("sk-bf-2", "Binder Lockdown", "Raises own DEF sharply for 2 turns, thrusters venting to brace impact.", "Defense", 0, 3, 5),
+      skill("sk-bf-3", "Missile Pod Salvo", "Back-mounted missile pods saturate all enemies.", "Attack", 142, 5, 16),
+      skill("sk-bf-4", "Overcharged Core", "Passively boosts the next skill's power after taking damage.", "Passive", 0, 0, 20),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+
+  // --- LR tier ---
+  // The new top rarity, above Mythic. Every stat here clears the highest Mythic value in the
+  // whole roster (hp1200/atk235/def155/spd155, all from the block above) by a wide margin —
+  // keeping the Common < Rare < SSR < Mythic < LR power ordering unambiguous stat-by-stat, not
+  // just on average.
+  {
+    id: "cr-omega",
+    name: "Omega",
+    element: "Light",
+    rarity: "LR",
+    level: 45,
+    exp: 1600,
+    expToNextLevel: 3400,
+    stage: 3,
+    spriteKey: "omega",
+    spriteFolder: "/assets/creatures/omega/idle",
+    // The flagship LR — highest overall stat total, a true dual-weapon fusion powerhouse.
+    baseStats: { hp: 1500, atk: 290, def: 185, spd: 168 },
+    skills: [
+      skill("sk-om-1", "Grey Sword Cleave", "The colossal digi-code broadsword cleaves through one enemy.", "Attack", 210, 0),
+      skill("sk-om-2", "Garuru Cannon Lockdown", "Raises own DEF and SPD sharply for 2 turns, cannon barrel tracking threats.", "Defense", 0, 3, 6),
+      skill("sk-om-3", "Supreme Cannon", "Twin dragon and wolf heads unleash a world-ending barrage on all enemies.", "Attack", 178, 5, 22),
+      skill("sk-om-4", "Royal Knight's Resolve", "Passively reduces damage taken and raises ATK when HP falls below 35%.", "Passive", 0, 0, 26),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-poseidon",
+    name: "Poseidon",
+    element: "Water",
+    rarity: "LR",
+    level: 42,
+    exp: 1450,
+    expToNextLevel: 3250,
+    stage: 3,
+    spriteKey: "poseidon",
+    spriteFolder: "/assets/creatures/poseidon/idle",
+    // The tankiest LR — highest HP/DEF of the four, sovereign of the depths.
+    baseStats: { hp: 1550, atk: 270, def: 195, spd: 160 },
+    skills: [
+      skill("sk-ps-1", "Crescent Tide Blade", "The glowing energy naginata carves through one enemy.", "Attack", 200, 0),
+      skill("sk-ps-2", "Tidal Bulwark", "Raises own DEF sharply for 2 turns, channeling the depths.", "Defense", 0, 3, 6),
+      skill("sk-ps-3", "Abyssal Sovereign's Wrath", "A crashing tidal wave of pure pressure devastates all enemies.", "Attack", 172, 5, 22),
+      skill("sk-ps-4", "Sovereign's Vigil", "Passively restores a large amount of HP to the lowest-HP ally each turn.", "Passive", 0, 0, 25),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-magnagold",
+    name: "Magnagold",
+    element: "Light",
+    rarity: "LR",
+    level: 40,
+    exp: 1350,
+    expToNextLevel: 3100,
+    stage: 3,
+    spriteKey: "magnagold",
+    spriteFolder: "/assets/creatures/magnagold/idle",
+    // The swiftest LR — highest SPD in the whole roster, aggressive aerial striker.
+    baseStats: { hp: 1420, atk: 285, def: 175, spd: 175 },
+    skills: [
+      skill("sk-mg-1", "Magna Blast", "A concentrated golden energy bolt fired from the shoulder pods on one enemy.", "Attack", 205, 0),
+      skill("sk-mg-2", "Miracle Plating", "Raises own DEF and SPD for 2 turns behind faceted gold armor.", "Defense", 0, 3, 6),
+      skill("sk-mg-3", "Golden Nova Wing", "A radiant explosion from both shoulder thrusters engulfs all enemies.", "Attack", 170, 5, 21),
+      skill("sk-mg-4", "Miracle of Light", "Passively raises ATK sharply when HP falls below 40%.", "Passive", 0, 0, 24),
+    ],
+    equipment: {},
+    copies: 1,
+  },
+  {
+    id: "cr-abaddo",
+    name: "Abaddo",
+    element: "Dark",
+    rarity: "LR",
+    level: 44,
+    exp: 1550,
+    expToNextLevel: 3350,
+    stage: 3,
+    spriteKey: "abaddo",
+    spriteFolder: "/assets/creatures/abaddo/idle",
+    // The glass-cannon LR — highest ATK in the whole roster, an eldritch void anomaly.
+    baseStats: { hp: 1400, atk: 295, def: 170, spd: 165 },
+    skills: [
+      skill("sk-ab-1", "Void Talon Rend", "Segmented bladed cables lash out from the shadows to impale one enemy.", "Attack", 215, 0),
+      skill("sk-ab-2", "Obsidian Ring Shell", "Raises own DEF sharply for 2 turns behind orbiting armor plates.", "Defense", 0, 3, 6),
+      skill("sk-ab-3", "Cataclysm Eye", "The central crimson eye unleashes a reality-warping beam on all enemies.", "Attack", 182, 5, 23),
+      skill("sk-ab-4", "Entropy Feed", "Passively drains HP from the target equal to a portion of damage dealt.", "Passive", 0, 0, 26),
     ],
     equipment: {},
     copies: 1,

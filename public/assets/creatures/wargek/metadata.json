@@ -1,0 +1,36 @@
+{
+  "group_id": "9e65eff0-30a8-4cca-8bc4-75d289ee4f2d",
+  "states": [
+    {
+      "character": {
+        "id": "f734df9a-61c0-4712-bcb6-9da7a561655f",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a Mega-level armored dragon warrior monster inspired by WarGreymon, dynamic side/three-quarter combat stance.\n\nVisual Design:\n- Body & Build: Muscular orange reptilian humanoid frame, massive three-toed dinosaur feet with large white talons, red power cables and wrapped conduits along legs, neck, and inner joints.\n- Armor & Plating: Polished golden Chrome Digizoid plate armor covering the torso, shoulders, and forearms; segmented silver/steel chestplate, steel spiked greaves on lower legs, and purple waist guard plates.\n- Head & Features: Silver horned draconic cyber-helmet with curved horns, sharp snout visor with a small horn, green eyes, and long flowing crimson hair beneath the helm.\n- Signature Weaponry & Wings: Massive pair of golden dragon-claw gauntlets (Dramon Killers) with giant razor-sharp tri-blade silver talons mounted on forearms; large curved shield shell halves (Brave Shield) mounted on the back with purple inner lining.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 resolution canvas.\n- High-contrast metallic gold and chrome reflections, bold black outlines, vibrant comic/anime shading.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T00:21:12.025335+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:22:24.703099"
+}

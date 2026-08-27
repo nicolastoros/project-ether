@@ -1,0 +1,36 @@
+{
+  "group_id": "438542ce-6dae-4068-9f3c-5f39642d3bef",
+  "states": [
+    {
+      "character": {
+        "id": "e819b4c6-de1f-42a2-bd89-4624e5f077d6",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of an original Mega-level Cyber-Solar Gryphon Knight monster named \"SolGryphmon\", majestic hovering battle stance, three-quarter front view.\n\nVisual Design:\n- Body & Anatomy: Powerful hybrid humanoid gryphon frame with metallic golden lion-like armor on the lower body and muscular azure-blue cybernetic arms.\n- Head & Helm: Golden eagle-beak battle helm with swept-back crown feathers, glowing crimson eyes, and a solar crest on the forehead.\n- Wings & Solar Thrusters: Pair of massive mechanical wings made of layered crimson and gold solar-panel blades, venting radiant amber-orange plasma flames and digital embers from rear thrusters.\n- Armor & Weaponry: Polished silver Chrome Digizoid chestplate with a glowing solar reactor core at the center; dual forearm bracers equipped with folding golden talons and integrated laser beam emitters.\n- Tail & Legs: Armored mechanical lion tail ending in a laser blade, with heavy digitigrade taloned cyber-greaves.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- High-contrast metallic reflections, glowing solar plasma aura, sharp dark pixel outlines.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T17:09:21.588557+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:23:15.875692"
+}

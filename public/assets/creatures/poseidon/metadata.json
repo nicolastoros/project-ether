@@ -1,0 +1,36 @@
+{
+  "group_id": "5b3a4b24-0f37-4542-a49b-d94053bb1958",
+  "states": [
+    {
+      "character": {
+        "id": "bdf3e704-983a-4252-abbe-a3d4e0bae015",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a Mega-level golden beast knight warrior inspired by CresGarurumon, poised battle-ready three-quarter combat stance.\n\nVisual Design:\n- Body & Armor: Slender yet powerful humanoid knight clad in ornate, highly reflective golden Chrome Digizoid plate armor with royal purple inner cloth/joint padding and glowing cyan filigree accents.\n- Head & Helm: Elegant golden wolf-headed knight helm crowned with sweeping gold wolf ears, a sharp silver muzzle visor, glowing crimson eyes, and a long flowing silver-white fur mane trailing down the back.\n- Main Weapon (Yellow Beast Crescent Blade): Wielding a massive two-handed golden polearm / naginata with a giant curved glowing cyan energy blade and ornate wolf crest carvings on the hilt.\n- Shoulders & Back: Curved golden wolf-head pauldrons with purple accents, paired with a pair of golden blade-like armor wings/sheaths attached to the back harness.\n- Legs & Boots: Articulated golden greaves with pointed knee guards, purple trim, and claw-tipped armored sabatons.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- Sharp high-contrast metallic gold reflections, luminous cyan energy glow, clean dark pixel contours.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T19:14:42.148570+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:24:19.948543"
+}

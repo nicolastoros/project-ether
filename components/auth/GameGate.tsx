@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useGameStore } from "@/lib/store";
 import { syncProgressToServer } from "@/lib/syncProgress";
+import { refreshAccountInStore } from "@/lib/loadAccount";
 import { AppShell } from "@/components/layout/AppShell";
 
 const PROGRESS_SYNC_INTERVAL_MS = 60_000;
@@ -20,6 +21,16 @@ export function GameGate({ children }: { children: ReactNode }) {
       router.replace("/");
     }
   }, [status, router]);
+
+  // The local store's persisted cache renders instantly on load (see lib/store.ts's persist
+  // config), but it can be stale — e.g. content granted directly in BigQuery since this browser
+  // last logged in. Reconcile once per app load (not on every render/route change, since this
+  // effect's deps only flip once) rather than requiring a logout/login to see server-side
+  // changes.
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated") return;
+    refreshAccountInStore();
+  }, [hasHydrated, status]);
 
   // Creatures benched outside the hub team keep farming EXP in the box, both while
   // this tab is open and (via the persisted timestamp) across time away from the game.

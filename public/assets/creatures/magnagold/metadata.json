@@ -1,0 +1,36 @@
+{
+  "group_id": "67bb9d85-7b27-45c7-af21-ef083c112af0",
+  "states": [
+    {
+      "character": {
+        "id": "e3a1d1c1-a700-4dc6-9658-a996b32e8383",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a golden Armor/Mega-level dragon knight warrior inspired by Magnamon, dynamic aerial battle pose, three-quarter front view.\n\nVisual Design:\n- Body & Anatomy: Athletic azure-blue draconic humanoid frame with white chest/belly plate, large clawed blue hands with curved silver talons, and a pointed blue reptilian tail.\n- Golden Armor Plating: Highly reflective, angular polished gold Chrome Digizoid armor plates; heavy angular chestplate, wide skirt tassets with sharp dagger-like hip guards, massive faceted golden greaves with mechanical four-toed armored boots, and heavy forearm bracers.\n- Head & Visor: Faceted golden dragon helm with sharp multi-pointed crown crests framing the face, revealing sharp red dragon eyes.\n- Shoulder Thrusters: Heavy angular golden shoulder pods angled backward, featuring internal black missile launchers / energy vent ports.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas.\n- Bright luminous gold highlights, high-contrast cybernetic reflections, clean dark outlines.\n- Full-body character sprite centered, isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T00:25:12.807902+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:22:47.464908"
+}

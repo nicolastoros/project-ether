@@ -7,7 +7,7 @@ import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function TeamSelectScreen({
                   !isSelected && !isDisabled && "hover:border-gold"
                 )}
               >
-                {creature.rarity === "Mythic" && <MythicCardAura />}
+                <RarityCardAura rarity={creature.rarity} />
                 <div
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold bg-gradient-to-b pixel-frame lg:h-16 lg:w-16 xl:h-[72px] xl:w-[72px]",

@@ -1,0 +1,36 @@
+{
+  "group_id": "15194ab6-6cf3-4874-b53d-a6b98c6d8ded",
+  "states": [
+    {
+      "character": {
+        "id": "f4e8de89-fc42-496e-ac4c-951940040bb4",
+        "name": "Idle",
+        "prompt": "Plaintext\nPixel art character sprite of a Mega-level holy knight warrior inspired by Dukemon / Gallantmon, heroic upright combat stance, three-quarter front view.\n\nVisual Design:\n- Armor & Colors: Full-body polished silver and white chrome plate armor with gold filigree trims, large curved crimson-red shoulder pauldrons with gold spikes, and a flowing crimson-red cape behind the back.\n- Helmet & Head: Silver knight helm with a crimson-red dragon-crested visor, glowing cyan eyes behind the slit, and an extra-long flowing silver ribbon plume extending dynamically from the top of the helmet.\n- Torso & Limbs: Slender yet powerful robotic/cybernetic silhouette, black hazardous triangle crest on the silver chestplate, segmented red waist belts, pointed gold and crimson knee armor with black hazard markings, and armored silver sabatons with gold-plated pointed toes.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 resolution canvas.\n- High-contrast metallic reflections, clean bold outlines, vibrant crimson and gold accents.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T00:12:36.527877+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-27T02:21:56.711530"
+}

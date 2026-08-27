@@ -8,7 +8,7 @@ import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn, xpPercent } from "@/lib/utils";
@@ -57,7 +57,7 @@ export function CreatureDetailModal({
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-3xl border border-arcade-border bg-arcade-panel shadow-xl sm:rounded-3xl"
           >
-            {creature.rarity === "Mythic" && <MythicCardAura />}
+            <RarityCardAura rarity={creature.rarity} />
 
             <button
               onClick={onClose}

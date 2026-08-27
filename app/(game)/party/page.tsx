@@ -7,7 +7,7 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { cn } from "@/lib/utils";
 
 export default function PartyPage() {
@@ -90,7 +90,7 @@ export default function PartyPage() {
                     !isAssigned && "hover:border-gold"
                   )}
                 >
-                  {creature.rarity === "Mythic" && <MythicCardAura />}
+                  <RarityCardAura rarity={creature.rarity} />
 
                   <div
                     className={cn(

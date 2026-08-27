@@ -9,14 +9,14 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
-import { MythicCardAura } from "@/components/ui/MythicCardAura";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { CreatureDetailModal } from "@/components/monsters/CreatureDetailModal";
 import type { Creature, Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
 
 const ELEMENTS = Object.keys(ELEMENT_ICON) as Element[];
-const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic"];
+const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic", "LR"];
 
 interface MonsterCardProps {
   creature: Creature;
@@ -52,7 +52,7 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
           "hover:-translate-y-1 hover:shadow-lg"
         )}
       >
-        {creature.rarity === "Mythic" && <MythicCardAura />}
+        <RarityCardAura rarity={creature.rarity} />
 
         <button
           onClick={(e) => {
