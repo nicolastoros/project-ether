@@ -14,6 +14,7 @@ export function GameGate({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const hasHydrated = useGameStore((s) => s.hasHydrated);
   const tickBoxExp = useGameStore((s) => s.tickBoxExp);
+  const tickEnergy = useGameStore((s) => s.tickEnergy);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,6 +41,15 @@ export function GameGate({ children }: { children: ReactNode }) {
     const id = setInterval(tickBoxExp, 5000);
     return () => clearInterval(id);
   }, [hasHydrated, status, tickBoxExp]);
+
+  // Passive energy regeneration ticks.
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated") return;
+    tickEnergy();
+    // Run the check every 5s, the store function itself checks if a full minute has passed.
+    const id = setInterval(tickEnergy, 5000);
+    return () => clearInterval(id);
+  }, [hasHydrated, status, tickEnergy]);
 
   // Best-effort progress sync: mirrors profile/creature level & exp and highest campaign stage
   // cleared back to BigQuery periodically so a login from another device sees roughly current

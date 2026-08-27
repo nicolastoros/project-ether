@@ -22,7 +22,13 @@ export function syncProgressToServer(): void {
       })),
       dungeonHighestStageCleared: dungeon.highestStageCleared,
       dungeonPerfectStages: dungeon.perfectStages,
-      currencies: { gold: currencies.gold, gems: currencies.gems, sealCoins: currencies.sealCoins },
+      currencies: { 
+        gold: currencies.gold, 
+        gems: currencies.gems, 
+        sealCoins: currencies.sealCoins,
+        energy: currencies.energy,
+        lastEnergyTickAt: currencies.lastEnergyTickAt 
+      },
     }),
   }).catch(() => {
     // Non-fatal: local play continues regardless of sync success.

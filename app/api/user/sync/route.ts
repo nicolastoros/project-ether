@@ -29,12 +29,20 @@ interface SyncCurrencies {
   gold: number;
   gems: number;
   sealCoins: number;
+  energy: number;
+  lastEnergyTickAt: number;
 }
 
 function isSyncCurrencies(value: unknown): value is SyncCurrencies {
   if (!value || typeof value !== "object") return false;
   const c = value as Record<string, unknown>;
-  return typeof c.gold === "number" && typeof c.gems === "number" && typeof c.sealCoins === "number";
+  return (
+    typeof c.gold === "number" &&
+    typeof c.gems === "number" &&
+    typeof c.sealCoins === "number" &&
+    typeof c.energy === "number" &&
+    typeof c.lastEnergyTickAt === "number"
+  );
 }
 
 export async function POST(request: Request) {

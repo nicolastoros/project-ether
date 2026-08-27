@@ -167,6 +167,7 @@ export interface AccountBundle {
     energy: number;
     energyMax: number;
     energyRegenMinutes: number;
+    lastEnergyTickAt: number;
   };
   dungeon: {
     highestStageCleared: number;
@@ -223,7 +224,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       }),
       bq().query({
         query: `
-        SELECT gold, gems, seal_coins, energy, energy_max, energy_regen_minutes
+        SELECT gold, gems, seal_coins, energy, energy_max, energy_regen_minutes, UNIX_MILLIS(last_energy_tick_at) as last_energy_tick_at
         FROM ${table("user_currencies")} WHERE user_id = @userId LIMIT 1
       `,
         params: { userId },
@@ -310,8 +311,9 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           energy: currencyRow.energy,
           energyMax: currencyRow.energy_max,
           energyRegenMinutes: currencyRow.energy_regen_minutes,
+          lastEnergyTickAt: currencyRow.last_energy_tick_at,
         }
-      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 120, energyRegenMinutes: 5 },
+      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 120, energyRegenMinutes: 1, lastEnergyTickAt: Date.now() },
     dungeon: dungeonRow
       ? {
           highestStageCleared: dungeonRow.highest_stage_cleared,
@@ -367,7 +369,7 @@ export async function syncPlayerProgress(
     /** Wasn't synced at all before — gold/gems/sealCoins earned in a session only ever lived in
      * the browser, silently reverting to whatever was last written at account-creation time on
      * the next fresh hydrate. */
-    currencies?: { gold: number; gems: number; sealCoins: number };
+    currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -449,7 +451,7 @@ export async function syncPlayerProgress(
       bq().query({
         query: `
           UPDATE ${table("user_currencies")}
-          SET gold = @gold, gems = @gems, seal_coins = @sealCoins, updated_at = CURRENT_TIMESTAMP()
+          SET gold = @gold, gems = @gems, seal_coins = @sealCoins, energy = @energy, last_energy_tick_at = TIMESTAMP_MILLIS(@lastEnergyTickAt), updated_at = CURRENT_TIMESTAMP()
           WHERE user_id = @userId
         `,
         params: { userId, ...opts.currencies },

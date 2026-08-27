@@ -149,7 +149,11 @@ function bundleToStateFields(bundle: AccountBundle) {
       avatarKey: bundle.profile.avatarKey,
       isAdmin: bundle.profile.isAdmin,
     },
-    currencies: bundle.currencies,
+    currencies: {
+      ...bundle.currencies,
+      // If the DB doesn't have lastEnergyTickAt yet (older accounts), default to now.
+      lastEnergyTickAt: bundle.currencies.lastEnergyTickAt ?? Date.now(),
+    },
     creatures,
     partyCreatureIds,
     hubTeamIds,
@@ -234,6 +238,7 @@ interface GameState {
   spendSealCoins: (amount: number) => boolean;
   spendEnergy: (amount: number) => boolean;
   regenEnergy: (amount: number) => void;
+  tickEnergy: () => void;
 
   equipItem: (creatureId: string, equipmentId: string) => void;
   unequipItem: (creatureId: string, equipmentId: string) => void;
@@ -292,7 +297,8 @@ export const useGameStore = create<GameState>()(
         sealCoins: 0,
         energy: 82,
         energyMax: 120,
-        energyRegenMinutes: 5,
+        energyRegenMinutes: 1,
+        lastEnergyTickAt: Date.now(),
       },
       creatures: STARTER_CREATURES,
       activeCreatureId: STARTER_CREATURES[0].id,
@@ -356,7 +362,8 @@ export const useGameStore = create<GameState>()(
             sealCoins: 0,
             energy: 0,
             energyMax: 120,
-            energyRegenMinutes: 5,
+            energyRegenMinutes: 1,
+            lastEnergyTickAt: Date.now(),
           },
           creatures: [],
           activeCreatureId: "",
@@ -510,9 +517,42 @@ export const useGameStore = create<GameState>()(
         set((state) => ({
           currencies: {
             ...state.currencies,
-            energy: Math.min(state.currencies.energyMax, state.currencies.energy + amount),
+            energy: state.currencies.energy + amount,
           },
         })),
+
+      tickEnergy: () =>
+        set((state) => {
+          const now = Date.now();
+          const { energy, energyMax, energyRegenMinutes, lastEnergyTickAt } = state.currencies;
+          
+          const msPerRegen = energyRegenMinutes * 60 * 1000;
+          const elapsedMs = now - lastEnergyTickAt;
+          
+          if (elapsedMs < msPerRegen || energy >= energyMax) {
+            // Si ya estamos a tope de energía, simplemente reiniciamos el reloj para que no
+            // acumule "energía offline invisible" que se dé de golpe si gasta energía y recarga.
+            if (energy >= energyMax && elapsedMs >= msPerRegen) {
+              return {
+                currencies: { ...state.currencies, lastEnergyTickAt: now }
+              };
+            }
+            return state;
+          }
+
+          const ticks = Math.floor(elapsedMs / msPerRegen);
+          const newEnergy = Math.min(energyMax, energy + ticks);
+          // Avanzamos el reloj solo la cantidad de ticks que ocurrieron, para no perder los segundos sobrantes.
+          const nextTickAt = lastEnergyTickAt + (ticks * msPerRegen);
+
+          return {
+            currencies: {
+              ...state.currencies,
+              energy: newEnergy,
+              lastEnergyTickAt: nextTickAt,
+            }
+          };
+        }),
 
       equipItem: (creatureId, equipmentId) =>
         set((state) => {

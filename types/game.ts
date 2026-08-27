@@ -85,6 +85,7 @@ export interface Currencies {
   energy: number;
   energyMax: number;
   energyRegenMinutes: number; // minutes per +1 energy
+  lastEnergyTickAt: number;
 }
 
 // The Tamer is the player's own on-screen avatar, distinct from their Digimon — its gear is

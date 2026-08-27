@@ -129,6 +129,7 @@ export default function InventoryPage() {
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedTamerGear, setSelectedTamerGear] = useState<TamerEquipment | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [useQuantity, setUseQuantity] = useState(1);
   const [usingItemForCreature, setUsingItemForCreature] = useState<InventoryItem | null>(null);
   const [pickedCreatureId, setPickedCreatureId] = useState<string | null>(null);
 
@@ -219,7 +220,10 @@ export default function InventoryPage() {
                   key={item.id}
                   item={item}
                   quantity={ownedQuantityByItemId.get(item.id) ?? 0}
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => {
+                    setSelectedItem(item);
+                    setUseQuantity(1);
+                  }}
                 />
               ))}
             </div>
@@ -402,20 +406,46 @@ export default function InventoryPage() {
               </div>
               <p className="mt-3 text-xs text-zinc-600">{selectedItem.description}</p>
 
+              {(selectedItem.energyRestore || selectedItem.creatureExpValue) && (
+                <div className="mt-4 flex items-center justify-between rounded-xl border border-arcade-border bg-arcade-panel-light p-2">
+                  <button 
+                    disabled={useQuantity <= 1} 
+                    onClick={() => setUseQuantity(q => q - 1)} 
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 font-bold disabled:opacity-50"
+                  >
+                    -
+                  </button>
+                  <span className="font-arcade text-sm text-foreground">{useQuantity}</span>
+                  <button 
+                    disabled={useQuantity >= (ownedQuantityByItemId.get(selectedItem.id) ?? 0)} 
+                    onClick={() => setUseQuantity(q => q + 1)} 
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 font-bold disabled:opacity-50"
+                  >
+                    +
+                  </button>
+                  <button 
+                    onClick={() => setUseQuantity(ownedQuantityByItemId.get(selectedItem.id) ?? 0)} 
+                    className="text-[10px] font-bold uppercase text-zinc-500 hover:text-foreground"
+                  >
+                    Max
+                  </button>
+                </div>
+              )}
+
               <div className="mt-4 space-y-2">
                 {selectedItem.energyRestore && (
                   <PixelButton
                     variant="gold"
                     className="w-full"
                     onClick={() => {
-                      if (consumeItem(selectedItem.id, 1)) {
-                        regenEnergy(selectedItem.energyRestore as number);
-                        consumeItemOnServer(selectedItem.id, 1);
+                      if (consumeItem(selectedItem.id, useQuantity)) {
+                        regenEnergy((selectedItem.energyRestore as number) * useQuantity);
+                        consumeItemOnServer(selectedItem.id, useQuantity);
                       }
                       setSelectedItem(null);
                     }}
                   >
-                    Use (+{selectedItem.energyRestore} Energy)
+                    Use (+{(selectedItem.energyRestore as number) * useQuantity} Energy)
                   </PixelButton>
                 )}
                 {selectedItem.creatureExpValue && (
@@ -472,19 +502,19 @@ export default function InventoryPage() {
                 <X className="h-4 w-4" />
               </button>
               <h2 className="text-sm font-bold text-foreground">
-                Use {usingItemForCreature.name} on which Digimon?
+                Use {useQuantity}x {usingItemForCreature.name} on which Digimon?
               </h2>
               <MultiCreaturePicker
                 creatures={creatures}
                 selectedIds={pickedCreatureId ? [pickedCreatureId] : []}
                 maxCount={1}
                 onToggle={(id) => setPickedCreatureId(id)}
-                confirmLabel="Use"
+                confirmLabel={`Use (+${(usingItemForCreature.creatureExpValue as number) * useQuantity} EXP)`}
                 onConfirm={() => {
                   if (!pickedCreatureId) return;
-                  if (consumeItem(usingItemForCreature.id, 1)) {
-                    gainCreatureExp(pickedCreatureId, usingItemForCreature.creatureExpValue as number);
-                    consumeItemOnServer(usingItemForCreature.id, 1);
+                  if (consumeItem(usingItemForCreature.id, useQuantity)) {
+                    gainCreatureExp(pickedCreatureId, (usingItemForCreature.creatureExpValue as number) * useQuantity);
+                    consumeItemOnServer(usingItemForCreature.id, useQuantity);
                   }
                   setUsingItemForCreature(null);
                   setPickedCreatureId(null);
