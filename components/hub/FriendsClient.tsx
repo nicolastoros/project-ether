@@ -66,7 +66,8 @@ export function FriendsClient({
           requester_id: "me",
           addressee_id: userId,
           status: "pending",
-          created_at: new Date(),
+          created_at: new Date().toISOString(),
+          resolved_at: null,
         },
       ]);
     } catch (err) {
@@ -95,7 +96,7 @@ export function FriendsClient({
             is_online: false,
             is_in_battle: false,
             last_seen_at: null,
-            friendship_created_at: { value: new Date().toISOString() },
+            friendship_created_at: new Date().toISOString(),
           },
         ]);
       }

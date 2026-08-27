@@ -606,9 +606,10 @@ export interface DbFriendRequest {
   id: string;
   requester_id: string;
   addressee_id: string;
-  status: "pending" | "accepted" | "declined" | "cancelled";
-  created_at: Date;
-  // Included from JOINs:
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  // Join fields from users table (if joined)
   other_username?: string;
   other_display_name?: string;
   other_level?: number;
@@ -625,8 +626,8 @@ export interface DbFriend {
   avatar_key: string;
   is_online: boolean;
   is_in_battle: boolean;
-  last_seen_at: { value: string } | null;
-  friendship_created_at: { value: string };
+  last_seen_at: string | null;
+  friendship_created_at: string;
 }
 
 export async function searchUsersByUsername(query: string, limit: number = 10): Promise<DbFriend[]> {
