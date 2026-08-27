@@ -324,13 +324,13 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_stage_progress` (
 
 -- Estado "en vivo" de la campaña (equivalente a DungeonProgress del store)
 CREATE TABLE `project-scrappy-intelic.project_ether.user_dungeon_state` (
-  user_id                STRING NOT NULL,
+  user_id                STRING PRIMARY KEY,
   highest_stage_cleared  INT64 DEFAULT 0,
   current_wave           INT64 DEFAULT 0,
-  auto_battle_enabled    BOOL DEFAULT false,
-  auto_dg_enabled        BOOL DEFAULT false,
-  speed_multiplier       INT64 DEFAULT 1,  -- 1|2|4, validar en la app
-  PRIMARY KEY (user_id) NOT ENFORCED,
+  auto_battle_enabled    BOOL DEFAULT FALSE,
+  auto_dg_enabled        BOOL DEFAULT FALSE,
+  speed_multiplier       INT64 DEFAULT 1,
+  perfect_stages         ARRAY<STRING>,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 );
 ```

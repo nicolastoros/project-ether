@@ -39,23 +39,26 @@ function applyExpGain(creature: Creature, gained: number): Creature {
   let exp = creature.exp + gained;
   let level = creature.level;
   let expToNextLevel = creature.expToNextLevel;
-  let baseStats = creature.baseStats;
 
   while (exp >= expToNextLevel && level < MAX_LEVEL) {
     exp -= expToNextLevel;
     level += 1;
     expToNextLevel = nextLevelExpRequirement(expToNextLevel, level);
-    baseStats = {
-      hp: baseStats.hp + 8,
-      atk: baseStats.atk + 3,
-      def: baseStats.def + 2,
-      spd: baseStats.spd + 1,
-    };
   }
   if (level >= MAX_LEVEL) {
     level = MAX_LEVEL;
     exp = 0;
   }
+
+  const base = STARTER_CREATURES.find((c) => c.id === creature.id);
+  const baseStats = base
+    ? {
+        hp: base.baseStats.hp + 8 * (level - 1),
+        atk: base.baseStats.atk + 3 * (level - 1),
+        def: base.baseStats.def + 2 * (level - 1),
+        spd: base.baseStats.spd + 1 * (level - 1),
+      }
+    : creature.baseStats;
 
   // tickBoxExp's per-second gains are fractional (BOX_EXP_PER_SECOND * elapsed seconds) — round
   // here so the persisted value always stays a whole number. BigQuery's sync query types
@@ -118,6 +121,8 @@ interface GameState {
   /** Clears account-specific local state so a different account signing in next doesn't inherit it. */
   logout: () => void;
   setHasHydrated: (hydrated: boolean) => void;
+
+  markStagePerfect: (stageId: string) => void;
 
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
@@ -217,6 +222,7 @@ export const useGameStore = create<GameState>()(
         autoBattleEnabled: false,
         autoDgEnabled: false,
         speedMultiplier: 1,
+        perfectStages: [],
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
       survivalHighestStageCleared: 0,
@@ -233,7 +239,12 @@ export const useGameStore = create<GameState>()(
               level: owned.level,
               exp: owned.exp,
               expToNextLevel: owned.expToNextLevel,
-              baseStats: { hp: owned.hp, atk: owned.atk, def: owned.def, spd: owned.spd },
+              baseStats: { 
+                hp: base.baseStats.hp + 8 * (owned.level - 1), 
+                atk: base.baseStats.atk + 3 * (owned.level - 1), 
+                def: base.baseStats.def + 2 * (owned.level - 1), 
+                spd: base.baseStats.spd + 1 * (owned.level - 1) 
+              },
               equipment: {},
               copies: owned.copies,
             };
@@ -297,7 +308,10 @@ export const useGameStore = create<GameState>()(
             startedAt: e.startedAt,
             durationMs: e.durationMs,
           })),
-          dungeon: bundle.dungeon,
+          dungeon: {
+            ...bundle.dungeon,
+            perfectStages: bundle.dungeon.perfectStages || [],
+          },
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
           survivalHighestStageCleared: 0,
@@ -332,11 +346,18 @@ export const useGameStore = create<GameState>()(
             autoBattleEnabled: false,
             autoDgEnabled: false,
             speedMultiplier: 1,
+            perfectStages: [],
           },
           survivalHighestStageCleared: 0,
         }),
 
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+
+      markStagePerfect: (stageId) =>
+        set((state) => {
+          if (state.dungeon.perfectStages.includes(stageId)) return state;
+          return { dungeon: { ...state.dungeon, perfectStages: [...state.dungeon.perfectStages, stageId] } };
+        }),
 
       setActiveCreature: (creatureId) => set({ activeCreatureId: creatureId }),
 
@@ -763,6 +784,10 @@ export const useGameStore = create<GameState>()(
         merged.equippedTamerId = persisted.equippedTamerId ?? "tamer1";
         merged.ownedTamerIds = persisted.ownedTamerIds?.length ? persisted.ownedTamerIds : ["tamer1"];
         merged.activeExpeditions = persisted.activeExpeditions ?? [];
+
+        if (merged.dungeon) {
+          merged.dungeon.perfectStages = merged.dungeon.perfectStages ?? [];
+        }
 
         return merged;
       },

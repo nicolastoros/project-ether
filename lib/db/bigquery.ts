@@ -174,6 +174,7 @@ export interface AccountBundle {
     autoBattleEnabled: boolean;
     autoDgEnabled: boolean;
     speedMultiplier: 1 | 2 | 4;
+    perfectStages: string[];
   };
   creatures: {
     creatureId: string;
@@ -229,7 +230,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       }),
       bq().query({
         query: `
-        SELECT highest_stage_cleared, current_wave, auto_battle_enabled, auto_dg_enabled, speed_multiplier
+        SELECT highest_stage_cleared, current_wave, auto_battle_enabled, auto_dg_enabled, speed_multiplier, perfect_stages
         FROM ${table("user_dungeon_state")} WHERE user_id = @userId LIMIT 1
       `,
         params: { userId },
@@ -318,8 +319,9 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           autoBattleEnabled: dungeonRow.auto_battle_enabled,
           autoDgEnabled: dungeonRow.auto_dg_enabled,
           speedMultiplier: dungeonRow.speed_multiplier as 1 | 2 | 4,
+          perfectStages: dungeonRow.perfect_stages || [],
         }
-      : { highestStageCleared: 0, currentWave: 0, autoBattleEnabled: false, autoDgEnabled: false, speedMultiplier: 1 },
+      : { highestStageCleared: 0, currentWave: 0, autoBattleEnabled: false, autoDgEnabled: false, speedMultiplier: 1, perfectStages: [] },
     creatures: creatureRows.map((row) => ({
       creatureId: row.creature_id,
       level: row.level,
@@ -361,6 +363,7 @@ export async function syncPlayerProgress(
     /** Highest Campaign stage cleared — only ever moves up (GREATEST), so an out-of-order sync
      * (e.g. two tabs) can't accidentally roll progress back. */
     dungeonHighestStageCleared?: number;
+    dungeonPerfectStages?: string[];
     /** Wasn't synced at all before — gold/gems/sealCoins earned in a session only ever lived in
      * the browser, silently reverting to whatever was last written at account-creation time on
      * the next fresh hydrate. */
@@ -406,15 +409,21 @@ export async function syncPlayerProgress(
     );
   }
 
-  if (opts.dungeonHighestStageCleared !== undefined) {
+  if (opts.dungeonHighestStageCleared !== undefined || opts.dungeonPerfectStages) {
     queries.push(
       bq().query({
         query: `
           UPDATE ${table("user_dungeon_state")}
-          SET highest_stage_cleared = GREATEST(highest_stage_cleared, @value)
+          SET 
+            highest_stage_cleared = GREATEST(highest_stage_cleared, COALESCE(@highest, highest_stage_cleared)),
+            perfect_stages = COALESCE(@perfectStages, perfect_stages)
           WHERE user_id = @userId
         `,
-        params: { userId, value: opts.dungeonHighestStageCleared },
+        params: { 
+          userId, 
+          highest: opts.dungeonHighestStageCleared ?? null,
+          perfectStages: opts.dungeonPerfectStages ?? null 
+        },
       })
     );
   }

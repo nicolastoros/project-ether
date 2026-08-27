@@ -11,13 +11,14 @@ import { MythicCardAura } from "@/components/ui/MythicCardAura";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
+import { useGameStore } from "@/lib/store";
 
 interface TeamSelectScreenProps {
   stage: DungeonStage;
   creatures: Creature[];
   selectedIds: string[];
   onToggle: (creatureId: string) => void;
-  onStart: () => void;
+  onStart: (isSweep: boolean) => void;
 }
 
 export function TeamSelectScreen({
@@ -89,9 +90,21 @@ export function TeamSelectScreen({
       <div className="sticky bottom-3 lg:bottom-5">
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3 lg:rounded-2xl lg:p-5">
           <p className="text-xs text-zinc-500 lg:text-base">{selectedIds.length}/2 creatures selected</p>
-          <PixelButton variant="neon" disabled={selectedIds.length === 0} onClick={onStart} className="lg:px-8 lg:py-3.5 lg:text-base">
-            Start Battle
-          </PixelButton>
+          <div className="flex gap-2">
+            {useGameStore((s) => s.dungeon.perfectStages.includes(stage.id)) && (
+              <PixelButton 
+                variant="gold" 
+                disabled={selectedIds.length === 0} 
+                onClick={() => onStart(true)} 
+                className="lg:px-8 lg:py-3.5 lg:text-base"
+              >
+                Auto-Clear
+              </PixelButton>
+            )}
+            <PixelButton variant="neon" disabled={selectedIds.length === 0} onClick={() => onStart(false)} className="lg:px-8 lg:py-3.5 lg:text-base">
+              Start Battle
+            </PixelButton>
+          </div>
         </GlowPanel>
       </div>
     </div>

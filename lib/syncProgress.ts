@@ -21,6 +21,7 @@ export function syncProgressToServer(): void {
         expToNextLevel: c.expToNextLevel,
       })),
       dungeonHighestStageCleared: dungeon.highestStageCleared,
+      dungeonPerfectStages: dungeon.perfectStages,
       currencies: { gold: currencies.gold, gems: currencies.gems, sealCoins: currencies.sealCoins },
     }),
   }).catch(() => {

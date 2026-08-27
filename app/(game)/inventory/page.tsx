@@ -304,9 +304,10 @@ export default function InventoryPage() {
                     variant="gold"
                     className="w-full"
                     onClick={() => {
-                      regenEnergy(selectedItem.energyRestore as number);
-                      consumeItem(selectedItem.id, 1);
-                      consumeItemOnServer(selectedItem.id, 1);
+                      if (consumeItem(selectedItem.id, 1)) {
+                        regenEnergy(selectedItem.energyRestore as number);
+                        consumeItemOnServer(selectedItem.id, 1);
+                      }
                       setSelectedItem(null);
                     }}
                   >
@@ -377,9 +378,10 @@ export default function InventoryPage() {
                 confirmLabel="Use"
                 onConfirm={() => {
                   if (!pickedCreatureId) return;
-                  gainCreatureExp(pickedCreatureId, usingItemForCreature.creatureExpValue as number);
-                  consumeItem(usingItemForCreature.id, 1);
-                  consumeItemOnServer(usingItemForCreature.id, 1);
+                  if (consumeItem(usingItemForCreature.id, 1)) {
+                    gainCreatureExp(pickedCreatureId, usingItemForCreature.creatureExpValue as number);
+                    consumeItemOnServer(usingItemForCreature.id, 1);
+                  }
                   setUsingItemForCreature(null);
                   setPickedCreatureId(null);
                 }}

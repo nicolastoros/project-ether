@@ -160,6 +160,7 @@ export interface DungeonProgress {
   autoBattleEnabled: boolean;
   autoDgEnabled: boolean;
   speedMultiplier: 1 | 2 | 4;
+  perfectStages: string[];
 }
 
 export interface DailyTask {

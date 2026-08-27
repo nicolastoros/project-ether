@@ -188,6 +188,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     if (!enemiesAlive) {
       setPhase("victory");
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Victory! All enemies defeated." }]);
+      
+      const isPerfectClear = playersAlive && next.filter(c => c.side === "player").every(c => c.isAlive);
+      if (isPerfectClear) {
+        useGameStore.getState().markStagePerfect(stage.id);
+      }
+
       if (!rewardGranted) {
         setRewardGranted(true);
         // Read highestStageCleared *before* clearDungeonStage updates it — that's the only way to

@@ -7,6 +7,7 @@ import { pickRandomEnemies } from "@/lib/combat";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { TeamSelectScreen } from "./TeamSelectScreen";
 import { BattleScreen } from "./BattleScreen";
+import { SweepScreen } from "./SweepScreen";
 
 interface BattlePageProps {
   stage: DungeonStage;
@@ -14,8 +15,10 @@ interface BattlePageProps {
 
 export function BattlePage({ stage }: BattlePageProps) {
   const creatures = useGameStore((s) => s.creatures);
+  const spendEnergy = useGameStore((s) => s.spendEnergy);
   const [playerIds, setPlayerIds] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
+  const [isSweep, setIsSweep] = useState(false);
   const [battleKey, setBattleKey] = useState(0);
 
   const enemyCreatures = useMemo(() => {
@@ -39,7 +42,14 @@ export function BattlePage({ stage }: BattlePageProps) {
             return [...prev, id];
           })
         }
-        onStart={() => setStarted(true)}
+        onStart={(sweep) => {
+          if (!spendEnergy(stage.staminaCost)) {
+            alert("Not enough stamina!");
+            return;
+          }
+          setIsSweep(sweep);
+          setStarted(true);
+        }}
       />
     );
   }
@@ -50,6 +60,20 @@ export function BattlePage({ stage }: BattlePageProps) {
 
   if (playerCreatures.length < 1 || playerCreatures.length > 2 || enemyCreatures.length !== 2) {
     return null;
+  }
+
+  if (isSweep) {
+    return (
+      <SweepScreen 
+        stage={stage} 
+        playerCreatures={playerCreatures} 
+        onExit={() => {
+          setStarted(false);
+          setIsSweep(false);
+          setPlayerIds([]);
+        }} 
+      />
+    );
   }
 
   return (
