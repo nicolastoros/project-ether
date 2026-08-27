@@ -91,6 +91,8 @@ export function FriendsClient({
             user_id: req.requester_id,
             username: req.other_username ?? "Unknown",
             display_name: req.other_display_name ?? "Unknown",
+            title: "Tamer",
+            creature_count: 0,
             level: req.other_level ?? 1,
             avatar_key: req.other_avatar_key ?? "default",
             is_online: false,
