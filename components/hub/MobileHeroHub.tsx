@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ClipboardList, X, type LucideIcon } from "lucide-react";
+import { Copy, ClipboardList, X, type LucideIcon } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
@@ -95,6 +95,7 @@ export function MobileHeroHub() {
 
   return (
     <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-b-3xl bg-arcade-panel">
+
       <Image
         src="/assets/ui/home_1.png"
         alt=""

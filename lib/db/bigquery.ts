@@ -597,3 +597,141 @@ export async function collectExpeditionForUser(userId: string, expeditionId: str
     params: { userId, expeditionId },
   });
 }
+
+// ============================================================================
+// FRIENDS SYSTEM
+// ============================================================================
+
+export interface DbFriendRequest {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  created_at: Date;
+  // Included from JOINs:
+  other_username?: string;
+  other_display_name?: string;
+  other_level?: number;
+  other_avatar_key?: string;
+}
+
+export interface DbFriend {
+  user_id: string;
+  username: string;
+  display_name: string;
+  title: string;
+  creature_count: number;
+  level: number;
+  avatar_key: string;
+  is_online: boolean;
+  is_in_battle: boolean;
+  last_seen_at: { value: string } | null;
+  friendship_created_at: { value: string };
+}
+
+export async function searchUsersByUsername(query: string, limit: number = 10): Promise<DbFriend[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT u.id as user_id, u.username, u.display_name, u.title,
+      (SELECT COUNT(*) FROM ${table("user_creatures")} uc WHERE uc.user_id = u.id) as creature_count,
+      u.level, u.avatar_key, u.is_online, u.is_in_battle, u.last_seen_at, CURRENT_TIMESTAMP() as friendship_created_at
+      FROM ${table("users")} u
+      WHERE LOWER(u.username) LIKE CONCAT('%', LOWER(@query), '%')
+      LIMIT @limit
+    `,
+    params: { query, limit },
+  });
+  return rows as DbFriend[];
+}
+
+export async function getFriendRequests(userId: string): Promise<{ incoming: DbFriendRequest[]; outgoing: DbFriendRequest[] }> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT
+        r.id, r.requester_id, r.addressee_id, r.status, r.created_at,
+        u.username as other_username, u.display_name as other_display_name,
+        u.level as other_level, u.avatar_key as other_avatar_key
+      FROM ${table("friend_requests")} r
+      JOIN ${table("users")} u ON u.id = CASE WHEN r.requester_id = @userId THEN r.addressee_id ELSE r.requester_id END
+      WHERE (r.requester_id = @userId OR r.addressee_id = @userId)
+        AND r.status = 'pending'
+    `,
+    params: { userId },
+  });
+
+  const incoming = (rows as DbFriendRequest[]).filter((r) => r.addressee_id === userId);
+  const outgoing = (rows as DbFriendRequest[]).filter((r) => r.requester_id === userId);
+
+  return { incoming, outgoing };
+}
+
+export async function getFriends(userId: string): Promise<DbFriend[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT
+        u.id as user_id, u.username, u.display_name, u.title,
+        (SELECT COUNT(*) FROM ${table("user_creatures")} uc WHERE uc.user_id = u.id) as creature_count,
+        u.level, u.avatar_key,
+        u.is_online, u.is_in_battle, u.last_seen_at,
+        f.created_at as friendship_created_at
+      FROM ${table("friendships")} f
+      JOIN ${table("users")} u ON u.id = CASE WHEN f.user_id_a = @userId THEN f.user_id_b ELSE f.user_id_a END
+      WHERE (f.user_id_a = @userId OR f.user_id_b = @userId)
+    `,
+    params: { userId },
+  });
+  return rows as DbFriend[];
+}
+
+export async function sendFriendRequest(requesterId: string, addresseeId: string): Promise<void> {
+  const [existing] = await bq().query({
+    query: `
+      SELECT 1 FROM ${table("friend_requests")}
+      WHERE requester_id = @requesterId AND addressee_id = @addresseeId AND status = 'pending'
+      LIMIT 1
+    `,
+    params: { requesterId, addresseeId },
+  });
+  if (existing.length > 0) return;
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("friend_requests")} (id, requester_id, addressee_id, status)
+      VALUES (@id, @requesterId, @addresseeId, 'pending')
+    `,
+    params: { id: randomUUID(), requesterId, addresseeId },
+  });
+}
+
+export async function acceptFriendRequest(requestId: string, requesterId: string, addresseeId: string): Promise<void> {
+  const [user_id_a, user_id_b] = requesterId < addresseeId ? [requesterId, addresseeId] : [addresseeId, requesterId];
+
+  await Promise.all([
+    bq().query({
+      query: `
+        UPDATE ${table("friend_requests")}
+        SET status = 'accepted', resolved_at = CURRENT_TIMESTAMP()
+        WHERE id = @requestId
+      `,
+      params: { requestId },
+    }),
+    bq().query({
+      query: `
+        INSERT INTO ${table("friendships")} (user_id_a, user_id_b)
+        VALUES (@user_id_a, @user_id_b)
+      `,
+      params: { user_id_a, user_id_b },
+    })
+  ]);
+}
+
+export async function rejectFriendRequest(requestId: string): Promise<void> {
+  await bq().query({
+    query: `
+      UPDATE ${table("friend_requests")}
+      SET status = 'declined', resolved_at = CURRENT_TIMESTAMP()
+      WHERE id = @requestId
+    `,
+    params: { requestId },
+  });
+}

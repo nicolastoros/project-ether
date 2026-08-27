@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Lock, Check, Pause, RotateCw } from "lucide-react";
+import { Lock, Check, Pause, RotateCw, Copy } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { TAMER_EQUIPMENT_CATALOG, TAMER_CATALOG, DUNGEON_STAGES } from "@/lib/gameData";
 import { grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
@@ -53,6 +53,7 @@ export default function TamerPage() {
   const profile = useGameStore((s) => s.profile);
   const [craftingId, setCraftingId] = useState<string | null>(null);
   const [spinning, setSpinning] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const equippedTamer = TAMER_CATALOG.find((t) => t.id === equippedTamerId) ?? TAMER_CATALOG[0];
   const ownedBySlot = new Map(tamerInventory.map((t) => [t.slot, t]));
@@ -61,13 +62,17 @@ export default function TamerPage() {
     setCraftingId(itemId);
     const crafted = craftTamerEquipment(itemId);
     if (crafted) {
-      // Two separate server calls: the new owned piece (insert-if-missing) and the Seal Coin
-      // balance that paid for it (covered by the generic progress sync).
       grantTamerEquipmentOnServer(itemId);
       syncProgressToServer();
     }
     setCraftingId(null);
   }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(profile.name);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-4">
@@ -81,8 +86,6 @@ export default function TamerPage() {
         <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5" />} value={sealCoins} />
       </div>
 
-      {/* RPG-style layout: a big character portrait on the left, gear grid filling the rest —
-          the panel stays put on scroll (lg:sticky) since the gear grid can run longer than it. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:items-start">
         <GlowPanel accent="gold" className="flex flex-col items-center gap-3 p-5 text-center lg:sticky lg:top-4">
           <div className="relative flex h-64 w-full items-center justify-center overflow-hidden rounded-2xl border border-gold bg-gradient-to-b from-gold/15 via-gold/5 to-transparent pixel-frame">
@@ -111,6 +114,21 @@ export default function TamerPage() {
             <p className="mt-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
               {profile.title} · Lv.{profile.level}
             </p>
+            <div className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 shadow-md">
+              <span className="font-arcade text-[9px] text-zinc-400">ID:</span>
+              <span className="font-arcade text-[10px] text-white">{profile.name}</span>
+              <button
+                onClick={handleCopy}
+                className="ml-1 text-zinc-400 hover:text-gold transition-colors"
+                aria-label="Copy Tamer ID"
+              >
+                {copied ? (
+                  <span className="font-arcade text-[8px] text-emerald-400">COPIED</span>
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </button>
+            </div>
           </div>
           <div className="w-full space-y-1.5 rounded-xl border border-arcade-border bg-arcade-panel-light p-3">
             <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">Buffs</p>
