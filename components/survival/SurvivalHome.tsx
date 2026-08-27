@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { SURVIVAL_STAGES, SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
@@ -49,7 +50,8 @@ export function SurvivalHome() {
         <p className="text-xs text-zinc-500">Pick a stage — survive until the target time to clear it.</p>
       </div>
 
-      <div className="flex shrink-0 gap-2">
+      {/* Mobile: full-width pill row, unchanged. */}
+      <div className="flex shrink-0 gap-2 lg:hidden">
         {SURVIVAL_WORLDS.map((w) => (
           <button
             key={w.world}
@@ -66,6 +68,35 @@ export function SurvivalHome() {
             {!w.isAvailable && <Lock className="ml-1 inline h-3 w-3 align-[-1px]" />}
           </button>
         ))}
+      </div>
+
+      {/* PC: compact segmented slider, sized to content instead of stretched full-width. */}
+      <div className="hidden shrink-0 lg:flex">
+        <div className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel p-1 shadow-sm">
+          {SURVIVAL_WORLDS.map((w) => (
+            <button
+              key={w.world}
+              type="button"
+              onClick={() => setActiveWorld(w.world)}
+              className={cn(
+                "relative overflow-hidden rounded-full px-5 py-2 font-arcade text-xs font-semibold uppercase tracking-wide transition-colors",
+                activeWorld === w.world ? "text-neon-ink" : "text-zinc-500 hover:text-foreground"
+              )}
+            >
+              {activeWorld === w.world && (
+                <motion.div
+                  layoutId="survivalWorldActiveBg"
+                  className="absolute inset-0 rounded-full border border-neon bg-neon/10"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10 inline-flex items-center gap-1.5">
+                World {w.world}
+                {!w.isAvailable && <Lock className="h-3 w-3" />}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="min-h-0 flex-1">

@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { RotateCcw, Sparkles, Zap } from "lucide-react";
+import { ChevronDown, RotateCcw, Sparkles, Zap } from "lucide-react";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import type { Creature, DungeonStage, Skill } from "@/types/game";
-import type { Direction } from "@/components/ui/CreatureSprite";
+import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useGameStore } from "@/lib/store";
 import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
@@ -39,7 +40,7 @@ import { cn, formatNumber } from "@/lib/utils";
 // with 4 stone-circle markers in identical spots (see ARENA_SLOTS below), so a new world's
 // background is a drop-in as long as it follows that same layout.
 const ARENA_BACKGROUNDS: Record<number, string> = {
-  1: "/assets/campaign/world1_1.jpeg",
+  1: "/assets/maps/battle_field_test1.png",
   2: "/assets/campaign/world2.jpg",
 };
 // One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
@@ -47,11 +48,53 @@ const ARENA_BACKGROUNDS: Record<number, string> = {
 const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
 const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
 const ARENA_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
-  { side: "player", index: 0, left: "20.5%", top: "48%", direction: "south-east" },
-  { side: "player", index: 1, left: "20.5%", top: "78%", direction: "south-east" },
-  { side: "enemy", index: 0, left: "79%", top: "48%", direction: "south-west" },
-  { side: "enemy", index: 1, left: "79%", top: "78%", direction: "south-west" },
+  { side: "player", index: 0, left: "25%", top: "40%", direction: "south-east" },
+  { side: "player", index: 1, left: "15%", top: "50%", direction: "south-east" },
+  { side: "enemy", index: 0, left: "75%", top: "35%", direction: "south-west" },
+  { side: "enemy", index: 1, left: "85%", top: "45%", direction: "south-west" },
 ];
+
+// Desktop-only flanking roster card — allies to the left, enemies to the right, so name/level/HP
+// is legible outside the busy arena art instead of only as tiny overlay text on the sprite itself.
+function CombatantPlate({
+  combatant,
+  align,
+  isActingTurn,
+  className,
+}: {
+  combatant: BattleCombatant;
+  align: "left" | "right";
+  isActingTurn: boolean;
+  className?: string;
+}) {
+  const { creature } = combatant;
+  const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-xl border-2 bg-black/80 p-2 shadow-md backdrop-blur-md transition-colors w-40 sm:w-48 xl:w-56",
+        align === "right" && "flex-row-reverse",
+        isActingTurn ? "border-gold shadow-[0_0_16px_-2px_rgba(255,184,77,0.5)]" : "border-white/20",
+        !combatant.isAlive && "opacity-50 grayscale",
+        className
+      )}
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-black/50">
+        <CreatureSprite
+          creature={creature}
+          direction={align === "left" ? "south-east" : "south-west"}
+          className="h-8 w-8"
+        />
+      </div>
+      <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
+        <p className="truncate text-[10px] sm:text-xs font-bold text-white">{creature.name}</p>
+        <p className="text-[9px] sm:text-[10px] text-zinc-300">Lv.{creature.level}</p>
+        <ProgressBar percent={hpPercent} color="hp" label={`${combatant.currentHp}/${combatant.maxHp}`} className="mt-1" />
+      </div>
+    </div>
+  );
+}
 
 interface BattleScreenProps {
   stage: DungeonStage;
@@ -282,169 +325,191 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         <p className="text-xs text-zinc-500">{stage.name} · 2v2 Turn Battle</p>
       </div>
 
-      {arenaBg ? (
-        <div
-          className="relative mx-auto w-full max-w-sm overflow-hidden rounded-3xl border border-arcade-border shadow-sm sm:max-w-md lg:max-w-lg xl:max-w-xl"
-          style={{ aspectRatio: "704 / 1189" }}
-        >
-          <Image
-            src={arenaBg}
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 448px, (max-width: 1280px) 512px, 576px"
-            className="object-cover"
-          />
-          {ARENA_SLOTS.map((slot) => {
-            const c = (slot.side === "player" ? players : enemies)[slot.index];
-            if (!c) return null;
-            return (
-              <div
-                key={c.uid}
-                className="absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ left: slot.left, top: slot.top }}
-              >
+      <div className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-4xl xl:max-w-6xl 2xl:max-w-[1600px]">
+        {arenaBg ? (
+          <div
+            className="relative mx-auto w-full overflow-hidden rounded-3xl border-2 border-arcade-border shadow-2xl bg-black aspect-[3/4] sm:aspect-[4/5] lg:aspect-[16/9] min-h-[500px] sm:min-h-[600px] xl:min-h-[700px] 2xl:min-h-[800px]"
+          >
+            <Image
+              src={arenaBg}
+              alt=""
+              fill
+              priority
+              unoptimized
+              className="object-cover"
+              style={{ imageRendering: "pixelated" }}
+            />
+
+            {/* Enemy HP Plates (Top Right) */}
+            <div className="absolute top-4 right-4 flex flex-row flex-wrap justify-end gap-2 sm:gap-4 z-20">
+              {enemies.map((c) => (
+                <CombatantPlate key={c.uid} combatant={c} align="right" isActingTurn={c.uid === actorUid && phase === "active"} />
+              ))}
+            </div>
+
+            {/* Arena Slots / Sprites */}
+            {ARENA_SLOTS.map((slot) => {
+              const c = (slot.side === "player" ? players : enemies)[slot.index];
+              if (!c) return null;
+              const isActing = c.uid === actorUid && phase === "active";
+              return (
+                <div
+                  key={c.uid}
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: slot.left, top: slot.top }}
+                >
+                  {isActing && (
+                    <motion.div
+                      animate={{ y: [0, -6, 0] }}
+                      transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                      className="absolute left-1/2 -top-7 -translate-x-1/2 text-gold-bright drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] lg:-top-8 2xl:-top-9"
+                    >
+                      <ChevronDown className="h-6 w-6 lg:h-7 lg:w-7 2xl:h-8 2xl:w-8" strokeWidth={3} />
+                    </motion.div>
+                  )}
+                  <CombatantCard
+                    combatant={c}
+                    direction={slot.direction}
+                    size="sm"
+                    isActingTurn={isActing}
+                    isTargetable={c.side === "enemy" && Boolean(pendingSkill) && c.isAlive}
+                    onSelectTarget={
+                      c.side === "enemy" && pendingSkill && actor
+                        ? () => resolveTurn(actor.uid, pendingSkill, c.uid)
+                        : undefined
+                    }
+                    attackerUid={attackEvent.uid}
+                    attackNonce={attackEvent.nonce}
+                    hitUids={hitEvent.uids}
+                    hitNonce={hitEvent.nonce}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Bottom UI Wrapper (Plates + Menu) */}
+            <div className="absolute bottom-0 left-0 right-0 z-30 flex flex-col justify-end">
+              {/* Player HP Plates (stacked dynamically above the menu) */}
+              <div className="flex flex-row flex-wrap gap-2 sm:gap-4 px-4 pb-3 sm:pb-4 pointer-events-none">
+                {players.map((c) => (
+                  <div key={c.uid} className="pointer-events-auto">
+                    <CombatantPlate combatant={c} align="left" isActingTurn={c.uid === actorUid && phase === "active"} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Overlaid Battle Menu */}
+              <div className="flex flex-col bg-black/60 backdrop-blur-md border-t border-white/20 min-h-[140px] sm:min-h-[160px]">
+                {/* Skills Menu */}
+                <div className="p-3 sm:p-4 flex-1">
+                  {isPlayerTurn && actor ? (
+                    <>
+                      <div className="mb-2 sm:mb-3 flex items-center justify-between">
+                        <p className="font-arcade text-[10px] sm:text-xs text-white">What will <span className="text-gold">{actor.creature.name}</span> do?</p>
+                        {pendingSkill && (
+                          <button
+                            onClick={() => setPendingSkill(null)}
+                            className="text-[9px] sm:text-[10px] text-zinc-300 underline underline-offset-2 hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                      {pendingSkill ? (
+                        <p className="text-[10px] sm:text-xs text-zinc-300 mt-6 text-center">
+                          Select an enemy target on the battlefield.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                          {actor.creature.skills
+                            .filter((s) => s.type !== "Passive")
+                            .map((skill) => {
+                              const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
+                              const isReady = cooldownLeft <= 0;
+                              return (
+                                <button
+                                  key={skill.id}
+                                  disabled={!isReady}
+                                  onClick={() => handleSkillClick(skill)}
+                                  className={cn(
+                                    "rounded-lg sm:rounded-xl border border-white/20 bg-white/10 p-2 sm:p-3 text-left transition-colors",
+                                    isReady ? "hover:border-gold hover:bg-white/20" : "cursor-not-allowed opacity-50"
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <p className="text-[10px] sm:text-xs font-bold text-white truncate">{skill.name}</p>
+                                    <span
+                                      className={cn(
+                                        "shrink-0 rounded-full px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white",
+                                        SKILL_TYPE_STYLES[skill.type]
+                                      )}
+                                    >
+                                      {skill.type}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{skill.description}</p>
+                                  {!isReady && (
+                                    <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
+                                  )}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </>
+                  ) : phase === "active" ? (
+                    <div className="flex h-full items-center justify-center">
+                      <p className="text-center font-arcade text-[10px] uppercase tracking-widest text-zinc-400 sm:text-xs">
+                        {actor ? `${actor.creature.name} is thinking…` : "Waiting…"}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        ) : (
+          <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-4">
+            <div className="flex flex-col gap-4 sm:gap-6">
+              {players.map((c) => (
                 <CombatantCard
+                  key={c.uid}
                   combatant={c}
-                  direction={slot.direction}
-                  size="sm"
+                  direction="south-east"
                   isActingTurn={c.uid === actorUid && phase === "active"}
-                  isTargetable={c.side === "enemy" && Boolean(pendingSkill) && c.isAlive}
+                  isTargetable={false}
+                  attackerUid={attackEvent.uid}
+                  attackNonce={attackEvent.nonce}
+                  hitUids={hitEvent.uids}
+                  hitNonce={hitEvent.nonce}
+                />
+              ))}
+            </div>
+
+            <div className="shrink-0 font-arcade text-[10px] uppercase tracking-widest text-zinc-500">VS</div>
+
+            <div className="flex flex-col gap-4 sm:gap-6">
+              {enemies.map((c) => (
+                <CombatantCard
+                  key={c.uid}
+                  combatant={c}
+                  direction="south-west"
+                  isActingTurn={c.uid === actorUid && phase === "active"}
+                  isTargetable={Boolean(pendingSkill) && c.isAlive}
                   onSelectTarget={
-                    c.side === "enemy" && pendingSkill && actor
-                      ? () => resolveTurn(actor.uid, pendingSkill, c.uid)
-                      : undefined
+                    pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined
                   }
                   attackerUid={attackEvent.uid}
                   attackNonce={attackEvent.nonce}
                   hitUids={hitEvent.uids}
                   hitNonce={hitEvent.nonce}
                 />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-4">
-          <div className="flex flex-col gap-4 sm:gap-6">
-            {players.map((c) => (
-              <CombatantCard
-                key={c.uid}
-                combatant={c}
-                direction="south-east"
-                isActingTurn={c.uid === actorUid && phase === "active"}
-                isTargetable={false}
-                attackerUid={attackEvent.uid}
-                attackNonce={attackEvent.nonce}
-                hitUids={hitEvent.uids}
-                hitNonce={hitEvent.nonce}
-              />
-            ))}
-          </div>
-
-          <div className="shrink-0 font-arcade text-[10px] uppercase tracking-widest text-zinc-500">VS</div>
-
-          <div className="flex flex-col gap-4 sm:gap-6">
-            {enemies.map((c) => (
-              <CombatantCard
-                key={c.uid}
-                combatant={c}
-                direction="south-west"
-                isActingTurn={c.uid === actorUid && phase === "active"}
-                isTargetable={Boolean(pendingSkill) && c.isAlive}
-                onSelectTarget={
-                  pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined
-                }
-                attackerUid={attackEvent.uid}
-                attackNonce={attackEvent.nonce}
-                hitUids={hitEvent.uids}
-                hitNonce={hitEvent.nonce}
-              />
-            ))}
-          </div>
-        </GlowPanel>
-      )}
-
-      {isPlayerTurn && actor && (
-        <GlowPanel className="p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="font-arcade text-[10px] glow-text-gold">{actor.creature.name}&apos;s turn</p>
-            {pendingSkill && (
-              <button
-                onClick={() => setPendingSkill(null)}
-                className="text-[10px] text-zinc-500 underline underline-offset-2 hover:text-foreground"
-              >
-                Cancel target
-              </button>
-            )}
-          </div>
-          {pendingSkill ? (
-            <p className="text-xs text-zinc-500">
-              Choose an enemy to hit with <span className="font-semibold text-foreground">{pendingSkill.name}</span>.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {actor.creature.skills
-                .filter((s) => s.type !== "Passive")
-                .map((skill) => {
-                  const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
-                  const isReady = cooldownLeft <= 0;
-                  return (
-                    <button
-                      key={skill.id}
-                      disabled={!isReady}
-                      onClick={() => handleSkillClick(skill)}
-                      className={cn(
-                        "rounded-xl border border-arcade-border bg-arcade-panel-light p-2.5 text-left transition-colors",
-                        isReady ? "hover:border-gold" : "cursor-not-allowed opacity-50"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-foreground">{skill.name}</p>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white",
-                            SKILL_TYPE_STYLES[skill.type]
-                          )}
-                        >
-                          {skill.type}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
-                      {!isReady && (
-                        <p className="mt-1 text-[9px] font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
-                      )}
-                    </button>
-                  );
-                })}
+              ))}
             </div>
-          )}
-        </GlowPanel>
-      )}
-
-      {!isPlayerTurn && phase === "active" && (
-        <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
-          {actor ? `${actor.creature.name} is acting…` : "…"}
-        </p>
-      )}
-
-      <GlowPanel accent="none" className="max-h-32 space-y-1 overflow-y-auto p-3">
-        {log.map((entry) => (
-          <p
-            key={entry.id}
-            className={cn(
-              "text-[10px]",
-              entry.kind === "defeat" && "font-semibold text-red-500",
-              entry.kind === "heal" && "text-emerald-600",
-              entry.kind === "info" && "font-semibold text-gold-bright"
-            )}
-          >
-            {entry.message}
-          </p>
-        ))}
-        <div ref={logEndRef} />
-      </GlowPanel>
-
+          </GlowPanel>
+        )}
+      </div>
       {phase !== "active" && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
