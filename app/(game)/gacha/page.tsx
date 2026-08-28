@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GACHA_BANNERS } from "@/lib/gameData";
+import { GACHA_BANNERS, STARTER_CREATURES } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
@@ -51,7 +51,6 @@ function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner
 
 export default function GachaPage() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const creatures = useGameStore((s) => s.creatures);
   const gems = useGameStore((s) => s.currencies.gems);
   const spendGems = useGameStore((s) => s.spendGems);
   const ownedItems = useGameStore((s) => s.ownedItems);
@@ -67,7 +66,7 @@ export default function GachaPage() {
     } else {
       if (!spendGems(cost)) return;
     }
-    const rolled = rollCreatures(creatures, count, banner);
+    const rolled = rollCreatures(STARTER_CREATURES, count, banner);
     rolled.forEach(c => grantCreature(c.id));
     setResults(rolled);
   };
