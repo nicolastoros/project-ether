@@ -134,6 +134,12 @@ export default function LoginPage() {
             Create your character
           </Link>
         </p>
+        <p className="mt-2 text-xs text-zinc-500">
+          Forgot your password?{" "}
+          <Link href="/forgot-password" className="font-semibold text-gold-bright hover:underline">
+            Recover account
+          </Link>
+        </p>
       </div>
     </div>
   );

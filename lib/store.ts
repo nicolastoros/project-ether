@@ -372,7 +372,9 @@ export const useGameStore = create<GameState>()(
       dailyTasks: DEFAULT_DAILY_TASKS,
       gifts: [
         { id: "gift-3", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Special LR Event!", createdAt: Date.now() },
-        { id: "gift-4", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() }
+        { id: "gift-4", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() },
+        { id: "gift-5", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Sorry for the bug! More tickets!", createdAt: Date.now() },
+        { id: "gift-6", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Compensation Tickets", createdAt: Date.now() }
       ],
       survivalHighestStageCleared: 0,
       hasHydrated: false,
@@ -543,7 +545,7 @@ export const useGameStore = create<GameState>()(
         }
         const template = STARTER_CREATURES.find((c) => c.id === creatureId);
         if (!template) return null;
-        set({ creatures: [...creatures, { ...template, copies: 1 }] });
+        set({ creatures: [...creatures, { ...template, copies: 1, level: 1, exp: 0, expToNextLevel: 100 }] });
         return { isNew: true, copies: 1 };
       },
 

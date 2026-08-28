@@ -449,7 +449,7 @@ export const STARTER_CREATURES: Creature[] = [
     expToNextLevel: 2100,
     stage: 3,
     spriteKey: "emperortoise",
-    spriteFolder: "/assets/creatures/emperortoise/idle",
+    spriteFolder: "/assets/creatures/emperortoise/Idle/rotations",
     baseStats: { hp: 1250, atk: 205, def: 165, spd: 130 },
     skills: [
       skill("sk-et-1", "Hydro Cannon", "A massive blast of pressurized water.", "Attack", 160, 0),

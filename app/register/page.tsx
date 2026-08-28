@@ -33,6 +33,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [secretQuestion, setSecretQuestion] = useState("");
+  const [secretAnswer, setSecretAnswer] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
   const [starterCreatureId, setStarterCreatureId] = useState<StarterChoiceId | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,14 @@ export default function RegisterPage() {
       setError("Passwords do not match.");
       return;
     }
+    if (secretQuestion.trim().length < 5) {
+      setError("Enter a valid secret question.");
+      return;
+    }
+    if (secretAnswer.trim().length < 3) {
+      setError("Secret answer must be at least 3 characters.");
+      return;
+    }
     setStep(2);
   };
 
@@ -82,7 +92,7 @@ export default function RegisterPage() {
     const registerRes = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password, gender, starterCreatureId }),
+      body: JSON.stringify({ username, email, password, gender, starterCreatureId, secretQuestion, secretAnswer }),
     });
     const registerBody = await registerRes.json().catch(() => ({}));
 
@@ -181,6 +191,30 @@ export default function RegisterPage() {
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                   />
                 </label>
+
+                <div className="mt-2 text-left">
+                  <p className="px-1 mb-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Account Recovery</p>
+                  <label className="flex mb-3 items-center gap-2.5 rounded-full border border-arcade-border bg-arcade-panel px-4 py-3">
+                    <User className="h-4 w-4 shrink-0 text-zinc-500" />
+                    <input
+                      value={secretQuestion}
+                      onChange={(e) => setSecretQuestion(e.target.value)}
+                      placeholder="Secret Question (e.g. First pet's name?)"
+                      required
+                      className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2.5 rounded-full border border-arcade-border bg-arcade-panel px-4 py-3">
+                    <Lock className="h-4 w-4 shrink-0 text-zinc-500" />
+                    <input
+                      value={secretAnswer}
+                      onChange={(e) => setSecretAnswer(e.target.value)}
+                      placeholder="Secret Answer"
+                      required
+                      className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
+                    />
+                  </label>
+                </div>
 
                 {error && <p className="px-1 text-xs text-red-500">{error}</p>}
 

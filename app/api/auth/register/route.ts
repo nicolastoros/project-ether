@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { username, email, password, gender, starterCreatureId } = body as Record<string, unknown>;
+  const { username, email, password, gender, starterCreatureId, secretQuestion, secretAnswer } = body as Record<string, unknown>;
 
   if (typeof username !== "string" || username.trim().length < 3 || username.trim().length > 20) {
     return NextResponse.json({ error: "Username must be between 3 and 20 characters." }, { status: 400 });
@@ -30,6 +30,12 @@ export async function POST(request: Request) {
   }
   if (gender !== "male" && gender !== "female") {
     return NextResponse.json({ error: "Choose a character." }, { status: 400 });
+  }
+  if (typeof secretQuestion !== "string" || secretQuestion.trim().length < 5) {
+    return NextResponse.json({ error: "Choose a secret question." }, { status: 400 });
+  }
+  if (typeof secretAnswer !== "string" || secretAnswer.trim().length < 3) {
+    return NextResponse.json({ error: "Secret answer must be at least 3 characters." }, { status: 400 });
   }
   if (
     typeof starterCreatureId !== "string" ||
@@ -52,7 +58,15 @@ export async function POST(request: Request) {
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
-    await createAccount({ username, email: email.trim(), passwordHash, gender, starterCreatureId });
+    await createAccount({ 
+      username, 
+      email: email.trim(), 
+      passwordHash, 
+      gender, 
+      starterCreatureId,
+      secretQuestion: secretQuestion.trim(),
+      secretAnswer: secretAnswer.trim() 
+    });
   } catch (err) {
     console.error("Registration failed", err);
     return NextResponse.json({ error: "Could not create account. Try again." }, { status: 500 });

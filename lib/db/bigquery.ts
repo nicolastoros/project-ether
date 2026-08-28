@@ -78,6 +78,8 @@ export async function createAccount(opts: {
   passwordHash: string;
   gender: "male" | "female";
   starterCreatureId: string;
+  secretQuestion: string;
+  secretAnswer: string;
 }): Promise<{ userId: string }> {
   const userId = randomUUID();
   const avatarKey = opts.gender === "male" ? "avatar-male" : "avatar-female";
@@ -97,8 +99,8 @@ export async function createAccount(opts: {
     bq().query({
       query: `
         INSERT INTO ${table("users")}
-          (id, username, email, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, created_at, updated_at)
-        VALUES (@id, @username, @email, @passwordHash, @displayName, 'Novice Tamer', @avatarKey, 1, 0, 100, false, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+          (id, username, email, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, created_at, updated_at, secret_question, secret_answer)
+        VALUES (@id, @username, @email, @passwordHash, @displayName, 'Novice Tamer', @avatarKey, 1, 0, 100, false, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), @secretQuestion, @secretAnswer)
       `,
       params: {
         id: userId,
@@ -107,6 +109,8 @@ export async function createAccount(opts: {
         passwordHash: opts.passwordHash,
         displayName: opts.username,
         avatarKey,
+        secretQuestion: opts.secretQuestion,
+        secretAnswer: opts.secretAnswer.toLowerCase(),
       },
     }),
     bq().query({
@@ -313,6 +317,74 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const expeditionRows = expeditionsResult[0];
   const guildRow = guildResult[0][0];
 
+  if (userRow.is_admin) {
+    const ownedIds = new Set(creatureRows.map((row: any) => row.creature_id));
+    const missing = STARTER_CREATURES.filter((c) => !ownedIds.has(c.id));
+    if (missing.length > 0) {
+      try {
+        const rowsToInsert = missing.map((c) => ({
+          id: randomUUID(),
+          userId,
+          creatureId: c.id,
+          level: 1,
+          exp: 0,
+          expToNextLevel: 100,
+          hp: c.baseStats.hp,
+          atk: c.baseStats.atk,
+          def: c.baseStats.def,
+          spd: c.baseStats.spd,
+        }));
+        
+        const values = rowsToInsert.map((_, i) => 
+          `(@id${i}, @userId${i}, @creatureId${i}, @level${i}, @exp${i}, @expToNextLevel${i}, @hp${i}, @atk${i}, @def${i}, @spd${i}, false, null, 1)`
+        ).join(", ");
+        
+        const params: Record<string, any> = {};
+        rowsToInsert.forEach((r, i) => {
+          params[`id${i}`] = r.id;
+          params[`userId${i}`] = r.userId;
+          params[`creatureId${i}`] = r.creatureId;
+          params[`level${i}`] = r.level;
+          params[`exp${i}`] = r.exp;
+          params[`expToNextLevel${i}`] = r.expToNextLevel;
+          params[`hp${i}`] = r.hp;
+          params[`atk${i}`] = r.atk;
+          params[`def${i}`] = r.def;
+          params[`spd${i}`] = r.spd;
+        });
+
+        await bq().query({
+          query: `
+            INSERT INTO ${table("user_creatures")}
+              (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
+            VALUES ${values}
+          `,
+          params,
+        });
+        
+        for (const r of rowsToInsert) {
+          creatureRows.push({
+            id: r.id,
+            user_id: r.userId,
+            creature_id: r.creatureId,
+            level: r.level,
+            exp: r.exp,
+            exp_to_next_level: r.expToNextLevel,
+            hp: r.hp,
+            atk: r.atk,
+            def: r.def,
+            spd: r.spd,
+            is_in_hub_team: false,
+            party_slot: null,
+            copies: 1,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to auto-grant admin creatures:", err);
+      }
+    }
+  }
+
   return {
     profile: {
       id: userRow.id,
@@ -429,6 +501,17 @@ export async function syncPlayerProgress(
   ];
 
   if (opts.creatures.length > 0) {
+    const creaturesWithStats = opts.creatures.map((c) => {
+      const base = STARTER_CREATURES.find((sc) => sc.id === c.creatureId);
+      return {
+        ...c,
+        hp: base?.baseStats.hp ?? 500,
+        atk: base?.baseStats.atk ?? 100,
+        def: base?.baseStats.def ?? 50,
+        spd: base?.baseStats.spd ?? 100,
+      };
+    });
+
     queries.push(
       bq().query({
         query: `
@@ -437,10 +520,24 @@ export async function syncPlayerProgress(
           ON target.user_id = @userId AND target.creature_id = source.creatureId
           WHEN MATCHED THEN
             UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel
+          WHEN NOT MATCHED THEN
+            INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
+            VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, false, null, 1)
         `,
-        params: { userId, creatures: opts.creatures },
+        params: { userId, creatures: creaturesWithStats },
         types: {
-          creatures: [{ creatureId: "STRING", level: "INT64", exp: "INT64", expToNextLevel: "INT64" }],
+          creatures: [
+            {
+              creatureId: "STRING",
+              level: "INT64",
+              exp: "INT64",
+              expToNextLevel: "INT64",
+              hp: "INT64",
+              atk: "INT64",
+              def: "INT64",
+              spd: "INT64",
+            },
+          ],
         },
       })
     );
