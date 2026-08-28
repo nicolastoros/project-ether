@@ -244,6 +244,7 @@ interface GameState {
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
   survivalHighestStageCleared: number;
   hasHydrated: boolean;
+  hasReceivedLaunchTickets: boolean;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -375,6 +376,7 @@ export const useGameStore = create<GameState>()(
       ],
       survivalHighestStageCleared: 0,
       hasHydrated: false,
+      hasReceivedLaunchTickets: false,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -895,6 +897,15 @@ export const useGameStore = create<GameState>()(
         if (!persistedState) return currentState;
         const persisted = persistedState as Partial<GameState>;
         const merged: GameState = { ...currentState, ...persisted };
+
+        if (!persisted.hasReceivedLaunchTickets) {
+          merged.gifts = [
+            ...(merged.gifts || []),
+            { id: "gift-3", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Special LR Event!", createdAt: Date.now() },
+            { id: "gift-4", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() }
+          ];
+          merged.hasReceivedLaunchTickets = true;
+        }
 
         // Only the creatures this account actually owns get persisted — refresh their
         // definition (name/sprite/skills/...) from the current catalog by id, but never
