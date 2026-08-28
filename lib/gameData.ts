@@ -997,26 +997,3 @@ export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
   };
 });
 
-export const MOCK_FRIENDS: Friend[] = [
-  { id: "fr-1", name: "Astrid Vale", level: 34, status: "Online", lastActive: "now" },
-  { id: "fr-2", name: "Renji Okami", level: 41, status: "In Battle", lastActive: "now" },
-  { id: "fr-3", name: "Cass Whitlock", level: 19, status: "Offline", lastActive: "3h ago" },
-  { id: "fr-4", name: "Nova Sundstrom", level: 27, status: "Online", lastActive: "now" },
-  { id: "fr-5", name: "Emrys Kade", level: 52, status: "Offline", lastActive: "1d ago" },
-];
-
-export const MOCK_GUILD: GuildInfo = {
-  id: "guild-emberwatch",
-  name: "Emberwatch Vanguard",
-  level: 12,
-  memberCount: 5,
-  memberCap: 30,
-  description: "A friendly guild focused on dungeon co-op and weekly guild raids. Casual pace, active chat.",
-  members: [
-    { id: "gm-1", name: "Summoner", role: "Leader", level: 7, weeklyContribution: 4200 },
-    { id: "gm-2", name: "Astrid Vale", role: "Officer", level: 34, weeklyContribution: 8900 },
-    { id: "gm-3", name: "Renji Okami", role: "Officer", level: 41, weeklyContribution: 7600 },
-    { id: "gm-4", name: "Cass Whitlock", role: "Member", level: 19, weeklyContribution: 2100 },
-    { id: "gm-5", name: "Nova Sundstrom", role: "Member", level: 27, weeklyContribution: 5400 },
-  ],
-};

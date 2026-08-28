@@ -298,6 +298,7 @@ export interface GuildMember {
   role: GuildRole;
   level: number;
   totalContribution: number;
+  weeklyContribution?: number;
 }
 
 export interface GuildInfo {
