@@ -11,6 +11,7 @@ import { TicketIcon } from "lucide-react";
 import type { Creature, GachaBanner } from "@/types/game";
 
 function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner): Creature[] {
+  const result: Creature[] = [];
   const allLRs = creatures.filter(c => c.rarity === "LR");
   const allMythics = creatures.filter(c => c.rarity === "Mythic");
   const allSSRs = creatures.filter(c => c.rarity === "SSR");
