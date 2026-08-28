@@ -244,7 +244,7 @@ interface GameState {
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
   survivalHighestStageCleared: number;
   hasHydrated: boolean;
-  hasReceivedLaunchTicketsV2: boolean;
+  hasReceivedLaunchTicketsV3: boolean;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -376,7 +376,7 @@ export const useGameStore = create<GameState>()(
       ],
       survivalHighestStageCleared: 0,
       hasHydrated: false,
-      hasReceivedLaunchTicketsV2: false,
+      hasReceivedLaunchTicketsV3: false,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -898,13 +898,13 @@ export const useGameStore = create<GameState>()(
         const persisted = persistedState as Partial<GameState>;
         const merged: GameState = { ...currentState, ...persisted };
 
-        if (!persisted.hasReceivedLaunchTicketsV2) {
+        if (!persisted.hasReceivedLaunchTicketsV3) {
           merged.gifts = [
             ...(merged.gifts || []),
-            { id: "gift-v2-mythic", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() },
-            { id: "gift-v2-legendary", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Special LR Event!", createdAt: Date.now() }
+            { id: "gift-v3-mythic", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Mythic Celebration (Apology)", createdAt: Date.now() },
+            { id: "gift-v3-legendary", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Special LR Event! (Apology)", createdAt: Date.now() }
           ];
-          merged.hasReceivedLaunchTicketsV2 = true;
+          merged.hasReceivedLaunchTicketsV3 = true;
         }
 
         // Only the creatures this account actually owns get persisted — refresh their
