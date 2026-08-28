@@ -893,7 +893,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     multiPullCost: 10,
     multiPullCount: 10,
     currencyType: "item",
-    currencyItemId: "it-legendary-ticket",
+    currencyItemId: "it-mythic-ticket",
   },
   {
     id: "banner-lr-omega",
@@ -906,7 +906,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     multiPullCost: 10,
     multiPullCount: 10,
     currencyType: "item",
-    currencyItemId: "it-mythic-ticket",
+    currencyItemId: "it-legendary-ticket",
   },
   {
     id: "banner-lr-abaddo",
@@ -919,7 +919,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     multiPullCost: 10,
     multiPullCount: 10,
     currencyType: "item",
-    currencyItemId: "it-mythic-ticket",
+    currencyItemId: "it-legendary-ticket",
   },
 ];
 

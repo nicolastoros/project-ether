@@ -24,13 +24,13 @@ function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner
     const roll = Math.random() * 100;
     let picked;
 
-    if (banner.currencyItemId === "it-mythic-ticket") {
+    if (banner.currencyItemId === "it-legendary-ticket") {
       if (roll < 5 && featuredLRs.length > 0) picked = featuredLRs[Math.floor(Math.random() * featuredLRs.length)];
       else if (roll < 7 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
       else if (roll < 17 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
       else if (roll < 47 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
       else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
-    } else if (banner.currencyItemId === "it-legendary-ticket") {
+    } else if (banner.currencyItemId === "it-mythic-ticket") {
       if (roll < 7 && featuredMythics.length > 0) picked = featuredMythics[Math.floor(Math.random() * featuredMythics.length)];
       else if (roll < 8 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
       else if (roll < 15 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
