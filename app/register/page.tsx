@@ -20,8 +20,8 @@ const STARTER_OPTIONS = STARTER_CHOICE_IDS.map(
 );
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: "male", label: "Masculino" },
-  { value: "female", label: "Femenino" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
 ];
 
 export default function RegisterPage() {
@@ -56,19 +56,19 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     if (username.trim().length < 3) {
-      setError("El usuario debe tener al menos 3 caracteres.");
+      setError("Username must be at least 3 characters.");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Ingresá un correo válido.");
+      setError("Enter a valid email.");
       return;
     }
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      setError("Passwords do not match.");
       return;
     }
     setStep(2);
@@ -87,14 +87,14 @@ export default function RegisterPage() {
     const registerBody = await registerRes.json().catch(() => ({}));
 
     if (!registerRes.ok) {
-      setError(registerBody.error ?? "No se pudo crear la cuenta.");
+      setError(registerBody.error ?? "Could not create account.");
       setSubmitting(false);
       return;
     }
 
     const signInResult = await signIn("credentials", { username, password, redirect: false });
     if (!signInResult || signInResult.error) {
-      setError("Cuenta creada, pero no pudimos iniciar sesión. Probá entrar manualmente.");
+      setError("Account created, but we couldn't log you in. Try logging in manually.");
       setSubmitting(false);
       return;
     }
@@ -105,7 +105,7 @@ export default function RegisterPage() {
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-arcade-bg bg-arcade-grid px-4 py-10">
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <h1 className="font-arcade text-xl leading-tight glow-text-gold sm:text-2xl">
-          CREAR PERSONAJE
+          CREATE CHARACTER
         </h1>
 
         <div className="mt-4 flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function RegisterPage() {
                   <input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Usuario"
+                    placeholder="Username"
                     autoComplete="username"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -149,7 +149,7 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     type="email"
-                    placeholder="Correo"
+                    placeholder="Email"
                     autoComplete="email"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -162,7 +162,7 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     type="password"
-                    placeholder="Contraseña"
+                    placeholder="Password"
                     autoComplete="new-password"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -175,7 +175,7 @@ export default function RegisterPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     type="password"
-                    placeholder="Repetir contraseña"
+                    placeholder="Confirm password"
                     autoComplete="new-password"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -185,7 +185,7 @@ export default function RegisterPage() {
                 {error && <p className="px-1 text-xs text-red-500">{error}</p>}
 
                 <PixelButton type="submit" className="mt-1 flex items-center justify-center gap-2">
-                  Siguiente <ArrowRight className="h-4 w-4" />
+                  Next <ArrowRight className="h-4 w-4" />
                 </PixelButton>
               </motion.form>
             )}
@@ -198,7 +198,7 @@ export default function RegisterPage() {
                 exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
                 className="flex w-full flex-col gap-3"
               >
-                <p className="text-xs text-zinc-500">Elegí tu personaje</p>
+                <p className="text-xs text-zinc-500">Choose your character</p>
                 <div className="grid grid-cols-2 gap-3">
                   {GENDER_OPTIONS.map((opt) => (
                     <button
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(1)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Atrás
+                    <ArrowLeft className="h-4 w-4" /> Back
                   </PixelButton>
                   <PixelButton
                     type="button"
@@ -240,7 +240,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(3)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    Siguiente <ArrowRight className="h-4 w-4" />
+                    Next <ArrowRight className="h-4 w-4" />
                   </PixelButton>
                 </div>
               </motion.div>
@@ -254,7 +254,7 @@ export default function RegisterPage() {
                 exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
                 className="flex w-full flex-col gap-3"
               >
-                <p className="text-xs text-zinc-500">Elegí tu primera criatura</p>
+                <p className="text-xs text-zinc-500">Choose your first creature</p>
                 <div className="flex flex-col gap-2.5">
                   {STARTER_OPTIONS.map((creature) => {
                     const Icon = ELEMENT_ICON[creature.element];
@@ -303,7 +303,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(2)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Atrás
+                    <ArrowLeft className="h-4 w-4" /> Back
                   </PixelButton>
                   <PixelButton
                     type="button"
@@ -312,7 +312,7 @@ export default function RegisterPage() {
                     className="flex flex-1 items-center justify-center gap-2"
                   >
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {submitting ? "Creando..." : "Empezar"}
+                    {submitting ? "Creating..." : "Start"}
                   </PixelButton>
                 </div>
               </motion.div>
@@ -321,9 +321,9 @@ export default function RegisterPage() {
         </div>
 
         <p className="mt-6 text-xs text-zinc-500">
-          ¿Ya tenés cuenta?{" "}
+          Already have an account?{" "}
           <Link href="/" className="font-semibold text-neon hover:underline">
-            Iniciá sesión
+            Log in
           </Link>
         </p>
       </div>

@@ -19,6 +19,12 @@ export interface CreatureStats {
   atk: number;
   def: number;
   spd: number;
+  dp?: number; // Digital/Defense Points
+  as?: number; // Attack Speed
+  ht?: number; // Hit Rate
+  cd?: number; // Crit Damage %
+  scd?: number; // Skill Crit Damage %
+  ct?: number; // Crit Chance %
 }
 
 export type SkillType = "Attack" | "Defense" | "Support" | "Passive";
@@ -103,8 +109,8 @@ export interface TamerEquipment {
   icon: string;
   /** How this piece is obtained — shown in the Tamer tab so a locked piece explains itself. */
   source: { kind: "campaign-clear"; stageId: string } | { kind: "craft"; sealCoinCost: number };
-  /** Percent stat bonus this piece grants to every Digimon in battle (e.g. hp: 3 -> +3% HP). */
-  statBonus?: Partial<Record<"hp" | "atk" | "def" | "spd", number>>;
+  /** Percent stat bonus this piece grants to every Creature in battle (e.g. hp: 3 -> +3% HP). */
+  statBonus?: Partial<Record<"hp" | "atk" | "def" | "spd" | "dp" | "as" | "ht" | "cd" | "scd" | "ct", number>>;
 }
 
 /** The player's own on-screen avatar — distinct from TamerEquipment (which is gear worn ON a
@@ -115,11 +121,18 @@ export interface TamerAvatar {
   /** Folder holding 8-directional idle frames, same convention as Creature.spriteFolder. */
   spriteFolder: string;
   price?: { gold?: number; gems?: number };
+  baseStats: CreatureStats;
   buffs: {
     hpPercent?: number;
     atkPercent?: number;
     defPercent?: number;
     spdPercent?: number;
+    dpPercent?: number;
+    asPercent?: number;
+    htPercent?: number;
+    cdPercent?: number;
+    scdPercent?: number;
+    ctPercent?: number;
     elementAtkBonus?: Partial<Record<Element, number>>;
   };
 }

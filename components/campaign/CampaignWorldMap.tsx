@@ -45,8 +45,8 @@ function buildPath(nodes: StageNode[]): string {
 }
 
 // --- PC (Horizontal Cybernetic) Layout Constants ---
-const PC_LEFT_X = 8;
-const PC_RIGHT_X = 92;
+const PC_LEFT_X = 12;
+const PC_RIGHT_X = 86;
 
 function buildPcNodes(stages: DungeonStage[]): StageNode[] {
   const span = stages.length > 1 ? PC_RIGHT_X - PC_LEFT_X : 0;

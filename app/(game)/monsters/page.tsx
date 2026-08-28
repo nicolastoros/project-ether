@@ -108,7 +108,7 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-1.5 text-center">
+        <div className="grid grid-cols-4 gap-1 text-center sm:gap-1.5">
           {(
             [
               ["HP", creature.baseStats.hp],
@@ -117,9 +117,9 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
               ["SPD", creature.baseStats.spd],
             ] as const
           ).map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-arcade-border bg-arcade-panel-light py-1">
-              <p className="text-[8px] uppercase tracking-wide text-zinc-600">{label}</p>
-              <p className="font-mono text-[11px] font-semibold text-foreground sm:text-xs">{value}</p>
+            <div key={label} className="min-w-0 rounded-lg border border-arcade-border bg-arcade-panel-light px-0.5 py-1">
+              <p className="truncate text-[7px] uppercase tracking-wide text-zinc-600 sm:text-[8px]">{label}</p>
+              <p className="truncate font-mono text-[9px] font-semibold text-foreground sm:text-xs">{value}</p>
             </div>
           ))}
         </div>

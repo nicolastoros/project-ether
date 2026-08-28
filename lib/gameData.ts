@@ -598,7 +598,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_hat.png",
     source: { kind: "campaign-clear", stageId: "dg-stage-5" },
-    statBonus: { hp: 2 },
+    statBonus: { hp: 2, ht: 5, dp: 10 },
   },
   {
     id: "tamer-crimson-shoulders",
@@ -608,7 +608,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoulders.png",
     source: { kind: "campaign-clear", stageId: "dg-stage-8" },
-    statBonus: { def: 2 },
+    statBonus: { def: 2, dp: 15, cd: 10 },
   },
   {
     id: "tamer-crimson-chest",
@@ -618,7 +618,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_chest.png",
     source: { kind: "craft", sealCoinCost: 20 },
-    statBonus: { hp: 3 },
+    statBonus: { hp: 3, ht: 10, dp: 20 },
   },
   {
     id: "tamer-crimson-legs",
@@ -628,7 +628,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_legs.png",
     source: { kind: "craft", sealCoinCost: 15 },
-    statBonus: { spd: 2 },
+    statBonus: { spd: 2, as: 5, ct: 3 },
   },
   {
     id: "tamer-crimson-shoes",
@@ -638,7 +638,7 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoes.png",
     source: { kind: "craft", sealCoinCost: 15 },
-    statBonus: { spd: 2, atk: 1 },
+    statBonus: { spd: 2, atk: 1, as: 8, scd: 15 },
   },
 ];
 
@@ -650,7 +650,8 @@ export const TAMER_CATALOG: TamerAvatar[] = [
     id: "tamer1",
     name: "Novice Tamer",
     spriteFolder: "/assets/tamers/tamer1/idle",
-    buffs: { hpPercent: 15, elementAtkBonus: { Light: 10 } },
+    baseStats: { hp: 400, atk: 80, def: 50, spd: 40, dp: 200, as: 100, ht: 80, cd: 120, scd: 110, ct: 5 },
+    buffs: { hpPercent: 15, elementAtkBonus: { Light: 10 }, ctPercent: 5, cdPercent: 10 },
   },
 ];
 

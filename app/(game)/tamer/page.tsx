@@ -28,12 +28,18 @@ function campaignClearLabel(stageId: string): string {
 
 function formatAvatarBuffs(avatar: TamerAvatar): string[] {
   const lines: string[] = [];
-  if (avatar.buffs.hpPercent) lines.push(`+${avatar.buffs.hpPercent}% HP to all Digimon`);
-  if (avatar.buffs.atkPercent) lines.push(`+${avatar.buffs.atkPercent}% ATK to all Digimon`);
-  if (avatar.buffs.defPercent) lines.push(`+${avatar.buffs.defPercent}% DEF to all Digimon`);
-  if (avatar.buffs.spdPercent) lines.push(`+${avatar.buffs.spdPercent}% SPD to all Digimon`);
+  if (avatar.buffs.hpPercent) lines.push(`+${avatar.buffs.hpPercent}% HP`);
+  if (avatar.buffs.atkPercent) lines.push(`+${avatar.buffs.atkPercent}% ATK`);
+  if (avatar.buffs.defPercent) lines.push(`+${avatar.buffs.defPercent}% DEF`);
+  if (avatar.buffs.spdPercent) lines.push(`+${avatar.buffs.spdPercent}% SPD`);
+  if (avatar.buffs.dpPercent) lines.push(`+${avatar.buffs.dpPercent}% DP`);
+  if (avatar.buffs.asPercent) lines.push(`+${avatar.buffs.asPercent}% AS`);
+  if (avatar.buffs.htPercent) lines.push(`+${avatar.buffs.htPercent}% HT`);
+  if (avatar.buffs.cdPercent) lines.push(`+${avatar.buffs.cdPercent}% CD`);
+  if (avatar.buffs.scdPercent) lines.push(`+${avatar.buffs.scdPercent}% SCD`);
+  if (avatar.buffs.ctPercent) lines.push(`+${avatar.buffs.ctPercent}% CT`);
   for (const [element, value] of Object.entries(avatar.buffs.elementAtkBonus ?? {})) {
-    lines.push(`+${value}% ATK for ${element}-type Digimon`);
+    lines.push(`+${value}% ATK for ${element} types`);
   }
   return lines;
 }
@@ -66,6 +72,60 @@ export default function TamerPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Calculate aggregated stats
+  const tamerBase = equippedTamer?.baseStats ?? {
+    hp: 0, atk: 0, def: 0, spd: 0, dp: 0, as: 0, ht: 0, cd: 0, scd: 0, ct: 0
+  };
+
+  const levelMultiplier = 1 + (profile.level - 1) * 0.05;
+  const scaledTamerHp = (tamerBase.hp * levelMultiplier);
+  const scaledTamerAtk = (tamerBase.atk * levelMultiplier);
+  const scaledTamerDef = (tamerBase.def * levelMultiplier);
+  const scaledTamerSpd = (tamerBase.spd * levelMultiplier);
+  const scaledTamerDp = ((tamerBase.dp ?? 0) * levelMultiplier);
+  const scaledTamerAs = ((tamerBase.as ?? 0) * levelMultiplier);
+  const scaledTamerHt = ((tamerBase.ht ?? 0) * levelMultiplier);
+  const scaledTamerCd = ((tamerBase.cd ?? 0) * levelMultiplier);
+  const scaledTamerScd = ((tamerBase.scd ?? 0) * levelMultiplier);
+  const scaledTamerCt = ((tamerBase.ct ?? 0) * levelMultiplier);
+
+  let hpPercent = equippedTamer.buffs.hpPercent ?? 0;
+  let atkPercent = equippedTamer.buffs.atkPercent ?? 0;
+  let defPercent = equippedTamer.buffs.defPercent ?? 0;
+  let spdPercent = equippedTamer.buffs.spdPercent ?? 0;
+  let dpPercent = equippedTamer.buffs.dpPercent ?? 0;
+  let asPercent = equippedTamer.buffs.asPercent ?? 0;
+  let htPercent = equippedTamer.buffs.htPercent ?? 0;
+  let cdPercent = equippedTamer.buffs.cdPercent ?? 0;
+  let scdPercent = equippedTamer.buffs.scdPercent ?? 0;
+  let ctPercent = equippedTamer.buffs.ctPercent ?? 0;
+
+  for (const gear of ownedBySlot.values()) {
+    hpPercent += gear.statBonus?.hp ?? 0;
+    atkPercent += gear.statBonus?.atk ?? 0;
+    defPercent += gear.statBonus?.def ?? 0;
+    spdPercent += gear.statBonus?.spd ?? 0;
+    dpPercent += gear.statBonus?.dp ?? 0;
+    asPercent += gear.statBonus?.as ?? 0;
+    htPercent += gear.statBonus?.ht ?? 0;
+    cdPercent += gear.statBonus?.cd ?? 0;
+    scdPercent += gear.statBonus?.scd ?? 0;
+    ctPercent += gear.statBonus?.ct ?? 0;
+  }
+
+  const finalHp = Math.round(scaledTamerHp * (1 + hpPercent / 100));
+  const finalAtk = Math.round(scaledTamerAtk * (1 + atkPercent / 100));
+  const finalDef = Math.round(scaledTamerDef * (1 + defPercent / 100));
+  const finalSpd = Math.round(scaledTamerSpd * (1 + spdPercent / 100));
+  const finalDp = Math.round(scaledTamerDp * (1 + dpPercent / 100));
+  const finalAs = Math.round(scaledTamerAs * (1 + asPercent / 100));
+  const finalHt = Math.round(scaledTamerHt * (1 + htPercent / 100));
+  const finalCd = Math.round(scaledTamerCd * (1 + cdPercent / 100));
+  const finalScd = Math.round(scaledTamerScd * (1 + scdPercent / 100));
+  const finalCt = Math.round(scaledTamerCt * (1 + ctPercent / 100));
+
+
 
   return (
     <div className="space-y-4">
@@ -123,13 +183,61 @@ export default function TamerPage() {
               </button>
             </div>
           </div>
-          <div className="w-full space-y-1.5 rounded-xl border border-arcade-border bg-arcade-panel-light p-3">
-            <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">Buffs</p>
-            {formatAvatarBuffs(equippedTamer).map((line) => (
-              <p key={line} className="text-[11px] font-semibold text-emerald-600">
-                {line}
-              </p>
-            ))}
+          <div className="w-full space-y-2 rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
+            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-2 border-b border-arcade-border pb-1">Avatar Buffs</p>
+            <div className="flex flex-wrap gap-2">
+              {formatAvatarBuffs(equippedTamer).map((line) => (
+                <span key={line} className="text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
+                  {line}
+                </span>
+              ))}
+            </div>
+          </div>
+          
+          <div className="w-full rounded-xl border border-arcade-border bg-arcade-panel-light p-4 mt-2">
+            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-3 border-b border-arcade-border pb-2">Total Tamer Amplification</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">HP</span>
+                <span className="font-arcade text-xs sm:text-sm text-emerald-400 drop-shadow-md">+{finalHp.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">ATK</span>
+                <span className="font-arcade text-xs sm:text-sm text-emerald-400 drop-shadow-md">+{finalAtk.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">DEF</span>
+                <span className="font-arcade text-xs sm:text-sm text-emerald-400 drop-shadow-md">+{finalDef.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">SPD</span>
+                <span className="font-arcade text-xs sm:text-sm text-emerald-400 drop-shadow-md">+{finalSpd.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">DP</span>
+                <span className="font-arcade text-xs sm:text-sm text-sky-400 drop-shadow-md">+{finalDp.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">AS</span>
+                <span className="font-arcade text-xs sm:text-sm text-sky-400 drop-shadow-md">+{finalAs.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">HT</span>
+                <span className="font-arcade text-xs sm:text-sm text-sky-400 drop-shadow-md">+{finalHt.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">CD</span>
+                <span className="font-arcade text-xs sm:text-sm text-purple-400 drop-shadow-md">+{finalCd.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">SCD</span>
+                <span className="font-arcade text-xs sm:text-sm text-purple-400 drop-shadow-md">+{finalScd.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
+                <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">CT</span>
+                <span className="font-arcade text-xs sm:text-sm text-purple-400 drop-shadow-md">+{finalCt.toLocaleString()}</span>
+              </div>
+            </div>
           </div>
         </GlowPanel>
 

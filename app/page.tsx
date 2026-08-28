@@ -49,7 +49,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", { username, password, redirect: false });
 
     if (!result || result.error) {
-      setError("Usuario o contraseña incorrectos.");
+      setError("Incorrect username or password.");
       setSubmitting(false);
       return;
     }
@@ -95,7 +95,7 @@ export default function LoginPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Usuario"
+              placeholder="Username"
               autoComplete="username"
               required
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -108,7 +108,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
-              placeholder="Contraseña"
+              placeholder="Password"
               autoComplete="current-password"
               required
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -124,14 +124,14 @@ export default function LoginPage() {
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-gold-ink shadow-md transition-opacity disabled:opacity-60"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? "Entrando..." : "Entrar"}
+            {submitting ? "Logging in..." : "Log In"}
           </motion.button>
         </form>
 
         <p className="mt-5 text-xs text-zinc-500">
-          ¿Todavía no tenés cuenta?{" "}
+          Don't have an account yet?{" "}
           <Link href="/register" className="font-semibold text-neon hover:underline">
-            Creá tu personaje
+            Create your character
           </Link>
         </p>
       </div>

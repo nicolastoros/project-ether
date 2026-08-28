@@ -12,7 +12,10 @@ export function formatTamerStatBonus(bonus?: TamerEquipment["statBonus"]): strin
   if (!bonus) return null;
   const parts = Object.entries(bonus)
     .filter(([, value]) => value)
-    .map(([stat, value]) => `+${value}% ${stat.toUpperCase()}`);
+    .map(([stat, value]) => {
+      const isPercent = ["hp", "atk", "def", "spd", "dp", "as", "ht", "cd", "scd", "ct"].includes(stat);
+      return `+${value}${isPercent ? "%" : ""} ${stat.toUpperCase()}`;
+    });
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 

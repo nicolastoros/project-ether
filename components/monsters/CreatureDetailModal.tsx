@@ -55,7 +55,7 @@ export function CreatureDetailModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-y-auto rounded-t-3xl border border-arcade-border bg-arcade-panel shadow-xl sm:rounded-3xl"
+            className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-arcade-border bg-arcade-panel shadow-xl sm:rounded-3xl"
           >
             <RarityCardAura rarity={creature.rarity} />
 
@@ -67,16 +67,17 @@ export function CreatureDetailModal({
               <X className="h-4 w-4" />
             </button>
 
-            <div
-              className={cn(
-                "flex h-56 shrink-0 items-center justify-center bg-gradient-to-b",
-                ELEMENT_GRADIENT[creature.element]
-              )}
-            >
-              <CreatureSprite creature={creature} spin className="h-40 w-40 drop-shadow-md" />
-            </div>
+            <div className="relative z-0 flex w-full flex-col overflow-y-auto">
+              <div
+                className={cn(
+                  "flex h-56 shrink-0 items-center justify-center bg-gradient-to-b",
+                  ELEMENT_GRADIENT[creature.element]
+                )}
+              >
+                <CreatureSprite creature={creature} spin className="h-40 w-40 drop-shadow-md" />
+              </div>
 
-            <div className="p-4">
+              <div className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2>
@@ -117,9 +118,9 @@ export function CreatureDetailModal({
                     ["HP", creature.baseStats.hp],
                   ] as const
                 ).map(([label, value]) => (
-                  <div key={label} className="rounded-xl border border-arcade-border bg-arcade-panel-light py-1.5">
-                    <p className="text-[9px] uppercase tracking-wide text-zinc-600">{label}</p>
-                    <p className="font-mono text-sm font-semibold text-foreground">{value}</p>
+                  <div key={label} className="min-w-0 rounded-xl border border-arcade-border bg-arcade-panel-light px-1 py-1.5">
+                    <p className="truncate text-[9px] uppercase tracking-wide text-zinc-600">{label}</p>
+                    <p className="truncate font-mono text-[11px] font-semibold text-foreground sm:text-sm">{value}</p>
                   </div>
                 ))}
               </div>
@@ -173,6 +174,7 @@ export function CreatureDetailModal({
                   {isHubMember ? "Remove from Team" : "Add to Team"}
                 </PixelButton>
               </div>
+            </div>
             </div>
           </motion.div>
         </div>

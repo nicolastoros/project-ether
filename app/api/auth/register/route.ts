@@ -8,34 +8,34 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return NextResponse.json({ error: "Solicitud inválida." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
   const { username, email, password, gender, starterCreatureId } = body as Record<string, unknown>;
 
   if (typeof username !== "string" || username.trim().length < 3 || username.trim().length > 20) {
-    return NextResponse.json({ error: "El usuario debe tener entre 3 y 20 caracteres." }, { status: 400 });
+    return NextResponse.json({ error: "Username must be between 3 and 20 characters." }, { status: 400 });
   }
   if (!/^[a-zA-Z0-9_]+$/.test(username)) {
     return NextResponse.json(
-      { error: "El usuario solo puede tener letras, números y guión bajo." },
+      { error: "Username can only contain letters, numbers, and underscores." },
       { status: 400 }
     );
   }
   if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
-    return NextResponse.json({ error: "Ingresá un correo válido." }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
   }
   if (typeof password !== "string" || password.length < 6) {
-    return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres." }, { status: 400 });
+    return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
   }
   if (gender !== "male" && gender !== "female") {
-    return NextResponse.json({ error: "Elegí un personaje." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a character." }, { status: 400 });
   }
   if (
     typeof starterCreatureId !== "string" ||
     !STARTER_CHOICE_IDS.includes(starterCreatureId as (typeof STARTER_CHOICE_IDS)[number])
   ) {
-    return NextResponse.json({ error: "Elegí una criatura inicial válida." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a valid starter creature." }, { status: 400 });
   }
 
   const [existingUsername, existingEmail] = await Promise.all([
@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     getUserByEmail(email),
   ]);
   if (existingUsername) {
-    return NextResponse.json({ error: "Ese usuario ya existe." }, { status: 409 });
+    return NextResponse.json({ error: "That username already exists." }, { status: 409 });
   }
   if (existingEmail) {
-    return NextResponse.json({ error: "Ese correo ya está registrado." }, { status: 409 });
+    return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     await createAccount({ username, email: email.trim(), passwordHash, gender, starterCreatureId });
   } catch (err) {
     console.error("Registration failed", err);
-    return NextResponse.json({ error: "No se pudo crear la cuenta. Intentá de nuevo." }, { status: 500 });
+    return NextResponse.json({ error: "Could not create account. Try again." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

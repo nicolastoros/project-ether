@@ -53,7 +53,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
 
   const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId)),
+    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );

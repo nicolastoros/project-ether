@@ -131,7 +131,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
   // unbuffed playerCreatures since only their ids matter there, not baseStats.
   const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId)),
+    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
