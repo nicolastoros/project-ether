@@ -903,11 +903,29 @@ export const PVP_LEADERBOARD: PvpOpponent[] = [
 ];
 
 const STAGE_NAMES = [
+  // World 1 (8 stages)
   "Whispering Grove", "Ember Foothills", "Tidewater Shoals", "Sunken Ruins",
   "Ashfall Canyon", "Glimmering Caverns", "Thornwood Depths", "Frostpeak Pass",
+  
+  // World 2 (8 stages)
   "Molten Bastion", "Stormlit Shrine", "Duskveil Marsh", "Obsidian Spire",
   "Verdant Labyrinth", "Crimson Aqueduct", "Hollow Bellfort", "Wraithlight Hollow",
+  
+  // World 3 (12 stages)
   "Ironclad Foundry", "Sable Undercroft", "Gale Citadel", "Dragon's Reprieve",
+  "Celestial Terrace", "Lunar Eclipse", "Solar Flare", "Abyssal Trench",
+  "Crystal Peak", "Shadow Veil", "Thunder Plains", "Aero Heights",
+  
+  // World 4 (12 stages)
+  "Void's Edge", "Neon Ruins", "Cyber Core", "Glitch Matrix",
+  "Ethereal Realm", "Phantom Keep", "Spirit Woods", "Mirage Desert",
+  "Oasis Shrine", "Volcanic Ash", "Lava Tube", "Inferno Core",
+  
+  // World 5 (14 stages)
+  "Astral Pathway", "Nebula Cloud", "Comet Trail", "Starlight Bridge",
+  "Galaxy Center", "Black Hole Event", "Cosmic Forge", "Chronos Rift",
+  "Time Stream", "Quantum Realm", "Dimension Door", "Nexus Point",
+  "The Final Stand", "Ether Core"
 ];
 
 const HIGHEST_STAGE_CLEARED = 0;
@@ -917,11 +935,22 @@ const HIGHEST_STAGE_CLEARED = 0;
 // visibly reward the player with a level-up. Bumped well above that gap for stages 1-2 only.
 const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
 
+const WORLD_SIZES = [8, 8, 12, 12, 14];
+
 export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
   const stageNumber = i + 1;
   const difficulty = stageNumber <= 8 ? "Normal" : stageNumber <= 16 ? "Hard" : "Nightmare";
-  const world = Math.floor((stageNumber - 1) / 8) + 1;
-  const worldStageNumber = ((stageNumber - 1) % 8) + 1;
+  
+  let world = 1;
+  let worldStageNumber = stageNumber;
+  
+  for (let j = 0; j < WORLD_SIZES.length; j++) {
+    if (worldStageNumber <= WORLD_SIZES[j]) {
+      world = j + 1;
+      break;
+    }
+    worldStageNumber -= WORLD_SIZES[j];
+  }
   return {
     id: `dg-stage-${stageNumber}`,
     stageNumber,

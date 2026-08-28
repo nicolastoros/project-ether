@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, Lock, Swords, Zap, Skull } from "lucide-react";
+import { Check, Lock, Swords, Zap, Skull, Star } from "lucide-react";
 import type { DungeonStage } from "@/types/game";
 import type { CampaignWorld } from "@/lib/campaignWorlds";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
+import { useGameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 // --- Mobile (Vertical) Layout Constants ---
@@ -92,6 +93,8 @@ function MobileCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldM
   const progressEndIndex = nextIndex === -1 ? nodes.length - 1 : nextIndex;
   const eventStageId = useMemo(() => getDailyExpEventStageId(world.world, stages), [world.world, stages]);
 
+  const stageStars = useGameStore((s) => s.dungeon.stageStars);
+
   const fullPath = useMemo(() => buildPath(nodes), [nodes]);
   const progressPath = useMemo(() => buildPath(nodes.slice(0, progressEndIndex + 1)), [nodes, progressEndIndex]);
 
@@ -131,6 +134,8 @@ function MobileCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldM
         const isNext = i === nextIndex;
         const isLocked = stage.isLocked;
         const isExpEvent = stage.id === eventStageId;
+        const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
+        const earnedStars = [stars.noDeaths, stars.noItems, stars.underFiveTurns];
 
         return (
           <button
@@ -188,9 +193,22 @@ function MobileCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldM
                 )}
               </motion.div>
             </div>
-            <span className="rounded-full bg-black/55 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-white">
-              {stage.worldStageNumber}
-            </span>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="rounded-full bg-black/55 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-white">
+                {stage.worldStageNumber}
+              </span>
+              {/* Render small stars if unlocked */}
+              {!isLocked && (
+                <div className="flex gap-0.5 rounded-full bg-black/50 px-1 py-0.5 shadow-sm">
+                  {earnedStars.map((earned, idx) => (
+                    <Star
+                      key={idx}
+                      className={cn("h-[8px] w-[8px]", earned ? "fill-gold text-gold" : "text-white/20")}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </button>
         );
       })}
@@ -203,6 +221,8 @@ function PcCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldMapPr
   const nextIndex = useMemo(() => stages.findIndex((s) => !s.isCleared && !s.isLocked), [stages]);
   const progressEndIndex = nextIndex === -1 ? nodes.length - 1 : nextIndex;
   const eventStageId = useMemo(() => getDailyExpEventStageId(world.world, stages), [world.world, stages]);
+
+  const stageStars = useGameStore((s) => s.dungeon.stageStars);
 
   const fullPath = useMemo(() => buildPcPath(nodes), [nodes]);
   const progressPath = useMemo(() => buildPcPath(nodes.slice(0, progressEndIndex + 1)), [nodes, progressEndIndex]);
@@ -249,6 +269,8 @@ function PcCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldMapPr
         const isLocked = stage.isLocked;
         const isExpEvent = stage.id === eventStageId;
         const isBoss = i === nodes.length - 1;
+        const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
+        const earnedStars = [stars.noDeaths, stars.noItems, stars.underFiveTurns];
 
         const sizeClass = isBoss ? "h-16 w-16" : "h-12 w-12";
 
@@ -290,9 +312,22 @@ function PcCampaignWorldMap({ world, stages, onSelectStage }: CampaignWorldMapPr
               </div>
             </div>
             
-            <span className="rounded-full bg-black/60 px-2.5 py-1 font-arcade text-[10px] font-semibold text-white backdrop-blur-sm">
-              {isBoss ? "BOSS" : stage.worldStageNumber}
-            </span>
+            <div className="flex flex-col items-center gap-1">
+              <span className="rounded-full bg-black/60 px-2.5 py-1 font-arcade text-[10px] font-semibold text-white backdrop-blur-sm">
+                {isBoss ? "BOSS" : stage.worldStageNumber}
+              </span>
+              {/* Render small stars if unlocked */}
+              {!isLocked && (
+                <div className="flex gap-1 rounded-full bg-black/50 px-1.5 py-0.5 shadow-sm">
+                  {earnedStars.map((earned, idx) => (
+                    <Star
+                      key={idx}
+                      className={cn("h-[10px] w-[10px]", earned ? "fill-gold text-gold" : "text-white/20")}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.button>
         );
       })}

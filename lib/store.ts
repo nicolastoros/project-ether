@@ -171,8 +171,32 @@ function bundleToStateFields(bundle: AccountBundle) {
     dungeon: {
       ...bundle.dungeon,
       perfectStages: bundle.dungeon.perfectStages || [],
+      stageStars: parseStageStars(bundle.dungeon.perfectStages || []),
     },
   };
+}
+
+function parseStageStars(perfectStages: string[]) {
+  const map: Record<string, { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }> = {};
+  for (const s of perfectStages) {
+    if (s.endsWith("_nd")) {
+      const id = s.replace("_nd", "");
+      if (!map[id]) map[id] = { noDeaths: false, noItems: false, underFiveTurns: false };
+      map[id].noDeaths = true;
+    } else if (s.endsWith("_ni")) {
+      const id = s.replace("_ni", "");
+      if (!map[id]) map[id] = { noDeaths: false, noItems: false, underFiveTurns: false };
+      map[id].noItems = true;
+    } else if (s.endsWith("_u5")) {
+      const id = s.replace("_u5", "");
+      if (!map[id]) map[id] = { noDeaths: false, noItems: false, underFiveTurns: false };
+      map[id].underFiveTurns = true;
+    } else {
+      // Legacy "perfectStages" string (just the stage ID) implies all 3 were obtained.
+      map[s] = { noDeaths: true, noItems: true, underFiveTurns: true };
+    }
+  }
+  return map;
 }
 
 interface GameState {
@@ -217,6 +241,7 @@ interface GameState {
   setHasHydrated: (hydrated: boolean) => void;
 
   markStagePerfect: (stageId: string) => void;
+  recordStageStars: (stageId: string, stars: { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }) => void;
 
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
@@ -319,6 +344,7 @@ export const useGameStore = create<GameState>()(
         autoDgEnabled: false,
         speedMultiplier: 1,
         perfectStages: [],
+        stageStars: {},
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
       survivalHighestStageCleared: 0,
@@ -383,6 +409,7 @@ export const useGameStore = create<GameState>()(
             autoDgEnabled: false,
             speedMultiplier: 1,
             perfectStages: [],
+            stageStars: {},
           },
           survivalHighestStageCleared: 0,
         }),
@@ -393,6 +420,26 @@ export const useGameStore = create<GameState>()(
         set((state) => {
           if (state.dungeon.perfectStages.includes(stageId)) return state;
           return { dungeon: { ...state.dungeon, perfectStages: [...state.dungeon.perfectStages, stageId] } };
+        }),
+
+      recordStageStars: (stageId, stars) =>
+        set((state) => {
+          const current = state.dungeon.stageStars[stageId] || { noDeaths: false, noItems: false, underFiveTurns: false };
+          const next = {
+            noDeaths: current.noDeaths || stars.noDeaths,
+            noItems: current.noItems || stars.noItems,
+            underFiveTurns: current.underFiveTurns || stars.underFiveTurns,
+          };
+          // Don't update if no change
+          if (current.noDeaths === next.noDeaths && current.noItems === next.noItems && current.underFiveTurns === next.underFiveTurns) {
+            return state;
+          }
+          return {
+            dungeon: {
+              ...state.dungeon,
+              stageStars: { ...state.dungeon.stageStars, [stageId]: next },
+            },
+          };
         }),
 
       setActiveCreature: (creatureId) => set({ activeCreatureId: creatureId }),
@@ -855,7 +902,9 @@ export const useGameStore = create<GameState>()(
         merged.activeExpeditions = persisted.activeExpeditions ?? [];
 
         if (merged.dungeon) {
+          merged.dungeon = { ...currentState.dungeon, ...merged.dungeon };
           merged.dungeon.perfectStages = merged.dungeon.perfectStages ?? [];
+          merged.dungeon.stageStars = merged.dungeon.stageStars ?? {};
         }
 
         return merged;

@@ -21,7 +21,7 @@ export function syncProgressToServer(): void {
         expToNextLevel: c.expToNextLevel,
       })),
       dungeonHighestStageCleared: dungeon.highestStageCleared,
-      dungeonPerfectStages: dungeon.perfectStages,
+      dungeonPerfectStages: serializeStageStars(dungeon.stageStars),
       currencies: { 
         gold: currencies.gold, 
         gems: currencies.gems, 
@@ -33,6 +33,20 @@ export function syncProgressToServer(): void {
   }).catch(() => {
     // Non-fatal: local play continues regardless of sync success.
   });
+}
+
+function serializeStageStars(stageStars: Record<string, { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }>) {
+  const result: string[] = [];
+  for (const [stageId, stars] of Object.entries(stageStars)) {
+    if (stars.noDeaths && stars.noItems && stars.underFiveTurns) {
+      result.push(stageId); // Legacy format for fully complete stages
+    } else {
+      if (stars.noDeaths) result.push(`${stageId}_nd`);
+      if (stars.noItems) result.push(`${stageId}_ni`);
+      if (stars.underFiveTurns) result.push(`${stageId}_u5`);
+    }
+  }
+  return result;
 }
 
 /** Persists a one-time creature grant (see lib/store.ts's grantCreature) server-side — the

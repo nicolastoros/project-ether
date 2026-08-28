@@ -42,6 +42,9 @@ import { cn, formatNumber } from "@/lib/utils";
 const ARENA_BACKGROUNDS: Record<number, string> = {
   1: "/assets/maps/battle_field_test1.png",
   2: "/assets/campaign/world2.jpg",
+  3: "/assets/maps/w3.png",
+  4: "/assets/maps/w4.png",
+  5: "/assets/maps/w5.png",
 };
 // One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
 // check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
@@ -121,6 +124,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
   const grantCreature = useGameStore((s) => s.grantCreature);
+  const recordStageStars = useGameStore((s) => s.recordStageStars);
   const addSealCoins = useGameStore((s) => s.addSealCoins);
   const grantTamerEquipment = useGameStore((s) => s.grantTamerEquipment);
   const grantItem = useGameStore((s) => s.grantItem);
@@ -145,6 +149,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     []
   );
   const [turnPointer, setTurnPointer] = useState(0);
+  const [turnCount, setTurnCount] = useState(0);
+  const [hasDeaths, setHasDeaths] = useState(false);
   const [phase, setPhase] = useState<BattlePhase>("active");
   const [pendingSkill, setPendingSkill] = useState<Skill | null>(null);
   const [log, setLog] = useState<BattleLogEntry[]>([
@@ -178,6 +184,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     if (hitUids.length > 0) {
       setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
     }
+
+    // Check for deaths
+    const anyDeaths = next.some(c => c.side === "player" && !c.isAlive);
+    if (anyDeaths) setHasDeaths(true);
+
     setCombatants(next);
     setLog((prev) => [...prev, ...logs]);
     setPendingSkill(null);
@@ -194,18 +205,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         useGameStore.getState().markStagePerfect(stage.id);
       }
 
+      recordStageStars(stage.id, {
+        noDeaths: !(hasDeaths || anyDeaths),
+        noItems: true,
+        underFiveTurns: turnCount < 5,
+      });
+
       if (!rewardGranted) {
         setRewardGranted(true);
-        // Read highestStageCleared *before* clearDungeonStage updates it — that's the only way to
-        // tell a genuine first clear (of this stage, or specifically of stage 1 for the Dragoon
-        // gift below) apart from a replay after it's already been cleared.
         const highestBefore = useGameStore.getState().dungeon.highestStageCleared;
         const isFirstClearOfThisStage = stage.stageNumber > highestBefore;
         const multiplier = isFirstClearOfThisStage ? 2 : 1;
         setRewardMultiplier(multiplier);
 
-        // Blue-aura event stage: doubles EXP only (gold and the first-clear bonus above are
-        // unaffected) — rotates daily, same stage id for every player (lib/expEvent.ts).
         const expEventActive = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
         setIsExpEventStage(expEventActive);
         const expMultiplier = multiplier * (expEventActive ? 2 : 1);
@@ -220,22 +232,15 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           const gift = grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID);
           if (gift) {
             setFirstClearGift(gift);
-            // The generic periodic sync below only UPDATEs creatures already owned, so a brand
-            // new grant (or dupe) needs its own call or it won't survive the next hydrate.
             grantCreatureOnServer(FIRST_CLEAR_GIFT_CREATURE_ID);
           }
         }
 
-        // Seal Coins: every Campaign stage has a chance to drop one, using the same
-        // DungeonStage.equipmentDropChance field the stage-detail screen already shows —
-        // harder stages already roll a higher % there, so no separate curve to design.
         if (Math.random() * 100 < stage.equipmentDropChance) {
           setSealCoinsDropped(1);
           addSealCoins(1);
         }
 
-        // Tamer gear: World 1's free Crimson pieces come from specific stage clears (only on a
-        // genuine first clear of that stage, same as the Dragoon gift, so replays don't re-grant).
         if (isFirstClearOfThisStage) {
           const tamerPiece = TAMER_EQUIPMENT_CATALOG.find(
             (t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id
@@ -246,10 +251,6 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           }
         }
 
-        // Item drops: rotten_egg and chicken roll independently at their own flat rates; the
-        // training-item tier is gated on equipmentDropChance (the field already scaling 10-45%
-        // by stage, already reused for Seal Coins) since a harder stage should have better odds
-        // at the better tiers, not just any drop at all — first-pass balanced numbers.
         const drop = (itemId: string, chance: number) => {
           if (Math.random() * 100 < chance) {
             grantItem(itemId, 1);
@@ -263,17 +264,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           drop(pickWeightedTrainingItemId(), 100);
         }
 
-        // World 1's boss clear guarantees a Quest item, once — same isFirstClearOfThisStage
-        // guard as the Dragoon/Tamer-gear grants above, so replays don't re-grant it.
         if (isFirstClearOfThisStage && stage.world === 1 && stage.worldStageNumber === 8) {
           grantItem("it-frontier-emblem", 1);
           grantItemOnServer("it-frontier-emblem", 1);
           setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
         }
 
-        // Push the stage-clear (and this fight's EXP/currency gains) right away rather than
-        // waiting up to 60s for GameGate's periodic sync — losing just-earned progress to a
-        // closed tab would be a much worse experience than the sync itself failing silently.
         syncProgressToServer();
       }
       return;
@@ -284,13 +280,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       return;
     }
 
+    // Increment turn count when cycling back to start
     setTurnPointer((prevPointer) => {
+      let nextIdx = prevPointer;
       for (let i = 1; i <= turnOrder.length; i++) {
         const idx = (prevPointer + i) % turnOrder.length;
         const c = next.find((cc) => cc.uid === turnOrder[idx]);
-        if (c?.isAlive) return idx;
+        if (c?.isAlive) {
+          nextIdx = idx;
+          break;
+        }
       }
-      return prevPointer;
+      if (nextIdx <= prevPointer) setTurnCount((c) => c + 1);
+      return nextIdx;
     });
   }
 

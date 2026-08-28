@@ -175,6 +175,7 @@ export interface DungeonProgress {
   autoDgEnabled: boolean;
   speedMultiplier: 1 | 2 | 4;
   perfectStages: string[];
+  stageStars: Record<string, { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }>;
 }
 
 export interface DailyTask {

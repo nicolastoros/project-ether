@@ -12,6 +12,7 @@ import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/lib/store";
+import { Check, X } from "lucide-react";
 
 interface TeamSelectScreenProps {
   stage: DungeonStage;
@@ -28,6 +29,10 @@ export function TeamSelectScreen({
   onToggle,
   onStart,
 }: TeamSelectScreenProps) {
+  const stageStars = useGameStore((s) => s.dungeon.stageStars);
+  const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
+  const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
+
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex items-center gap-2 lg:gap-4">
@@ -45,6 +50,15 @@ export function TeamSelectScreen({
           <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">{stage.name} — choose 1 or 2 creatures for this battle.</p>
         </div>
       </div>
+
+      <GlowPanel accent="none" className="p-3 lg:p-4">
+        <h2 className="font-arcade text-xs text-white mb-2 lg:text-sm">Stage Missions</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <MissionItem completed={stars.noDeaths} label="Win without losing any monster" />
+          <MissionItem completed={stars.noItems} label="Win without using support items" />
+          <MissionItem completed={stars.underFiveTurns} label="Win in less than 5 turns" />
+        </div>
+      </GlowPanel>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5 2xl:grid-cols-4">
         {creatures.map((creature) => {
@@ -87,18 +101,18 @@ export function TeamSelectScreen({
         })}
       </div>
 
-      <div className="sticky bottom-3 lg:bottom-5">
+      <div className="sticky bottom-3 lg:bottom-5 z-20">
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3 lg:rounded-2xl lg:p-5">
           <p className="text-xs text-zinc-500 lg:text-base">{selectedIds.length}/2 creatures selected</p>
           <div className="flex gap-2">
-            {useGameStore((s) => s.dungeon.perfectStages.includes(stage.id)) && (
+            {hasAllStars && (
               <PixelButton 
                 variant="gold" 
                 disabled={selectedIds.length === 0} 
                 onClick={() => onStart(true)} 
                 className="lg:px-8 lg:py-3.5 lg:text-base"
               >
-                Auto-Clear
+                Sweep
               </PixelButton>
             )}
             <PixelButton variant="neon" disabled={selectedIds.length === 0} onClick={() => onStart(false)} className="lg:px-8 lg:py-3.5 lg:text-base">
@@ -107,6 +121,15 @@ export function TeamSelectScreen({
           </div>
         </GlowPanel>
       </div>
+    </div>
+  );
+}
+
+function MissionItem({ completed, label }: { completed: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-black/40 px-3 py-2 border border-white/5">
+      {completed ? <Check className="h-4 w-4 text-gold shrink-0" /> : <X className="h-4 w-4 text-zinc-600 shrink-0" />}
+      <span className={cn("text-[10px] lg:text-xs", completed ? "text-zinc-200" : "text-zinc-500")}>{label}</span>
     </div>
   );
 }
