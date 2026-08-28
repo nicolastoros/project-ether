@@ -370,8 +370,8 @@ export const useGameStore = create<GameState>()(
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
       gifts: [
-        { id: "gift-1", type: "item", itemId: "it-mythic-ticket", quantity: 10, message: "Admin Compensation", createdAt: Date.now() },
-        { id: "gift-2", type: "item", itemId: "it-legendary-ticket", quantity: 5, message: "Welcome Bonus", createdAt: Date.now() }
+        { id: "gift-3", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Special LR Event!", createdAt: Date.now() },
+        { id: "gift-4", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() }
       ],
       survivalHighestStageCleared: 0,
       hasHydrated: false,

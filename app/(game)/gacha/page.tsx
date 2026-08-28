@@ -11,22 +11,36 @@ import { TicketIcon } from "lucide-react";
 import type { Creature, GachaBanner } from "@/types/game";
 
 function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner): Creature[] {
-  const result: Creature[] = [];
-  const mythicPool = creatures.filter(c => banner.featuredIds.includes(c.id) && c.rarity === "Mythic");
-  const lrPool = creatures.filter(c => banner.featuredIds.includes(c.id) && c.rarity === "LR");
-  const lowerRarityPool = creatures.filter(c => c.rarity === "Rare" || c.rarity === "SSR");
+  const allLRs = creatures.filter(c => c.rarity === "LR");
+  const allMythics = creatures.filter(c => c.rarity === "Mythic");
+  const allSSRs = creatures.filter(c => c.rarity === "SSR");
+  const allRares = creatures.filter(c => c.rarity === "Rare");
+
+  const featuredLRs = allLRs.filter(c => banner.featuredIds.includes(c.id));
+  const featuredMythics = allMythics.filter(c => banner.featuredIds.includes(c.id));
 
   for (let i = 0; i < count; i++) {
     const roll = Math.random() * 100;
     let picked;
 
     if (banner.currencyItemId === "it-mythic-ticket") {
-      if (roll < 5 && lrPool.length > 0) picked = lrPool[Math.floor(Math.random() * lrPool.length)];
+      if (roll < 5 && featuredLRs.length > 0) picked = featuredLRs[Math.floor(Math.random() * featuredLRs.length)];
+      else if (roll < 7 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
+      else if (roll < 17 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+      else if (roll < 47 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
     } else if (banner.currencyItemId === "it-legendary-ticket") {
-      if (roll < 7 && mythicPool.length > 0) picked = mythicPool[Math.floor(Math.random() * mythicPool.length)];
+      if (roll < 7 && featuredMythics.length > 0) picked = featuredMythics[Math.floor(Math.random() * featuredMythics.length)];
+      else if (roll < 8 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
+      else if (roll < 15 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+      else if (roll < 45 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
+    } else {
+      if (roll < 3 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+      else if (roll < 15 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
     }
 
-    if (!picked) picked = lowerRarityPool[Math.floor(Math.random() * lowerRarityPool.length)];
     if (!picked) picked = creatures[0];
     
     result.push(picked);
