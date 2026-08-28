@@ -201,6 +201,17 @@ export interface AccountBundle {
    * row — only avatars bought beyond that show up in user_tamer_avatars. */
   ownedTamerIds: string[];
   expeditions: { id: string; defId: string; creatureIds: string[]; startedAt: number; durationMs: number }[];
+  guild?: {
+    id: string;
+    name: string;
+    level: number;
+    exp: number;
+    expToNextLevel: number;
+    memberCap: number;
+    description: string;
+    avatarKey: string;
+    role: string;
+  };
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
@@ -214,6 +225,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     itemsResult,
     tamerAvatarResult,
     expeditionsResult,
+    guildResult,
   ] = await Promise.all([
       bq().query({
         query: `
@@ -278,6 +290,15 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT g.id, g.name, g.level, g.exp, g.exp_to_next_level, g.member_cap, g.description, g.avatar_key, gm.role
+        FROM ${table("guild_members")} gm
+        JOIN ${table("guilds")} g ON g.id = gm.guild_id
+        WHERE gm.user_id = @userId LIMIT 1
+      `,
+        params: { userId },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -290,6 +311,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const itemsRows = itemsResult[0];
   const tamerAvatarRows = tamerAvatarResult[0];
   const expeditionRows = expeditionsResult[0];
+  const guildRow = guildResult[0][0];
 
   return {
     profile: {
@@ -352,6 +374,19 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       startedAt: row.started_at,
       durationMs: row.duration_ms,
     })),
+    guild: guildRow
+      ? {
+          id: guildRow.id,
+          name: guildRow.name,
+          level: guildRow.level,
+          exp: guildRow.exp,
+          expToNextLevel: guildRow.exp_to_next_level,
+          memberCap: guildRow.member_cap,
+          description: guildRow.description || "",
+          avatarKey: guildRow.avatar_key,
+          role: guildRow.role,
+        }
+      : undefined,
   };
 }
 
@@ -762,4 +797,340 @@ export async function rejectFriendRequest(requestId: string): Promise<void> {
     `,
     params: { requestId },
   });
+}
+// ============================================================================
+// GUILDS SYSTEM
+// ============================================================================
+
+export interface DbGuild {
+  id: string;
+  name: string;
+  level: number;
+  exp: number;
+  exp_to_next_level: number;
+  member_cap: number;
+  description: string;
+  avatar_key: string;
+  created_at: string;
+  require_approval: boolean;
+}
+
+export interface DbGuildMember {
+  guild_id: string;
+  user_id: string;
+  role: string;
+  total_contribution: number;
+  joined_at: string;
+  username?: string;
+  display_name?: string;
+  level?: number;
+  avatar_key?: string;
+}
+
+export interface DbGuildInvite {
+  id: string;
+  guild_id: string;
+  inviter_id: string;
+  invitee_id: string;
+  status: string;
+  created_at: string;
+  guild_name?: string;
+  inviter_name?: string;
+}
+
+export interface DbGuildRequest {
+  id: string;
+  guild_id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  username?: string;
+  level?: number;
+}
+
+export interface DbGuildLog {
+  id: string;
+  guild_id: string;
+  type: string;
+  message: string;
+  created_at: string;
+}
+
+export async function createGuild(userId: string, name: string, description: string, avatarKey: string): Promise<string> {
+  const guildId = randomUUID();
+  
+  await Promise.all([
+    bq().query({
+      query: `
+        INSERT INTO \`${PROJECT_ID}.${DATASET}.guilds\` 
+        (id, name, level, exp, exp_to_next_level, member_cap, description, avatar_key, require_approval)
+        VALUES (@guildId, @name, 1, 0, 1000, 10, @description, @avatarKey, false)
+      `,
+      params: { guildId, name, description, avatarKey }
+    }),
+    bq().query({
+      query: `
+        INSERT INTO \`${PROJECT_ID}.${DATASET}.guild_members\` 
+        (guild_id, user_id, role, total_contribution)
+        VALUES (@guildId, @userId, 'Master', 0)
+      `,
+      params: { guildId, userId }
+    })
+  ]);
+
+  return guildId;
+}
+
+export async function getGuilds(limit: number = 20): Promise<DbGuild[]> {
+  const [rows] = await bq().query({
+    query: `SELECT * FROM \`${PROJECT_ID}.${DATASET}.guilds\` ORDER BY level DESC, exp DESC LIMIT @limit`,
+    params: { limit }
+  });
+  return rows.map((r: any) => ({
+    ...r,
+    created_at: r.created_at?.value || r.created_at || "",
+  })) as DbGuild[];
+}
+
+export async function getGuildById(guildId: string): Promise<{ guild: DbGuild; members: DbGuildMember[] } | null> {
+  const [[guildRows], [memberRows]] = await Promise.all([
+    bq().query({
+      query: `SELECT * FROM \`${PROJECT_ID}.${DATASET}.guilds\` WHERE id = @guildId LIMIT 1`,
+      params: { guildId }
+    }),
+    bq().query({
+      query: `
+        SELECT 
+          gm.guild_id, gm.user_id, gm.role, gm.total_contribution, gm.joined_at,
+          u.username, u.display_name, u.level, u.avatar_key
+        FROM \`${PROJECT_ID}.${DATASET}.guild_members\` gm
+        JOIN \`${PROJECT_ID}.${DATASET}.users\` u ON u.id = gm.user_id
+        WHERE gm.guild_id = @guildId
+        ORDER BY gm.total_contribution DESC
+      `,
+      params: { guildId }
+    })
+  ]);
+
+  if (guildRows.length === 0) return null;
+  const guild = {
+    ...guildRows[0],
+    created_at: guildRows[0].created_at?.value || guildRows[0].created_at || "",
+  } as DbGuild;
+  
+  const members = memberRows.map((r: any) => ({
+    ...r,
+    joined_at: r.joined_at?.value || r.joined_at || "",
+  })) as DbGuildMember[];
+  
+  return { guild, members };
+}
+
+export async function getUserGuild(userId: string): Promise<DbGuild | null> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT g.*
+      FROM \`${PROJECT_ID}.${DATASET}.guild_members\` gm
+      JOIN \`${PROJECT_ID}.${DATASET}.guilds\` g ON g.id = gm.guild_id
+      WHERE gm.user_id = @userId LIMIT 1
+    `,
+    params: { userId }
+  });
+  if (rows.length === 0) return null;
+  return {
+    ...rows[0],
+    created_at: rows[0].created_at?.value || rows[0].created_at || "",
+  } as DbGuild;
+}
+
+export async function joinGuild(guildId: string, userId: string): Promise<void> {
+  await bq().query({
+    query: `
+      INSERT INTO \`${PROJECT_ID}.${DATASET}.guild_members\` 
+      (guild_id, user_id, role, total_contribution)
+      VALUES (@guildId, @userId, 'Member', 0)
+    `,
+    params: { guildId, userId }
+  });
+}
+
+export async function addGuildExp(guildId: string, userId: string, expAmount: number): Promise<void> {
+  await bq().query({
+    query: `
+      UPDATE \`${PROJECT_ID}.${DATASET}.guild_members\`
+      SET total_contribution = total_contribution + @expAmount
+      WHERE guild_id = @guildId AND user_id = @userId
+    `,
+    params: { guildId, userId, expAmount }
+  });
+
+  const [guildRows] = await bq().query({
+    query: `SELECT level, exp, exp_to_next_level, member_cap FROM \`${PROJECT_ID}.${DATASET}.guilds\` WHERE id = @guildId LIMIT 1`,
+    params: { guildId }
+  });
+  if (guildRows.length === 0) return;
+  
+  let g = guildRows[0];
+  let newExp = g.exp + expAmount;
+  let newLevel = g.level;
+  let newExpToNext = g.exp_to_next_level;
+  let newCap = g.member_cap;
+
+  while (newExp >= newExpToNext) {
+    newExp -= newExpToNext;
+    newLevel++;
+    newExpToNext = Math.floor(newExpToNext * 1.5);
+    newCap += 2;
+  }
+
+  await bq().query({
+    query: `
+      UPDATE \`${PROJECT_ID}.${DATASET}.guilds\`
+      SET exp = @newExp, level = @newLevel, exp_to_next_level = @newExpToNext, member_cap = @newCap
+      WHERE id = @guildId
+    `,
+    params: { guildId, newExp, newLevel, newExpToNext, newCap }
+  });
+}
+
+export async function addGuildLog(guildId: string, type: string, message: string): Promise<void> {
+  await bq().query({
+    query: `
+      INSERT INTO \`${PROJECT_ID}.${DATASET}.guild_logs\` (id, guild_id, type, message, created_at)
+      VALUES (@id, @guildId, @type, @message, CURRENT_TIMESTAMP())
+    `,
+    params: { id: randomUUID(), guildId, type, message }
+  });
+}
+
+export async function getGuildLogs(guildId: string): Promise<DbGuildLog[]> {
+  const [rows] = await bq().query({
+    query: `SELECT * FROM \`${PROJECT_ID}.${DATASET}.guild_logs\` WHERE guild_id = @guildId ORDER BY created_at DESC LIMIT 50`,
+    params: { guildId }
+  });
+  return rows.map((r: any) => ({
+    ...r,
+    created_at: r.created_at?.value || r.created_at || "",
+  })) as DbGuildLog[];
+}
+
+export async function updateGuildSettings(guildId: string, requireApproval: boolean): Promise<void> {
+  await bq().query({
+    query: `UPDATE \`${PROJECT_ID}.${DATASET}.guilds\` SET require_approval = @requireApproval WHERE id = @guildId`,
+    params: { guildId, requireApproval }
+  });
+}
+
+export async function changeGuildMemberRole(guildId: string, targetUserId: string, newRole: string): Promise<void> {
+  await bq().query({
+    query: `UPDATE \`${PROJECT_ID}.${DATASET}.guild_members\` SET role = @newRole WHERE guild_id = @guildId AND user_id = @targetUserId`,
+    params: { guildId, targetUserId, newRole }
+  });
+}
+
+export async function removeGuildMember(guildId: string, targetUserId: string): Promise<void> {
+  await bq().query({
+    query: `DELETE FROM \`${PROJECT_ID}.${DATASET}.guild_members\` WHERE guild_id = @guildId AND user_id = @targetUserId`,
+    params: { guildId, targetUserId }
+  });
+}
+
+export async function createGuildRequest(guildId: string, userId: string): Promise<void> {
+  const [existing] = await bq().query({
+    query: `SELECT 1 FROM \`${PROJECT_ID}.${DATASET}.guild_requests\` WHERE guild_id = @guildId AND user_id = @userId AND status = 'pending' LIMIT 1`,
+    params: { guildId, userId }
+  });
+  if (existing.length > 0) return;
+
+  await bq().query({
+    query: `
+      INSERT INTO \`${PROJECT_ID}.${DATASET}.guild_requests\` (id, guild_id, user_id, status, created_at)
+      VALUES (@id, @guildId, @userId, 'pending', CURRENT_TIMESTAMP())
+    `,
+    params: { id: randomUUID(), guildId, userId }
+  });
+}
+
+export async function getGuildRequests(guildId: string): Promise<DbGuildRequest[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT r.*, u.username, u.level
+      FROM \`${PROJECT_ID}.${DATASET}.guild_requests\` r
+      JOIN \`${PROJECT_ID}.${DATASET}.users\` u ON u.id = r.user_id
+      WHERE r.guild_id = @guildId AND r.status = 'pending'
+      ORDER BY r.created_at DESC
+    `,
+    params: { guildId }
+  });
+  return rows.map((r: any) => ({
+    ...r,
+    created_at: r.created_at?.value || r.created_at || "",
+  })) as DbGuildRequest[];
+}
+
+export async function resolveGuildRequest(requestId: string, accept: boolean): Promise<{ userId: string; guildId: string } | null> {
+  const [reqs] = await bq().query({
+    query: `SELECT user_id, guild_id FROM \`${PROJECT_ID}.${DATASET}.guild_requests\` WHERE id = @requestId AND status = 'pending' LIMIT 1`,
+    params: { requestId }
+  });
+  if (reqs.length === 0) return null;
+  const req = reqs[0];
+
+  await bq().query({
+    query: `UPDATE \`${PROJECT_ID}.${DATASET}.guild_requests\` SET status = @status WHERE id = @requestId`,
+    params: { requestId, status: accept ? 'accepted' : 'declined' }
+  });
+
+
+  return { userId: req.user_id, guildId: req.guild_id };
+}
+
+export async function createGuildInvite(guildId: string, inviterId: string, inviteeId: string): Promise<void> {
+  const [existing] = await bq().query({
+    query: `SELECT 1 FROM \`${PROJECT_ID}.${DATASET}.guild_invites\` WHERE guild_id = @guildId AND invitee_id = @inviteeId AND status = 'pending' LIMIT 1`,
+    params: { guildId, inviteeId }
+  });
+  if (existing.length > 0) return;
+
+  await bq().query({
+    query: `
+      INSERT INTO \`${PROJECT_ID}.${DATASET}.guild_invites\` (id, guild_id, inviter_id, invitee_id, status, created_at)
+      VALUES (@id, @guildId, @inviterId, @inviteeId, 'pending', CURRENT_TIMESTAMP())
+    `,
+    params: { id: randomUUID(), guildId, inviterId, inviteeId }
+  });
+}
+
+export async function getGuildInvites(userId: string): Promise<DbGuildInvite[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT i.*, g.name as guild_name, u.username as inviter_name
+      FROM \`${PROJECT_ID}.${DATASET}.guild_invites\` i
+      JOIN \`${PROJECT_ID}.${DATASET}.guilds\` g ON g.id = i.guild_id
+      JOIN \`${PROJECT_ID}.${DATASET}.users\` u ON u.id = i.inviter_id
+      WHERE i.invitee_id = @userId AND i.status = 'pending'
+      ORDER BY i.created_at DESC
+    `,
+    params: { userId }
+  });
+  return rows.map((r: any) => ({
+    ...r,
+    created_at: r.created_at?.value || r.created_at || "",
+  })) as DbGuildInvite[];
+}
+
+export async function resolveGuildInvite(inviteId: string, accept: boolean): Promise<{ userId: string; guildId: string } | null> {
+  const [invs] = await bq().query({
+    query: `SELECT invitee_id, guild_id FROM \`${PROJECT_ID}.${DATASET}.guild_invites\` WHERE id = @inviteId AND status = 'pending' LIMIT 1`,
+    params: { inviteId }
+  });
+  if (invs.length === 0) return null;
+  const inv = invs[0];
+
+  await bq().query({
+    query: `UPDATE \`${PROJECT_ID}.${DATASET}.guild_invites\` SET status = @status WHERE id = @inviteId`,
+    params: { inviteId, status: accept ? 'accepted' : 'declined' }
+  });
+
+  return { userId: inv.invitee_id, guildId: inv.guild_id };
 }

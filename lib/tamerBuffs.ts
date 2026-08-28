@@ -1,5 +1,6 @@
 import type { Creature, TamerEquipment } from "@/types/game";
 import { TAMER_CATALOG } from "@/lib/gameData";
+import { getDailyGuildBuff, getGuildBuffValue } from "@/lib/guildBuffs";
 
 /** Clones a creature's baseStats scaled up by the Tamer's gear + avatar buffs — same clone-and-
  * adjust shape as lib/campaignEnemies.ts's scaleForStage, just for the player side instead of
@@ -9,7 +10,8 @@ export function applyTamerBuffs(
   creature: Creature,
   tamerInventory: TamerEquipment[],
   tamerId: string,
-  tamerLevel: number
+  tamerLevel: number,
+  guildLevel?: number
 ): Creature {
   let hpPercent = 0;
   let atkPercent = 0;
@@ -96,13 +98,25 @@ export function applyTamerBuffs(
   const finalTamerScd = Math.round(scaledTamerScd * (1 + scdPercent / 100));
   const finalTamerCt = Math.round(scaledTamerCt * (1 + ctPercent / 100));
 
+  let guildHpBonus = 0;
+  let guildAtkBonus = 0;
+  let guildDefBonus = 0;
+
+  if (guildLevel && guildLevel > 0) {
+    const buffType = getDailyGuildBuff();
+    const guildBuffs = getGuildBuffValue(guildLevel, buffType);
+    guildHpBonus = Math.round(creature.baseStats.hp * (guildBuffs.hpPercent / 100));
+    guildAtkBonus = Math.round(creature.baseStats.atk * (guildBuffs.atkPercent / 100));
+    guildDefBonus = Math.round(creature.baseStats.def * (guildBuffs.defPercent / 100));
+  }
+
   return {
     ...creature,
     baseStats: {
       ...creature.baseStats,
-      hp: creature.baseStats.hp + finalTamerHp,
-      atk: creature.baseStats.atk + finalTamerAtk,
-      def: creature.baseStats.def + finalTamerDef,
+      hp: creature.baseStats.hp + finalTamerHp + guildHpBonus,
+      atk: creature.baseStats.atk + finalTamerAtk + guildAtkBonus,
+      def: creature.baseStats.def + finalTamerDef + guildDefBonus,
       spd: creature.baseStats.spd + finalTamerSpd,
       dp: (creature.baseStats.dp ?? 0) + finalTamerDp,
       as: (creature.baseStats.as ?? 0) + finalTamerAs,

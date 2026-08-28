@@ -211,6 +211,8 @@ export interface GachaBanner {
   singlePullCost: number;
   multiPullCost: number;
   multiPullCount: number;
+  currencyType?: "gems" | "gold" | "item";
+  currencyItemId?: string;
 }
 
 export type CombatantSide = "player" | "enemy";
@@ -291,19 +293,32 @@ export interface Friend {
 export type GuildRole = "Leader" | "Officer" | "Member";
 
 export interface GuildMember {
-  id: string;
-  name: string;
+  id: string; // This corresponds to user_id
+  name: string; // username
   role: GuildRole;
   level: number;
-  weeklyContribution: number;
+  totalContribution: number;
 }
 
 export interface GuildInfo {
   id: string;
   name: string;
   level: number;
+  exp: number;
+  expToNextLevel: number;
   memberCount: number;
   memberCap: number;
   description: string;
+  avatarKey: string;
   members: GuildMember[];
+}
+
+export interface Gift {
+  id: string;
+  type: "item" | "creature";
+  itemId?: string;
+  creatureId?: string;
+  quantity: number;
+  message: string;
+  createdAt: number;
 }

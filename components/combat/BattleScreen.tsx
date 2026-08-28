@@ -21,6 +21,7 @@ import {
   grantTamerEquipmentOnServer,
   syncProgressToServer,
 } from "@/lib/syncProgress";
+import { addGuildExpAction } from "@/app/actions/guild";
 import {
   applyAction,
   createCombatant,
@@ -130,12 +131,13 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const grantItem = useGameStore((s) => s.grantItem);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
+  const guild = useGameStore((s) => s.guild);
 
   // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
   // unbuffed playerCreatures since only their ids matter there, not baseStats.
   const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level)),
+    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level, useGameStore.getState().guild?.level)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -268,6 +270,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           grantItem("it-frontier-emblem", 1);
           grantItemOnServer("it-frontier-emblem", 1);
           setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
+        }
+        
+        if (guild) {
+          addGuildExpAction(guild.id, stage.rewardExp).catch(() => {});
         }
 
         syncProgressToServer();

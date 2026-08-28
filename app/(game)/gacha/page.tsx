@@ -7,10 +7,31 @@ import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { CrownIcon } from "@/components/icons/CrownIcon";
-import type { Creature } from "@/types/game";
+import { TicketIcon } from "lucide-react";
+import type { Creature, GachaBanner } from "@/types/game";
 
-function rollCreatures(pool: Creature[], count: number): Creature[] {
-  return Array.from({ length: count }, () => pool[Math.floor(Math.random() * pool.length)]);
+function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner): Creature[] {
+  const result: Creature[] = [];
+  const mythicPool = creatures.filter(c => banner.featuredIds.includes(c.id) && c.rarity === "Mythic");
+  const lrPool = creatures.filter(c => banner.featuredIds.includes(c.id) && c.rarity === "LR");
+  const lowerRarityPool = creatures.filter(c => c.rarity === "Rare" || c.rarity === "SSR");
+
+  for (let i = 0; i < count; i++) {
+    const roll = Math.random() * 100;
+    let picked;
+
+    if (banner.currencyItemId === "it-mythic-ticket") {
+      if (roll < 5 && lrPool.length > 0) picked = lrPool[Math.floor(Math.random() * lrPool.length)];
+    } else if (banner.currencyItemId === "it-legendary-ticket") {
+      if (roll < 7 && mythicPool.length > 0) picked = mythicPool[Math.floor(Math.random() * mythicPool.length)];
+    }
+
+    if (!picked) picked = lowerRarityPool[Math.floor(Math.random() * lowerRarityPool.length)];
+    if (!picked) picked = creatures[0];
+    
+    result.push(picked);
+  }
+  return result;
 }
 
 export default function GachaPage() {
@@ -18,13 +39,29 @@ export default function GachaPage() {
   const creatures = useGameStore((s) => s.creatures);
   const gems = useGameStore((s) => s.currencies.gems);
   const spendGems = useGameStore((s) => s.spendGems);
+  const ownedItems = useGameStore((s) => s.ownedItems);
+  const consumeItem = useGameStore((s) => s.consumeItem);
+  const grantCreature = useGameStore((s) => s.grantCreature);
   const [results, setResults] = useState<Creature[] | null>(null);
 
   const banner = GACHA_BANNERS[activeIndex];
 
   const handleSummon = (count: number, cost: number) => {
-    if (!spendGems(cost)) return;
-    setResults(rollCreatures(creatures, count));
+    if (banner.currencyType === "item" && banner.currencyItemId) {
+      if (!consumeItem(banner.currencyItemId, cost)) return;
+    } else {
+      if (!spendGems(cost)) return;
+    }
+    const rolled = rollCreatures(creatures, count, banner);
+    rolled.forEach(c => grantCreature(c.id));
+    setResults(rolled);
+  };
+
+  const getCurrencyAmount = (b: GachaBanner) => {
+    if (b.currencyType === "item" && b.currencyItemId) {
+      return ownedItems.find(i => i.itemId === b.currencyItemId)?.quantity || 0;
+    }
+    return gems;
   };
 
   return (
@@ -45,24 +82,27 @@ export default function GachaPage() {
         <div className="mt-4 grid grid-cols-2 gap-3 lg:mt-6 lg:gap-4">
           <PixelButton
             variant="ghost"
-            disabled={gems < banner.singlePullCost}
+            disabled={getCurrencyAmount(banner) < banner.singlePullCost}
             onClick={() => handleSummon(1, banner.singlePullCost)}
             className="flex flex-col items-center gap-1 py-3 lg:py-4 lg:text-base"
           >
             <span>Summon x1</span>
             <span className="flex items-center gap-1 text-[10px] font-normal normal-case text-zinc-500 lg:text-xs">
-              <CrownIcon className="h-3 w-3" /> {banner.singlePullCost}
+              {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.singlePullCost}
             </span>
           </PixelButton>
           <PixelButton
             variant="gold"
-            disabled={gems < banner.multiPullCost}
+            disabled={getCurrencyAmount(banner) < banner.multiPullCost}
             onClick={() => handleSummon(banner.multiPullCount, banner.multiPullCost)}
-            className="flex flex-col items-center gap-1 py-3 lg:py-4 lg:text-base"
+            className="flex flex-col items-center gap-1 py-3 lg:py-4 lg:text-base relative overflow-hidden"
           >
-            <span>Summon x{banner.multiPullCount}</span>
-            <span className="flex items-center gap-1 text-[10px] font-normal normal-case text-white/80 lg:text-xs">
-              <CrownIcon className="h-3 w-3" /> {banner.multiPullCost}
+            {banner.currencyItemId === "it-mythic-ticket" && (
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20 animate-pulse pointer-events-none" />
+            )}
+            <span className="relative z-10">Summon x{banner.multiPullCount}</span>
+            <span className="relative z-10 flex items-center gap-1 text-[10px] font-normal normal-case text-white/90 lg:text-xs">
+              {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.multiPullCost}
             </span>
           </PixelButton>
         </div>

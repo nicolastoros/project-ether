@@ -9,6 +9,7 @@ import { useGameStore } from "@/lib/store";
 import { NAV_GROUPS } from "@/lib/navigation";
 import { cn, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { NewBadge } from "@/components/ui/NewBadge";
 
 /**
  * Decorative watermark for the empty space below the nav groups.
@@ -50,6 +51,8 @@ export function Sidebar() {
   const profile = useGameStore((s) => s.profile);
   const logout = useGameStore((s) => s.logout);
   const hasUnseenInventory = useGameStore((s) => s.hasUnseenInventory);
+  const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
+  const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const router = useRouter();
 
   return (
@@ -96,6 +99,9 @@ export function Sidebar() {
                         />
                         {href === "/inventory" && hasUnseenInventory && (
                           <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-white" />
+                        )}
+                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign)) && (
+                          <NewBadge className="-right-2 -top-2" />
                         )}
                       </span>
                       <span className="truncate">{label}</span>

@@ -1,0 +1,22 @@
+{
+  "group_id": "b476ded0-f8bc-4ddb-a015-3f0604775ffa",
+  "objects": [
+    {
+      "id": "78936178-64ce-48e8-981b-5445d35fbfb8",
+      "name": "base",
+      "prompt": "a golden ticket that is use for summoning monster, is the medium ticket, the gold one",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/a_golden_ticket_that_is_use_fo.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-26T00:03:37.862993"
+}

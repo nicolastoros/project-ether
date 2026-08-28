@@ -10,6 +10,7 @@ import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG } from "@/lib/gameData";
 import type { RaidBoss } from "@/lib/raidBosses";
 import { grantItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { addGuildExpAction } from "@/app/actions/guild";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
   applyAction,
@@ -51,9 +52,10 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const grantItem = useGameStore((s) => s.grantItem);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
+  const guild = useGameStore((s) => s.guild);
 
   const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level)),
+    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level, useGameStore.getState().guild?.level)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -111,6 +113,10 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
           grantItem(picked.id, 1);
           grantItemOnServer(picked.id, 1);
           setItemDropped({ itemId: picked.id, quantity: 1 });
+        }
+
+        if (guild) {
+          addGuildExpAction(guild.id, boss.rewardExp).catch(() => {});
         }
 
         syncProgressToServer();

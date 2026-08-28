@@ -8,6 +8,7 @@ import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { grantItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { addGuildExpAction } from "@/app/actions/guild";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
@@ -27,6 +28,7 @@ export function SweepScreen({ stage, playerCreatures, onExit }: SweepScreenProps
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const addSealCoins = useGameStore((s) => s.addSealCoins);
   const grantItem = useGameStore((s) => s.grantItem);
+  const guild = useGameStore((s) => s.guild);
 
   const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
   const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
@@ -40,6 +42,10 @@ export function SweepScreen({ stage, playerCreatures, onExit }: SweepScreenProps
     addGold(stage.rewardGold);
     playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * multiplier));
     gainProfileExp(stage.rewardExp * multiplier);
+
+    if (guild) {
+      addGuildExpAction(guild.id, stage.rewardExp * multiplier).catch(() => {});
+    }
 
     let sealCoins = 0;
     if (Math.random() * 100 < stage.equipmentDropChance) {

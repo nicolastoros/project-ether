@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Check, Lock, Zap, Coins, Sparkles, ChevronLeft, ChevronRight, Hammer } from "lucide-react";
@@ -14,6 +14,7 @@ import { StageDetailModal } from "@/components/campaign/StageDetailModal";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RarityBadge } from "@/components/ui/RarityBadge";
+import { NewBadge } from "@/components/ui/NewBadge";
 import { cn } from "@/lib/utils";
 
 /** Tamer gear thematically tied to a world: any item whose set has at least one campaign-clear
@@ -36,6 +37,15 @@ export function CampaignHome() {
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const [activeWorld, setActiveWorld] = useState(1);
   const [selectedStage, setSelectedStage] = useState<DungeonStage | null>(null);
+  
+  const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
+  const markCampaignSeen = useGameStore((s) => s.markCampaignSeen);
+  
+  useEffect(() => {
+    if ([3, 4, 5].includes(activeWorld) && hasUnseenCampaign) {
+      markCampaignSeen();
+    }
+  }, [activeWorld, hasUnseenCampaign, markCampaignSeen]);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +106,9 @@ export function CampaignHome() {
               >
                 <span className="text-[9px] uppercase tracking-wide">World</span>
                 <span className="text-base font-bold">{w.world}</span>
+                {[3, 4, 5].includes(w.world) && hasUnseenCampaign && (
+                  <NewBadge className="-right-1 -top-1" />
+                )}
                 {!w.isAvailable && (
                   <>
                     <Lock className="mt-0.5 h-3 w-3" />
@@ -142,6 +155,9 @@ export function CampaignHome() {
                     <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">Sector</span>
                     <span className="mt-1 text-2xl font-bold">W{w.world}</span>
                   </div>
+                  {[3, 4, 5].includes(w.world) && hasUnseenCampaign && (
+                    <NewBadge className="top-1 right-1" />
+                  )}
                   {!w.isAvailable && (
                     <Lock className="relative z-10 ml-2 h-5 w-5 opacity-40" />
                   )}

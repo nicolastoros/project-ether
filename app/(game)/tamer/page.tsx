@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Lock, Check, Pause, RotateCw, Copy } from "lucide-react";
@@ -53,6 +53,11 @@ export default function TamerPage() {
   const [craftingId, setCraftingId] = useState<string | null>(null);
   const [spinning, setSpinning] = useState(true);
   const [copied, setCopied] = useState(false);
+  const markTamerSeen = useGameStore((s) => s.markTamerSeen);
+  
+  useEffect(() => {
+    markTamerSeen();
+  }, [markTamerSeen]);
 
   const equippedTamer = TAMER_CATALOG.find((t) => t.id === equippedTamerId) ?? TAMER_CATALOG[0];
   const ownedBySlot = new Map(tamerInventory.map((t) => [t.slot, t]));

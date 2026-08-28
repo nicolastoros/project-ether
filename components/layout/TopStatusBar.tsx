@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { UserCircle2, LogOut } from "lucide-react";
+import { UserCircle2, LogOut, Mail } from "lucide-react";
+import { useState } from "react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
@@ -10,12 +11,15 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { xpPercent } from "@/lib/utils";
+import { GiftsModal } from "./GiftsModal";
 
 export function TopStatusBar() {
   const profile = useGameStore((s) => s.profile);
   const currencies = useGameStore((s) => s.currencies);
+  const gifts = useGameStore((s) => s.gifts) || [];
   const logout = useGameStore((s) => s.logout);
   const router = useRouter();
+  const [showGifts, setShowGifts] = useState(false);
 
   return (
     <header className="sticky top-0 z-20 border-b border-arcade-border bg-arcade-panel/95 backdrop-blur-sm">
@@ -44,6 +48,18 @@ export function TopStatusBar() {
           <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5" />} value={currencies.gold} />
           <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5" />} value={currencies.gems} />
           <button
+            onClick={() => setShowGifts(true)}
+            aria-label="Gifts"
+            className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {gifts.length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] text-white">
+                {gifts.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={async () => {
               await signOut({ redirect: false });
               logout();
@@ -65,6 +81,8 @@ export function TopStatusBar() {
           className="lg:max-w-xs"
         />
       </div>
+
+      <GiftsModal isOpen={showGifts} onClose={() => setShowGifts(false)} />
     </header>
   );
 }

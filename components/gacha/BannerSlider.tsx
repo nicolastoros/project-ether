@@ -64,7 +64,7 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
           }}
         >
           {banners.map((banner, i) => (
-            <div key={banner.id} className="relative aspect-[3/2] w-full shrink-0 overflow-hidden">
+            <div key={banner.id} className="relative aspect-video w-full shrink-0 overflow-hidden bg-zinc-950">
               <motion.div
                 className="absolute inset-0"
                 initial={false}
@@ -78,7 +78,7 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
                   draggable={false}
                   priority={i === 0}
                   sizes="(max-width: 1024px) 100vw, 768px"
-                  className="object-cover"
+                  className="object-contain"
                 />
               </motion.div>
             </div>

@@ -4,14 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Menu } from "lucide-react";
+import { useGameStore } from "@/lib/store";
 import { BOTTOM_NAV_ITEMS } from "@/lib/navigation";
 import { useUiStore } from "@/lib/uiStore";
 import { cn } from "@/lib/utils";
+import { NewBadge } from "@/components/ui/NewBadge";
 
 export function BottomNav() {
   const pathname = usePathname();
   const toggleDrawer = useUiStore((s) => s.toggleDrawer);
   const isDrawerOpen = useUiStore((s) => s.isDrawerOpen);
+  const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
 
   return (
     <nav className="sticky bottom-0 z-20 border-t border-arcade-border bg-arcade-panel/95 backdrop-blur-sm lg:hidden">
@@ -31,12 +34,17 @@ export function BottomNav() {
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon
-                  className={cn(
-                    "h-5 w-5 transition-colors",
-                    isActive ? "text-gold-bright" : "text-zinc-500"
+                <div className="relative">
+                  <Icon
+                    className={cn(
+                      "h-5 w-5 transition-colors",
+                      isActive ? "text-gold-bright" : "text-zinc-500"
+                    )}
+                  />
+                  {href === "/campaign" && hasUnseenCampaign && (
+                    <NewBadge className="-right-2 -top-2" />
                   )}
-                />
+                </div>
                 <span className={cn("font-arcade", isActive ? "text-gold-bright" : "text-zinc-500")}>
                   {label}
                 </span>

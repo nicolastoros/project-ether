@@ -9,12 +9,15 @@ import { useGameStore } from "@/lib/store";
 import { useUiStore } from "@/lib/uiStore";
 import { NAV_GROUPS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { NewBadge } from "@/components/ui/NewBadge";
 
 export function MobileDrawer() {
   const isOpen = useUiStore((s) => s.isDrawerOpen);
   const closeDrawer = useUiStore((s) => s.closeDrawer);
   const pathname = usePathname();
   const logout = useGameStore((s) => s.logout);
+  const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
+  const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const router = useRouter();
 
   return (
@@ -67,7 +70,12 @@ export function MobileDrawer() {
                                 : "border border-transparent text-zinc-500 hover:bg-arcade-panel-light hover:text-foreground"
                             )}
                           >
-                            <Icon className="h-4 w-4 shrink-0" />
+                            <div className="relative">
+                              <Icon className="h-4 w-4 shrink-0" />
+                              {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign)) && (
+                                <NewBadge className="-right-2 -top-2" />
+                              )}
+                            </div>
                             <span className="truncate">{label}</span>
                           </Link>
                         </li>

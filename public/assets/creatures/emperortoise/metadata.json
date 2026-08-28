@@ -1,0 +1,72 @@
+{
+  "group_id": "817de519-a6a7-441c-8c87-01994531c52b",
+  "states": [
+    {
+      "character": {
+        "id": "74a03e16-8070-4a22-8751-b74734e5589f",
+        "name": "Idle",
+        "prompt": "The creature is a MEGA-LEVEL DIGITAL SEA MONSTER.\n\nCORE CONCEPT:\nA gigantic armored marine beast combining:\n- ancient sea turtle\n- deep-sea reptile\n- naval fortress\n- digital monster\n\nIt must look like an original monster design, NOT a humanoid and NOT a direct copy of any existing creature.\n\nBODY:\nVery large, heavy quadrupedal body.\n\nIts anatomy resembles an ancient armored sea turtle mixed with a powerful marine reptile.\n\nBroad chest, thick muscular legs, large clawed feet and a short but powerful neck.\n\nThe creature should feel extremely heavy and durable, like a living ocean fortress.\n\nHEAD:\nLarge reptilian sea-monster head.\n\nStrong squared jaw.\n\nShort armored snout.\n\nSmall but intense CYAN-BLUE glowing eyes.\n\nTwo short metallic fins/horns extend backward from the sides of the head.\n\nThe jaw and cheeks have pale silver armor plates.\n\nIts expression should look:\ncalm,\nexperienced,\npowerful,\nprotective.\n\nNot evil.\n\nSHELL:\nThe most important feature.\n\nA gigantic DARK NAVY and STEEL-BLUE armored shell covers its back.\n\nThe shell looks like a fusion between:\nancient turtle shell + futuristic naval armor.\n\nUse LARGE armor plates rather than hundreds of tiny mechanical details.\n\nSeveral subtle cyan glowing lines run between the shell plates like digital energy circuits.\n\nThe shell should have a recognizable silhouette even when the sprite is small.\n\nWATER CANNONS:\nTwo large WATER-ENERGY CANNONS emerge from the upper shell.\n\nIMPORTANT:\nDo NOT make them look like simple metal gun barrels.\n\nThey should look like biological/digital organs integrated into the shell.\n\nEach cannon has:\n- thick armored base\n- dark navy exterior\n- silver edges\n- glowing cyan interior\n- transparent blue energy chamber\n\nInside each cannon, water energy visibly circulates.\n\nWhen attacking, they fire extremely compressed streams of glowing digital water.\n\nPlace the cannons slightly angled upward and outward.\n\nARMS AND LEGS:\nFour thick limbs.\n\nFront limbs are larger and heavily armored.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-25T01:13:46.103563+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "Plaintext_Pixel_art_sprite_sheet_animation_of_the": {
+            "south": [
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_000.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_001.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_002.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_003.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_004.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_005.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_006.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_007.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/south/frame_008.png"
+            ],
+            "east": [
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_000.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_001.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_002.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_003.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_004.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_005.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_006.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_007.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/east/frame_008.png"
+            ],
+            "west": [
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_000.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_001.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_002.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_003.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_004.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_005.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_006.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_007.png",
+              "Idle/animations/Plaintext_Pixel_art_sprite_sheet_animation_of_the/west/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-28T19:45:28.782026"
+}

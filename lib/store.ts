@@ -10,6 +10,7 @@ import type {
   OwnedInventoryItem,
   TamerEquipment,
   UserProfile,
+  Gift,
 } from "@/types/game";
 import {
   DEFAULT_DAILY_TASKS,
@@ -168,6 +169,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       startedAt: e.startedAt,
       durationMs: e.durationMs,
     })),
+    guild: bundle.guild,
     dungeon: {
       ...bundle.dungeon,
       perfectStages: bundle.dungeon.perfectStages || [],
@@ -200,6 +202,17 @@ function parseStageStars(perfectStages: string[]) {
 }
 
 interface GameState {
+  guild?: {
+    id: string;
+    name: string;
+    level: number;
+    exp: number;
+    expToNextLevel: number;
+    memberCap: number;
+    description: string;
+    avatarKey: string;
+    role: string;
+  };
   profile: UserProfile;
   currencies: Currencies;
   creatures: Creature[];
@@ -218,12 +231,16 @@ interface GameState {
   /** True once an item lands in `ownedItems` that the player hasn't opened Inventory to see yet —
    * drives the notification dot on the Inventory nav link. */
   hasUnseenInventory: boolean;
+  hasUnseenCampaign: boolean;
+  hasUnseenTamer: boolean;
   /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
   equippedTamerId: string;
   ownedTamerIds: string[];
   activeExpeditions: ActiveExpedition[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
+  gifts: Gift[];
+  claimGift: (giftId: string) => void;
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
   survivalHighestStageCleared: number;
   hasHydrated: boolean;
@@ -256,7 +273,7 @@ interface GameState {
   grantCreature: (creatureId: string) => { isNew: boolean; copies: number } | null;
 
   addGold: (amount: number) => void;
-  spendGold: (amount: number) => boolean;
+  spendGold: (amount: number) => void;
   addGems: (amount: number) => void;
   spendGems: (amount: number) => boolean;
   addSealCoins: (amount: number) => void;
@@ -281,6 +298,9 @@ interface GameState {
   grantItem: (itemId: string, quantity?: number) => void;
   /** Clears the Inventory nav dot — called once when the Inventory page mounts. */
   markInventorySeen: () => void;
+  markCampaignSeen: () => void;
+  markTamerSeen: () => void;
+  joinGuildLocally: (guildData: any) => void;
   /** Removes `quantity` of an owned item (Inventory's "Use" action, or a Shop sale) — false if
    * fewer than `quantity` are owned. */
   consumeItem: (itemId: string, quantity?: number) => boolean;
@@ -334,6 +354,8 @@ export const useGameStore = create<GameState>()(
       tamerInventory: [],
       ownedItems: [],
       hasUnseenInventory: false,
+      hasUnseenCampaign: true,
+      hasUnseenTamer: true,
       equippedTamerId: "tamer1",
       ownedTamerIds: ["tamer1"],
       activeExpeditions: [],
@@ -347,6 +369,10 @@ export const useGameStore = create<GameState>()(
         stageStars: {},
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
+      gifts: [
+        { id: "gift-1", type: "item", itemId: "it-mythic-ticket", quantity: 10, message: "Admin Compensation", createdAt: Date.now() },
+        { id: "gift-2", type: "item", itemId: "it-legendary-ticket", quantity: 5, message: "Welcome Bonus", createdAt: Date.now() }
+      ],
       survivalHighestStageCleared: 0,
       hasHydrated: false,
 
@@ -399,6 +425,8 @@ export const useGameStore = create<GameState>()(
           tamerInventory: [],
           ownedItems: [],
           hasUnseenInventory: false,
+          hasUnseenCampaign: true,
+          hasUnseenTamer: true,
           equippedTamerId: "tamer1",
           ownedTamerIds: ["tamer1"],
           activeExpeditions: [],
@@ -522,12 +550,8 @@ export const useGameStore = create<GameState>()(
           currencies: { ...state.currencies, gold: state.currencies.gold + amount },
         })),
 
-      spendGold: (amount) => {
-        const { currencies } = get();
-        if (currencies.gold < amount) return false;
-        set({ currencies: { ...currencies, gold: currencies.gold - amount } });
-        return true;
-      },
+      spendGold: (amount) =>
+        set((state) => ({ currencies: { ...state.currencies, gold: Math.max(0, state.currencies.gold - amount) } })),
 
       addGems: (amount) =>
         set((state) => ({
@@ -570,35 +594,27 @@ export const useGameStore = create<GameState>()(
 
       tickEnergy: () =>
         set((state) => {
+          if (state.currencies.energy >= state.currencies.energyMax) return state;
           const now = Date.now();
-          const { energy, energyMax, energyRegenMinutes, lastEnergyTickAt } = state.currencies;
-          
-          const msPerRegen = energyRegenMinutes * 60 * 1000;
-          const elapsedMs = now - lastEnergyTickAt;
-          
-          if (elapsedMs < msPerRegen || energy >= energyMax) {
-            // Si ya estamos a tope de energía, simplemente reiniciamos el reloj para que no
-            // acumule "energía offline invisible" que se dé de golpe si gasta energía y recarga.
-            if (energy >= energyMax && elapsedMs >= msPerRegen) {
-              return {
-                currencies: { ...state.currencies, lastEnergyTickAt: now }
-              };
+          const elapsed = now - state.currencies.lastEnergyTickAt;
+          const tickMs = state.currencies.energyRegenMinutes * 60 * 1000;
+          if (elapsed >= tickMs) {
+            const ticks = Math.floor(elapsed / tickMs);
+            
+            let bonusEnergyMax = 0;
+            if (state.guild && state.guild.level >= 5) {
+              bonusEnergyMax = 30; // Level 5+ guild gives +30 energy cap
             }
-            return state;
+            
+            return {
+              currencies: {
+                ...state.currencies,
+                energy: Math.min(state.currencies.energyMax + bonusEnergyMax, state.currencies.energy + ticks),
+                lastEnergyTickAt: state.currencies.lastEnergyTickAt + ticks * tickMs,
+              },
+            };
           }
-
-          const ticks = Math.floor(elapsedMs / msPerRegen);
-          const newEnergy = Math.min(energyMax, energy + ticks);
-          // Avanzamos el reloj solo la cantidad de ticks que ocurrieron, para no perder los segundos sobrantes.
-          const nextTickAt = lastEnergyTickAt + (ticks * msPerRegen);
-
-          return {
-            currencies: {
-              ...state.currencies,
-              energy: newEnergy,
-              lastEnergyTickAt: nextTickAt,
-            }
-          };
+          return state;
         }),
 
       equipItem: (creatureId, equipmentId) =>
@@ -679,6 +695,9 @@ export const useGameStore = create<GameState>()(
       },
 
       markInventorySeen: () => set({ hasUnseenInventory: false }),
+      markCampaignSeen: () => set({ hasUnseenCampaign: false }),
+      markTamerSeen: () => set({ hasUnseenTamer: false }),
+      joinGuildLocally: (guildData) => set({ guild: guildData }),
 
       consumeItem: (itemId, quantity = 1) => {
         const { ownedItems } = get();
@@ -813,6 +832,38 @@ export const useGameStore = create<GameState>()(
             highestStageCleared: Math.max(state.dungeon.highestStageCleared, stageNumber),
           },
         })),
+
+      claimGift: (giftId) =>
+        set((state) => {
+          const gift = state.gifts.find((g) => g.id === giftId);
+          if (!gift) return state;
+          
+          let newItems = [...state.ownedItems];
+          if (gift.type === "item" && gift.itemId) {
+            const existing = newItems.find((i) => i.itemId === gift.itemId);
+            if (existing) {
+              existing.quantity += gift.quantity;
+            } else {
+              newItems.push({ itemId: gift.itemId, quantity: gift.quantity });
+            }
+          }
+          
+          let newCreatures = [...state.creatures];
+          if (gift.type === "creature" && gift.creatureId) {
+            const existing = newCreatures.find((c) => c.id === gift.creatureId);
+            if (existing) {
+              existing.copies += gift.quantity;
+            } else {
+              // Usually handled via grantCreature, but for now we just handle items
+            }
+          }
+          
+          return {
+            gifts: state.gifts.filter((g) => g.id !== giftId),
+            ownedItems: newItems,
+            creatures: newCreatures
+          };
+        }),
 
       claimTask: (taskId) =>
         set((state) => {
