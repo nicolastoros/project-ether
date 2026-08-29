@@ -382,7 +382,6 @@ export const useGameStore = create<GameState>()(
       survivalHighestStageCleared: 0,
       hasHydrated: false,
       hasReceivedLaunchTicketsV3: false,
-      pendingGuildInvitesCount: 0,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
