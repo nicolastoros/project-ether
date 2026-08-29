@@ -53,6 +53,7 @@ export function Sidebar() {
   const hasUnseenInventory = useGameStore((s) => s.hasUnseenInventory);
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
+  const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
   const router = useRouter();
 
   return (
@@ -100,7 +101,7 @@ export function Sidebar() {
                         {href === "/inventory" && hasUnseenInventory && (
                           <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-white" />
                         )}
-                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign)) && (
+                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0)) && (
                           <NewBadge className="-right-2 -top-2" />
                         )}
                       </span>

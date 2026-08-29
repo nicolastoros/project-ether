@@ -20,7 +20,8 @@ import {
   createGuildInvite,
   getGuildInvites,
   resolveGuildInvite,
-  getUserByUsername
+  getUserByUsername,
+  searchUsernamesOnly
 } from "@/lib/db/bigquery";
 
 export async function createGuildAction(name: string, description: string, avatarKey: string) {
@@ -184,4 +185,12 @@ export async function respondToInviteAction(inviteId: string, accept: boolean) {
     }
   }
   revalidatePath("/");
+}
+
+export async function searchUsersAction(query: string) {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+  if (!query || query.trim().length < 2) return [];
+  
+  return await searchUsernamesOnly(query.trim());
 }

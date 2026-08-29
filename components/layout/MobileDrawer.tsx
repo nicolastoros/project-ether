@@ -18,6 +18,7 @@ export function MobileDrawer() {
   const logout = useGameStore((s) => s.logout);
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
+  const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
   const router = useRouter();
 
   return (
@@ -72,7 +73,7 @@ export function MobileDrawer() {
                           >
                             <div className="relative">
                               <Icon className="h-4 w-4 shrink-0" />
-                              {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign)) && (
+                              {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0)) && (
                                 <NewBadge className="-right-2 -top-2" />
                               )}
                             </div>

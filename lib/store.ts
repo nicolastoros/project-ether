@@ -175,6 +175,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       perfectStages: bundle.dungeon.perfectStages || [],
       stageStars: parseStageStars(bundle.dungeon.perfectStages || []),
     },
+    pendingGuildInvitesCount: bundle.pendingGuildInvitesCount || 0,
   };
 }
 
@@ -233,6 +234,7 @@ interface GameState {
   hasUnseenInventory: boolean;
   hasUnseenCampaign: boolean;
   hasUnseenTamer: boolean;
+  pendingGuildInvitesCount: number;
   /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
   equippedTamerId: string;
   ownedTamerIds: string[];
@@ -357,6 +359,7 @@ export const useGameStore = create<GameState>()(
       hasUnseenInventory: false,
       hasUnseenCampaign: true,
       hasUnseenTamer: true,
+      pendingGuildInvitesCount: 0,
       equippedTamerId: "tamer1",
       ownedTamerIds: ["tamer1"],
       activeExpeditions: [],
@@ -379,6 +382,7 @@ export const useGameStore = create<GameState>()(
       survivalHighestStageCleared: 0,
       hasHydrated: false,
       hasReceivedLaunchTicketsV3: false,
+      pendingGuildInvitesCount: 0,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);

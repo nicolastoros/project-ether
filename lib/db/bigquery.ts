@@ -216,6 +216,7 @@ export interface AccountBundle {
     avatarKey: string;
     role: string;
   };
+  pendingGuildInvitesCount: number;
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
@@ -230,6 +231,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     tamerAvatarResult,
     expeditionsResult,
     guildResult,
+    invitesResult,
   ] = await Promise.all([
       bq().query({
         query: `
@@ -303,6 +305,13 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT COUNT(*) as count
+        FROM ${table("guild_invites")} WHERE invitee_id = @userId AND status = 'pending'
+      `,
+        params: { userId },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -316,6 +325,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const tamerAvatarRows = tamerAvatarResult[0];
   const expeditionRows = expeditionsResult[0];
   const guildRow = guildResult[0][0];
+  const pendingGuildInvitesCount = invitesResult[0][0]?.count || 0;
 
   if (userRow.is_admin) {
     const ownedIds = new Set(creatureRows.map((row: any) => row.creature_id));
@@ -459,6 +469,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           role: guildRow.role,
         }
       : undefined,
+    pendingGuildInvitesCount,
   };
 }
 
@@ -1230,4 +1241,12 @@ export async function resolveGuildInvite(inviteId: string, accept: boolean): Pro
   });
 
   return { userId: inv.invitee_id, guildId: inv.guild_id };
+}
+
+export async function searchUsernamesOnly(query: string): Promise<string[]> {
+  const [rows] = await bq().query({
+    query: `SELECT username FROM ${table("users")} WHERE LOWER(username) LIKE LOWER(@query) LIMIT 10`,
+    params: { query: `%${query}%` }
+  });
+  return rows.map((r: any) => r.username);
 }

@@ -17,7 +17,8 @@ import {
   kickMemberAction,
   leaveGuildAction,
   resolveRequestAction,
-  sendGuildInviteAction
+  sendGuildInviteAction,
+  searchUsersAction
 } from "@/app/actions/guild";
 import { getDailyGuildBuff, getGuildBuffValue } from "@/lib/guildBuffs";
 
@@ -45,7 +46,25 @@ export function GuildClient() {
   
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
+  const [inviteSuggestions, setInviteSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isRequireApproval, setIsRequireApproval] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (inviteUsername.trim().length >= 2) {
+        try {
+          const res = await searchUsersAction(inviteUsername);
+          setInviteSuggestions(res);
+        } catch (err) {
+          // silently ignore
+        }
+      } else {
+        setInviteSuggestions([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [inviteUsername]);
 
   useEffect(() => {
     async function load() {
@@ -152,11 +171,13 @@ export function GuildClient() {
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteMsg("");
+    setShowSuggestions(false);
     if (!guild || !inviteUsername.trim()) return;
     try {
       await sendGuildInviteAction(guild.id, inviteUsername);
       setInviteMsg("Invite sent!");
       setInviteUsername("");
+      setInviteSuggestions([]);
     } catch (err: any) {
       setInviteMsg(err.message || "Failed to send invite");
     }
@@ -351,14 +372,37 @@ export function GuildClient() {
               </div>
 
               <h3 className="font-arcade text-sm text-gold mt-6 mb-4 flex items-center gap-2"><UserPlus className="h-4 w-4"/> Invite Player</h3>
-              <form onSubmit={handleSendInvite} className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={inviteUsername} 
-                  onChange={e => setInviteUsername(e.target.value)} 
-                  placeholder="Username" 
-                  className="flex-1 bg-white shadow-sm border border-arcade-border rounded p-2 text-xs focus:outline-none focus:border-gold"
-                />
+              <form onSubmit={handleSendInvite} className="flex gap-2 relative">
+                <div className="flex-1 relative">
+                  <input 
+                    type="text" 
+                    value={inviteUsername} 
+                    onChange={e => {
+                      setInviteUsername(e.target.value);
+                      setShowSuggestions(true);
+                    }} 
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    placeholder="Username" 
+                    className="w-full bg-white shadow-sm border border-arcade-border rounded p-2 text-xs focus:outline-none focus:border-gold"
+                  />
+                  {showSuggestions && inviteSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-arcade-border rounded shadow-lg z-10 max-h-40 overflow-y-auto">
+                      {inviteSuggestions.map((s, idx) => (
+                        <div 
+                          key={idx} 
+                          className="px-3 py-2 text-xs hover:bg-arcade-panel-light cursor-pointer text-zinc-700 font-semibold"
+                          onClick={() => {
+                            setInviteUsername(s);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <PixelButton variant="gold" size="sm" type="submit">Invite</PixelButton>
               </form>
               {inviteMsg && <p className="text-[10px] text-neon mt-2">{inviteMsg}</p>}
