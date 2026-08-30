@@ -264,6 +264,7 @@ interface GameState {
   hasReceivedGiftsV7: boolean;
   hasReceivedGiftsV8: boolean;
   hasReceivedGiftsV9: boolean;
+  hasReceivedGiftsV10: boolean;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -417,6 +418,7 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV7: false,
       hasReceivedGiftsV8: false,
       hasReceivedGiftsV9: false,
+      hasReceivedGiftsV10: false,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);

@@ -86,6 +86,36 @@ export function GameGate({ children }: { children: ReactNode }) {
     }
   }, [hasHydrated, status]);
 
+  // Re-grant the V9 wave as a fresh V10 one: gifts are a local-only inbox (no server table of
+  // their own — see types/game.ts's Gift comment), so anyone who already claimed V9 before the
+  // item/Hidden-Potential persistence bugs were fixed may have "claimed" it locally (removing it
+  // from their inbox) without the items ever actually landing in BigQuery. hasReceivedGiftsV10
+  // defaults to false for every account regardless of their V9 status, so this reaches everyone —
+  // new and existing — once, and this time the claim will actually stick.
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated") return;
+    const store = useGameStore.getState();
+    if (!store.hasReceivedGiftsV10) {
+      const newGifts: Gift[] = [];
+      const now = Date.now();
+
+      newGifts.push({ id: `gift-v10-leg-${now}`, type: "item", itemId: "it-legendary-ticket", quantity: 20, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+      newGifts.push({ id: `gift-v10-myth-${now}`, type: "item", itemId: "it-mythic-ticket", quantity: 20, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+
+      const elements = ["fire", "water", "nature", "light", "dark", "electric", "neutral"];
+      for (const el of elements) {
+        newGifts.push({ id: `gift-v10-orb-sm-${el}-${now}`, type: "item", itemId: `it-orb-small-${el}`, quantity: 100, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+        newGifts.push({ id: `gift-v10-orb-md-${el}-${now}`, type: "item", itemId: `it-orb-medium-${el}`, quantity: 50, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+        newGifts.push({ id: `gift-v10-orb-lg-${el}-${now}`, type: "item", itemId: `it-orb-large-${el}`, quantity: 25, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+      }
+
+      useGameStore.setState((s) => ({
+        gifts: [...s.gifts, ...newGifts],
+        hasReceivedGiftsV10: true
+      }));
+    }
+  }, [hasHydrated, status]);
+
   if (!hasHydrated || status === "loading" || status === "unauthenticated") {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-arcade-bg">
