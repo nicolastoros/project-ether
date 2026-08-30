@@ -51,6 +51,14 @@ async function run() {
   } catch (err) {
     console.error("Error creating raid_bosses table:", err.message);
   }
+
+  try {
+    console.log("Adding potential_nodes to user_creatures...");
+    await client.query(`ALTER TABLE \`${PROJECT_ID}.${DATASET}.user_creatures\` ADD COLUMN IF NOT EXISTS potential_nodes STRING;`);
+    console.log("potential_nodes added successfully.");
+  } catch (err) {
+    console.error("Error adding potential_nodes:", err.message);
+  }
 }
 
 run();

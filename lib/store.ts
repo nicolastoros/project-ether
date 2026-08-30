@@ -29,6 +29,7 @@ import {
   TAMER_EQUIPMENT_CATALOG,
 } from "@/lib/gameData";
 import { partyPower } from "@/lib/power";
+import { getPotentialBonuses } from "@/lib/hiddenPotential";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -54,19 +55,22 @@ function applyExpGain(creature: Creature, gained: number): Creature {
   }
 
   const base = STARTER_CREATURES.find((c) => c.id === creature.id);
+  const pot = getPotentialBonuses(creature.potentialNodes || []);
+
   const baseStats = base
     ? {
-        hp: base.baseStats.hp + 8 * (level - 1),
-        atk: base.baseStats.atk + 3 * (level - 1),
-        def: base.baseStats.def + 2 * (level - 1),
-        spd: base.baseStats.spd + 1 * (level - 1),
+        hp: base.baseStats.hp + 8 * (level - 1) + pot.hp,
+        atk: base.baseStats.atk + 3 * (level - 1) + pot.atk,
+        def: base.baseStats.def + 2 * (level - 1) + pot.def,
+        spd: base.baseStats.spd + 1 * (level - 1) + pot.spd,
       }
-    : creature.baseStats;
+    : {
+        hp: creature.baseStats.hp + pot.hp,
+        atk: creature.baseStats.atk + pot.atk,
+        def: creature.baseStats.def + pot.def,
+        spd: creature.baseStats.spd + pot.spd,
+      };
 
-  // tickBoxExp's per-second gains are fractional (BOX_EXP_PER_SECOND * elapsed seconds) — round
-  // here so the persisted value always stays a whole number. BigQuery's sync query types
-  // user_creatures.exp as INT64 and rejects a fractional value outright, silently breaking that
-  // creature's progress sync (discovered via a real 400 from BigQuery: "Bad int64 value: 275.9705").
   return { ...creature, level, exp: Math.round(exp), expToNextLevel, baseStats };
 }
 
@@ -99,19 +103,22 @@ function bundleToStateFields(bundle: AccountBundle) {
     .map((owned): Creature | null => {
       const base = creatureCatalogById.get(owned.creatureId);
       if (!base) return null;
+      const pot = getPotentialBonuses(owned.potentialNodes || []);
       return {
         ...base,
         level: owned.level,
         exp: owned.exp,
         expToNextLevel: owned.expToNextLevel,
         baseStats: {
-          hp: base.baseStats.hp + 8 * (owned.level - 1),
-          atk: base.baseStats.atk + 3 * (owned.level - 1),
-          def: base.baseStats.def + 2 * (owned.level - 1),
-          spd: base.baseStats.spd + 1 * (owned.level - 1),
+          hp: base.baseStats.hp + 8 * (owned.level - 1) + pot.hp,
+          atk: base.baseStats.atk + 3 * (owned.level - 1) + pot.atk,
+          def: base.baseStats.def + 2 * (owned.level - 1) + pot.def,
+          spd: base.baseStats.spd + 1 * (owned.level - 1) + pot.spd,
         },
         equipment: {},
         copies: owned.copies,
+        superAttackLevel: owned.superAttackLevel,
+        potentialNodes: owned.potentialNodes || [],
       };
     })
     .filter((c): c is Creature => c !== null);
@@ -619,15 +626,19 @@ export const useGameStore = create<GameState>()(
           success = true;
           return {
             ownedItems: nextItems,
-            creatures: state.creatures.map(cr =>
-              cr.id === creatureId
-                ? {
+            creatures: state.creatures.map((cr) => {
+              if (cr.id === creatureId) {
+                return applyExpGain(
+                  {
                     ...cr,
                     copies: consumesDupe ? cr.copies - 1 : cr.copies,
-                    potentialNodes: [...cr.potentialNodes, nodeId]
-                  }
-                : cr
-            )
+                    potentialNodes: [...cr.potentialNodes, nodeId],
+                  },
+                  0
+                );
+              }
+              return cr;
+            }),
           };
         });
         return success;

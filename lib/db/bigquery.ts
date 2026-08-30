@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { BigQuery } from "@google-cloud/bigquery";
 import { STARTER_CREATURES } from "@/lib/gameData";
+import { getPotentialBonuses } from "@/lib/hiddenPotential";
 
 const PROJECT_ID = process.env.BIGQUERY_PROJECT_ID ?? "project-scrappy-intelic";
 const DATASET = process.env.BIGQUERY_DATASET ?? "project_ether";
@@ -194,6 +195,8 @@ export interface AccountBundle {
     isInHubTeam: boolean;
     partySlot: number | null;
     copies: number;
+    superAttackLevel: number;
+    potentialNodes: string[];
   }[];
   equipment: {
     equipmentId: string;
@@ -541,12 +544,13 @@ export async function syncPlayerProgress(
   if (opts.creatures.length > 0) {
     const creaturesWithStats = opts.creatures.map((c) => {
       const base = STARTER_CREATURES.find((sc) => sc.id === c.creatureId);
+      const pot = getPotentialBonuses(c.potentialNodes || []);
       return {
         ...c,
-        hp: base?.baseStats.hp ?? 500,
-        atk: base?.baseStats.atk ?? 100,
-        def: base?.baseStats.def ?? 50,
-        spd: base?.baseStats.spd ?? 100,
+        hp: (base?.baseStats.hp ?? 500) + 8 * (c.level - 1) + pot.hp,
+        atk: (base?.baseStats.atk ?? 100) + 3 * (c.level - 1) + pot.atk,
+        def: (base?.baseStats.def ?? 50) + 2 * (c.level - 1) + pot.def,
+        spd: (base?.baseStats.spd ?? 100) + 1 * (c.level - 1) + pot.spd,
       };
     });
 
