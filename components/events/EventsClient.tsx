@@ -109,7 +109,6 @@ export function EventsClient() {
                   <Zap className="h-3 w-3" /> {diff.staminaCost}
                 </span>
                 <PixelButton
-                  variant="primary"
                   className="px-6 py-2 text-[10px]"
                   disabled={attemptsLeft <= 0}
                   onClick={() => handleStart(selectedEvent, diff)}
