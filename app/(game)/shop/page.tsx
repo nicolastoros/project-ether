@@ -19,6 +19,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
+import { Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tab = "buy" | "sell";
@@ -64,25 +65,45 @@ export default function ShopPage() {
   const sellItem = useGameStore((s) => s.sellItem);
   const [tab, setTab] = useState<Tab>("buy");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [buyQuantities, setBuyQuantities] = useState<Record<string, number>>({});
+  const [sellQuantities, setSellQuantities] = useState<Record<string, number>>({});
+
+  const getBuyQuantity = (id: string) => buyQuantities[id] || 1;
+  const getSellQuantity = (id: string) => sellQuantities[id] || 1;
+
+  const updateBuyQuantity = (id: string, delta: number) => {
+    setBuyQuantities((prev) => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) + delta) }));
+  };
+
+  const updateSellQuantity = (id: string, delta: number, max: number) => {
+    setSellQuantities((prev) => {
+      const next = Math.max(1, (prev[id] || 1) + delta);
+      return { ...prev, [id]: Math.min(next, max) };
+    });
+  };
 
   function handleBuy(listing: ShopListing) {
+    const quantity = listing.grants.kind === "tamer" ? 1 : getBuyQuantity(listing.id);
     setBusyId(listing.id);
-    const bought = buyListing(listing.id);
+    const bought = buyListing(listing.id, quantity);
     if (bought) {
-      if (listing.grants.kind === "item") grantItemOnServer(listing.grants.itemId, 1);
-      else if (listing.grants.kind === "creature") grantCreatureOnServer(listing.grants.creatureId);
+      if (listing.grants.kind === "item") grantItemOnServer(listing.grants.itemId, (listing.grants.amount ?? 1) * quantity);
+      else if (listing.grants.kind === "creature") grantCreatureOnServer(listing.grants.creatureId, quantity);
       else grantTamerAvatarOnServer(listing.grants.tamerId);
       syncProgressToServer();
+      setBuyQuantities((prev) => ({ ...prev, [listing.id]: 1 }));
     }
     setBusyId(null);
   }
 
   function handleSell(itemId: string) {
+    const quantity = getSellQuantity(itemId);
     setBusyId(itemId);
-    const sold = sellItem(itemId, 1);
+    const sold = sellItem(itemId, quantity);
     if (sold) {
-      consumeItemOnServer(itemId, 1);
+      consumeItemOnServer(itemId, quantity);
       syncProgressToServer();
+      setSellQuantities((prev) => ({ ...prev, [itemId]: 1 }));
     }
     setBusyId(null);
   }
@@ -123,8 +144,9 @@ export default function ShopPage() {
       {tab === "buy" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {SHOP_LISTINGS.map((listing) => {
-            const gold = listing.price.gold ?? 0;
-            const gems = listing.price.gems ?? 0;
+            const quantity = listing.grants.kind === "tamer" ? 1 : getBuyQuantity(listing.id);
+            const gold = (listing.price.gold ?? 0) * quantity;
+            const gems = (listing.price.gems ?? 0) * quantity;
             const affordable = currencies.gold >= gold && currencies.gems >= gems;
             return (
               <GlowPanel key={listing.id} accent="none" className="flex flex-col items-center gap-1.5 p-3 text-center">
@@ -151,14 +173,32 @@ export default function ShopPage() {
                     </>
                   )}
                 </span>
+                {listing.grants.kind !== "tamer" && (
+                  <div className="flex w-full items-center justify-between rounded-md border border-arcade-border bg-arcade-panel-dark overflow-hidden">
+                    <button
+                      onClick={() => updateBuyQuantity(listing.id, -1)}
+                      className="px-2 py-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+                      disabled={quantity <= 1}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="w-6 text-center font-mono text-[10px] text-zinc-300">{quantity}</span>
+                    <button
+                      onClick={() => updateBuyQuantity(listing.id, 1)}
+                      className="px-2 py-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
                 <PixelButton
                   size="sm"
                   variant="gold"
-                  className="w-full"
+                  className="w-full mt-1"
                   disabled={!affordable || busyId === listing.id}
                   onClick={() => handleBuy(listing)}
                 >
-                  Buy
+                  Buy {listing.grants.kind !== "tamer" ? quantity : ""}
                 </PixelButton>
               </GlowPanel>
             );
@@ -172,6 +212,9 @@ export default function ShopPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {sellableItems.map((item) => {
             const owned = ownedQuantityByItemId.get(item.id) ?? 0;
+            const maxQuantity = owned;
+            const quantity = Math.min(getSellQuantity(item.id), Math.max(1, owned));
+            const gold = (item.sellPriceGold ?? 0) * quantity;
             return (
               <GlowPanel key={item.id} accent="none" className="flex flex-col items-center gap-1.5 p-3 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light">
@@ -182,16 +225,35 @@ export default function ShopPage() {
                   ×{owned} owned
                 </span>
                 <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-foreground">
-                  <GoldCoinIcon className="h-3 w-3" /> {item.sellPriceGold}
+                  <GoldCoinIcon className="h-3 w-3" /> {gold}
                 </span>
+
+                <div className="flex w-full items-center justify-between rounded-md border border-arcade-border bg-arcade-panel-dark overflow-hidden mt-1">
+                  <button
+                    onClick={() => updateSellQuantity(item.id, -1, maxQuantity)}
+                    className="px-2 py-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+                    disabled={quantity <= 1}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="w-6 text-center font-mono text-[10px] text-zinc-300">{quantity}</span>
+                  <button
+                    onClick={() => updateSellQuantity(item.id, 1, maxQuantity)}
+                    className="px-2 py-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+                    disabled={quantity >= maxQuantity || maxQuantity === 0}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+
                 <PixelButton
                   size="sm"
                   variant="ghost"
-                  className="w-full"
+                  className="w-full mt-1"
                   disabled={owned === 0 || busyId === item.id}
                   onClick={() => handleSell(item.id)}
                 >
-                  Sell 1
+                  Sell {quantity}
                 </PixelButton>
               </GlowPanel>
             );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import type { Creature } from "@/types/game";
 import { ELEMENT_ICON } from "@/lib/elementVisuals";
+import { POTENTIAL_TREE } from "@/lib/hiddenPotential";
 import { cn } from "@/lib/utils";
 
 const ROTATION_ORDER = [
@@ -64,43 +65,82 @@ interface CreatureSpriteProps {
   spin?: boolean;
   /** Static facing direction when not spinning. Defaults to "south". */
   direction?: Direction;
+  /** Name of the animation to play (e.g. "Holy Judgment"). Defaults to "stand_animation" if animated. */
+  activeAnimation?: string;
 }
 
-export function CreatureSprite({ creature, className, spin = false, direction: fixedDirection = "south" }: CreatureSpriteProps) {
+export function CreatureSprite({ creature, className, spin = false, direction: fixedDirection = "south", activeAnimation }: CreatureSpriteProps) {
   const [frameIndex, setFrameIndex] = useState(0);
-  const folder = creature.spriteFolder;
+
+  const animName = activeAnimation 
+    ? activeAnimation.replace("Crimson Exterminion", "Crimson_Exterminion") 
+    : "stand_animation";
+
+  const folder = creature.spriteFolder?.replace("stand_animation", animName);
+  
+  const frameCount = typeof creature.animationFrames === "object" 
+    ? creature.animationFrames[animName] 
+    : creature.animationFrames;
+    
+  const isAnimated = frameCount != null && frameCount > 0;
   const isMythic = creature.rarity === "Mythic";
   const isLegendary = creature.rarity === "LR";
 
   // Warm the browser cache for every frame so the spin loop never flickers on first pass.
   useEffect(() => {
-    if (!spin || !folder) return;
-    const images = ROTATION_ORDER.map((direction) => {
-      const img = new window.Image();
-      img.src = `${folder}/${direction}.png`;
-      return img;
-    });
+    if (!folder) return;
+    
+    let images: HTMLImageElement[] = [];
+    if (isAnimated) {
+      images = Array.from({ length: frameCount! }).map((_, i) => {
+        const img = new window.Image();
+        img.src = `${folder}/frame_${i.toString().padStart(3, '0')}.png`;
+        return img;
+      });
+    } else if (spin) {
+      images = ROTATION_ORDER.map((direction) => {
+        const img = new window.Image();
+        img.src = `${folder}/${direction}.png`;
+        return img;
+      });
+    }
+
     return () => {
       images.forEach((img) => {
         img.src = "";
       });
     };
-  }, [spin, folder]);
+  }, [spin, folder, isAnimated, creature.animationFrames]);
 
   useEffect(() => {
-    if (!spin || !folder) return;
-    const id = setInterval(() => {
-      setFrameIndex((i) => (i + 1) % ROTATION_ORDER.length);
-    }, ROTATION_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [spin, folder]);
+    setFrameIndex(0); // Reset animation frame when animation changes
+  }, [animName]);
 
-  const direction = spin ? ROTATION_ORDER[frameIndex] : fixedDirection;
+  useEffect(() => {
+    if (!folder) return;
+    
+    if (isAnimated) {
+      const id = setInterval(() => {
+        setFrameIndex((i) => (i + 1) % frameCount!);
+      }, 120); // 120ms per frame for smooth animation
+      return () => clearInterval(id);
+    } else if (spin) {
+      const id = setInterval(() => {
+        setFrameIndex((i) => (i + 1) % ROTATION_ORDER.length);
+      }, ROTATION_INTERVAL_MS);
+      return () => clearInterval(id);
+    }
+  }, [spin, folder, isAnimated, frameCount]);
+
+  const direction = spin ? ROTATION_ORDER[frameIndex % ROTATION_ORDER.length] : fixedDirection;
+  const imgSrc = isAnimated 
+    ? `${folder}/frame_${frameIndex.toString().padStart(3, '0')}.png`
+    : `${folder}/${direction}.png`;
 
   const content = folder ? (
     // eslint-disable-next-line @next/next/no-img-element -- tiny local pixel-art sprite, cycled on an interval
     <img
-      src={`${folder}/${direction}.png`}
+      src={imgSrc}
       alt={creature.name}
       className="h-full w-full object-contain"
       style={{ imageRendering: "pixelated" }}
@@ -112,8 +152,36 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
     })()
   );
 
+  const unlocked = creature.potentialNodes || [];
+  const unlockedNodesCount = unlocked.length;
+  const fullBranchesCount = ["tl-adv3", "tr-adv3", "bl-adv3", "br-adv3"].filter(id => unlocked.includes(id)).length;
+  const freeNodesComplete = ["tl-2", "tr-2", "bl-2", "br-2"].every(id => unlocked.includes(id));
+
+  let starImage = null;
+  if (unlockedNodesCount > 0 && unlockedNodesCount === POTENTIAL_TREE.length) {
+    starImage = "/assets/objects/rainbow_star_hidden.png";
+  } else if (fullBranchesCount === 2 || fullBranchesCount === 3) {
+    starImage = "/assets/objects/gold_star_hidden.png";
+  } else if (fullBranchesCount === 1 || (freeNodesComplete && unlockedNodesCount > 0)) {
+    starImage = "/assets/objects/silver_star_hidden.png";
+  } else if (unlockedNodesCount > 0) {
+    starImage = "/assets/objects/bronce_star_hidden.png";
+  }
+
+  const starOverlay = starImage ? (
+    <div className="absolute -bottom-1 -right-1 z-20 flex h-6 w-6 items-center justify-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={starImage} alt="Hidden Potential Star" className="h-full w-full object-contain drop-shadow-md" />
+    </div>
+  ) : null;
+
   if (!isMythic && !isLegendary) {
-    return <span className={cn("relative inline-block", className)}>{content}</span>;
+    return (
+      <span className={cn("relative inline-block", className)}>
+        {content}
+        {starOverlay}
+      </span>
+    );
   }
 
   const particles = isLegendary ? LEGENDARY_AURA_PARTICLES : AURA_PARTICLES;
@@ -150,7 +218,10 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
           />
         </motion.span>
       ))}
-      <span className="relative z-10 h-full w-full">{content}</span>
+      <span className="relative z-10 h-full w-full">
+        {content}
+        {starOverlay}
+      </span>
     </span>
   );
 }

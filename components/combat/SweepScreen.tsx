@@ -20,9 +20,10 @@ interface SweepScreenProps {
   stage: DungeonStage;
   playerCreatures: Creature[];
   onExit: () => void;
+  onResweep?: () => void;
 }
 
-export function SweepScreen({ stage, playerCreatures, onExit }: SweepScreenProps) {
+export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: SweepScreenProps) {
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -134,9 +135,16 @@ export function SweepScreen({ stage, playerCreatures, onExit }: SweepScreenProps
           </div>
         </div>
 
-        <PixelButton variant="gold" className="mt-8 w-full py-4 text-lg" onClick={onExit}>
-          Continue
-        </PixelButton>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          {onResweep && (
+            <PixelButton variant="neon" className="w-full py-4 text-lg" onClick={onResweep}>
+              Re-Sweep
+            </PixelButton>
+          )}
+          <PixelButton variant="gold" className="w-full py-4 text-lg" onClick={onExit}>
+            Continue
+          </PixelButton>
+        </div>
       </GlowPanel>
     </div>
   );

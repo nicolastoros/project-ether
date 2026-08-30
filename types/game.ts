@@ -81,6 +81,12 @@ export interface Creature {
   /** Duplicate copies owned beyond the first — starts at 1. A future "overlock"/limit-break
    * system will spend these to power the creature up; for now they're just tracked and shown. */
   copies: number;
+  /** Level of the creature's first skill (Super Attack). */
+  superAttackLevel: number;
+  /** List of unlocked Hidden Potential node IDs (e.g., 'tl-1', 'tr-2'). */
+  potentialNodes: string[];
+  /** Number of frames if spriteFolder is a frame animation, or a map of animationName -> frames. */
+  animationFrames?: number | Record<string, number>;
 }
 
 export interface Currencies {
@@ -197,6 +203,7 @@ export interface UserProfile {
   expToNextLevel: number;
   avatarKey: string;
   isAdmin: boolean;
+  dailyEventAttempts?: Record<string, number>;
 }
 
 export type GachaBannerType = "Creature" | "Equipment";

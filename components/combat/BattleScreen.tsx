@@ -131,16 +131,26 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const grantItem = useGameStore((s) => s.grantItem);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
+  const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const guild = useGameStore((s) => s.guild);
 
   // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
   // unbuffed playerCreatures since only their ids matter there, not baseStats.
-  const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level, useGameStore.getState().guild?.level)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  const buffedPlayerCreatures = useMemo(() => {
+    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+
+    return playerCreatures.map((c) =>
+      applyTamerBuffs(
+        c,
+        activeGear,
+        equippedTamerId,
+        useGameStore.getState().profile.level,
+        guild?.level
+      )
+    );
+  }, [playerCreatures, tamerInventory, equippedTamerGear, equippedTamerId, guild?.level]);
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
     buildInitialCombatants(buffedPlayerCreatures, enemyCreatures)
   );
@@ -260,16 +270,27 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             setItemsDropped((prev) => [...prev, { itemId, quantity: 1 }]);
           }
         };
-        drop("it-rotten-egg", 35);
-        drop("it-chicken", 20);
-        if (Math.random() * 100 < stage.equipmentDropChance) {
-          drop(pickWeightedTrainingItemId(), 100);
-        }
 
-        if (isFirstClearOfThisStage && stage.world === 1 && stage.worldStageNumber === 8) {
-          grantItem("it-frontier-emblem", 1);
-          grantItemOnServer("it-frontier-emblem", 1);
-          setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
+        if (stage.eventRewards) {
+          // Event logic: guarantee event rewards
+          for (const reward of stage.eventRewards) {
+            grantItem(reward.itemId, reward.amount);
+            grantItemOnServer(reward.itemId, reward.amount);
+            setItemsDropped((prev) => [...prev, { itemId: reward.itemId, quantity: reward.amount }]);
+          }
+        } else {
+          // Normal campaign logic
+          drop("it-rotten-egg", 35);
+          drop("it-chicken", 20);
+          if (Math.random() * 100 < stage.equipmentDropChance) {
+            drop(pickWeightedTrainingItemId(), 100);
+          }
+
+          if (isFirstClearOfThisStage && stage.world === 1 && stage.worldStageNumber === 8) {
+            grantItem("it-frontier-emblem", 1);
+            grantItemOnServer("it-frontier-emblem", 1);
+            setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
+          }
         }
         
         if (guild) {

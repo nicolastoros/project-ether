@@ -12,6 +12,11 @@ interface SyncCreature {
   level: number;
   exp: number;
   expToNextLevel: number;
+  partySlot: number | null;
+  isInHubTeam: boolean;
+  superAttackLevel: number;
+  potentialNodes: string[];
+  copies: number;
 }
 
 function isSyncCreature(value: unknown): value is SyncCreature {
@@ -21,7 +26,12 @@ function isSyncCreature(value: unknown): value is SyncCreature {
     typeof c.creatureId === "string" &&
     typeof c.level === "number" &&
     typeof c.exp === "number" &&
-    typeof c.expToNextLevel === "number"
+    typeof c.expToNextLevel === "number" &&
+    (typeof c.partySlot === "number" || c.partySlot === null) &&
+    typeof c.isInHubTeam === "boolean" &&
+    typeof c.superAttackLevel === "number" &&
+    Array.isArray(c.potentialNodes) &&
+    typeof c.copies === "number"
   );
 }
 
@@ -56,7 +66,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies } = body as Record<
+  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies, dailyEventAttempts } = body as Record<
     string,
     unknown
   >;
@@ -79,6 +89,7 @@ export async function POST(request: Request) {
       creatures: creatures.filter(isSyncCreature),
       dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
       currencies: currencies as SyncCurrencies | undefined,
+      dailyEventAttempts: dailyEventAttempts as Record<string, number> | undefined,
     });
   } catch (err) {
     console.error("Progress sync failed", err);

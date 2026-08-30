@@ -12,13 +12,16 @@ import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/lib/store";
-import { Check, X } from "lucide-react";
+import { Check, X, Bookmark, BookmarkPlus, Trash2 } from "lucide-react";
+import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat";
+import { useState } from "react";
 
 interface TeamSelectScreenProps {
   stage: DungeonStage;
   creatures: Creature[];
   selectedIds: string[];
   onToggle: (creatureId: string) => void;
+  onSetTeam: (creatureIds: string[]) => void;
   onStart: (isSweep: boolean) => void;
 }
 
@@ -27,9 +30,43 @@ export function TeamSelectScreen({
   creatures,
   selectedIds,
   onToggle,
+  onSetTeam,
   onStart,
 }: TeamSelectScreenProps) {
   const stageStars = useGameStore((s) => s.dungeon.stageStars);
+  const teamPresets = useGameStore((s) => s.teamPresets);
+  const saveTeamPreset = useGameStore((s) => s.saveTeamPreset);
+  const deleteTeamPreset = useGameStore((s) => s.deleteTeamPreset);
+  
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const handleSavePreset = async () => {
+    if (selectedIds.length === 0) return;
+    const name = prompt("Enter a name for this formation:", `Team ${teamPresets.length + 1}`);
+    if (!name) return;
+    
+    try {
+      setIsSaving(true);
+      const id = await saveFormationAction(name, selectedIds);
+      saveTeamPreset(id, name, selectedIds);
+    } catch (err) {
+      alert("Failed to save preset.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeletePreset = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this formation?")) return;
+    try {
+      deleteTeamPreset(id);
+      await deleteFormationAction(id);
+    } catch (err) {
+      alert("Failed to delete preset.");
+    }
+  };
+
   const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
   const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
 
@@ -58,6 +95,56 @@ export function TeamSelectScreen({
           <MissionItem completed={stars.noItems} label="Win without using support items" />
           <MissionItem completed={stars.underFiveTurns} label="Win in less than 5 turns" />
         </div>
+      </GlowPanel>
+
+      <GlowPanel accent="none" className="p-3 lg:p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-arcade text-xs text-white lg:text-sm flex items-center gap-2">
+            <Bookmark className="h-4 w-4" /> Formations
+          </h2>
+          <PixelButton 
+            variant="ghost" 
+            size="sm" 
+            disabled={selectedIds.length === 0 || isSaving}
+            onClick={handleSavePreset}
+            className="text-[10px] lg:text-xs py-1 h-auto flex items-center gap-1"
+          >
+            <BookmarkPlus className="h-3 w-3" /> Save Current
+          </PixelButton>
+        </div>
+        
+        {teamPresets.length === 0 ? (
+          <p className="text-[10px] text-zinc-500 italic">No saved formations yet.</p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {teamPresets.map((preset) => (
+              <div 
+                key={preset.id}
+                onClick={() => onSetTeam(preset.creatureIds)}
+                className="flex items-center gap-2 bg-black/40 hover:bg-black/60 cursor-pointer border border-white/5 hover:border-gold/30 rounded-lg px-3 py-2 transition-all whitespace-nowrap shrink-0 group"
+              >
+                <div className="flex -space-x-2">
+                  {preset.creatureIds.map((cId) => {
+                    const c = creatures.find(x => x.id === cId);
+                    if (!c) return null;
+                    return (
+                      <div key={c.id} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-gradient-to-b border border-arcade-border", ELEMENT_GRADIENT[c.element])}>
+                        <CreatureSprite creature={c} className="h-4 w-4" />
+                      </div>
+                    );
+                  })}
+                </div>
+                <span className="text-[10px] font-semibold text-zinc-300">{preset.name}</span>
+                <button 
+                  onClick={(e) => handleDeletePreset(preset.id, e)}
+                  className="ml-1 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </GlowPanel>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5 2xl:grid-cols-4">

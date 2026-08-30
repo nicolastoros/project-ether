@@ -14,12 +14,22 @@ export function syncProgressToServer(): void {
       level: profile.level,
       exp: profile.exp,
       expToNextLevel: profile.expToNextLevel,
-      creatures: creatures.map((c) => ({
-        creatureId: c.id,
-        level: c.level,
-        exp: c.exp,
-        expToNextLevel: c.expToNextLevel,
-      })),
+      creatures: creatures.map((c) => {
+        const pIndex = useGameStore.getState().partyCreatureIds.indexOf(c.id);
+        const partySlot = pIndex >= 0 ? pIndex + 1 : null;
+        const isInHubTeam = useGameStore.getState().hubTeamIds.includes(c.id);
+        return {
+          creatureId: c.id,
+          level: c.level,
+          exp: c.exp,
+          expToNextLevel: c.expToNextLevel,
+          partySlot,
+          isInHubTeam,
+          superAttackLevel: c.superAttackLevel,
+          potentialNodes: c.potentialNodes,
+          copies: c.copies,
+        };
+      }),
       dungeonHighestStageCleared: dungeon.highestStageCleared,
       dungeonPerfectStages: serializeStageStars(dungeon.stageStars),
       currencies: { 
@@ -29,6 +39,7 @@ export function syncProgressToServer(): void {
         energy: currencies.energy,
         lastEnergyTickAt: currencies.lastEnergyTickAt 
       },
+      dailyEventAttempts: profile.dailyEventAttempts,
     }),
   }).catch(() => {
     // Non-fatal: local play continues regardless of sync success.
@@ -52,11 +63,11 @@ function serializeStageStars(stageStars: Record<string, { noDeaths: boolean; noI
 /** Persists a one-time creature grant (see lib/store.ts's grantCreature) server-side — the
  * generic sync above only UPDATEs creatures the account already owns, so a freshly-granted one
  * needs this dedicated insert-if-missing call or it silently vanishes on the next hydrate. */
-export function grantCreatureOnServer(creatureId: string): void {
+export function grantCreatureOnServer(creatureId: string, quantity = 1): void {
   fetch("/api/user/creatures/grant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ creatureId }),
+    body: JSON.stringify({ creatureId, quantity }),
   }).catch(() => {
     // Non-fatal: the local grant already happened, so play continues either way. If this
     // request fails, the grant just won't have made it to BigQuery — retrying isn't wired up.

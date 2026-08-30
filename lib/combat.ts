@@ -1,4 +1,5 @@
 import type { Creature, Skill } from "@/types/game";
+import { getPotentialBonuses } from "./hiddenPotential";
 
 export type BattleSide = "player" | "enemy";
 
@@ -10,6 +11,9 @@ export interface BattleCombatant {
   maxHp: number;
   cooldowns: Record<string, number>;
   guarding: boolean;
+  statBuffs: { multiplier: number; turnsLeft: number } | null;
+  paralyzedTurns: number;
+  telegraphedSkill: Skill | null;
   isAlive: boolean;
 }
 
@@ -27,15 +31,33 @@ export function nextLogId(): string {
   return `log-${Date.now()}-${uidCounter}`;
 }
 
+export function getEffectiveStats(creature: Creature) {
+  const potential = getPotentialBonuses(creature.potentialNodes || []);
+  return {
+    hp: creature.baseStats.hp + potential.hp,
+    atk: creature.baseStats.atk + potential.atk,
+    def: creature.baseStats.def + potential.def,
+    spd: creature.baseStats.spd + potential.spd,
+    sa: potential.sa,
+    crit: potential.crit,
+    evasion: potential.evasion,
+    heal: potential.heal,
+  };
+}
+
 export function createCombatant(creature: Creature, side: BattleSide, index: number): BattleCombatant {
+  const stats = getEffectiveStats(creature);
   return {
     uid: `${side}-${index}-${creature.id}`,
     creature,
     side,
-    currentHp: creature.baseStats.hp,
-    maxHp: creature.baseStats.hp,
+    currentHp: stats.hp,
+    maxHp: stats.hp,
     cooldowns: {},
     guarding: false,
+    statBuffs: null,
+    paralyzedTurns: 0,
+    telegraphedSkill: null,
     isAlive: true,
   };
 }
@@ -58,11 +80,33 @@ export function getSkillTargetMode(skill: Skill): SkillTargetMode {
   return "self"; // Defense skills all buff/guard the caster
 }
 
-export function calcDamage(attacker: Creature, defender: Creature, power: number, guarding: boolean): number {
-  const atkScale = attacker.baseStats.atk / 100;
-  const raw = power * atkScale;
-  const mitigated = raw - defender.baseStats.def * 0.35;
+export function calcDamage(
+  attacker: Creature, 
+  defender: Creature, 
+  power: number, 
+  guarding: boolean, 
+  isSuperAttack: boolean = false,
+  atkMultiplier: number = 1,
+  defMultiplier: number = 1
+): number {
+  const atkStats = getEffectiveStats(attacker);
+  const defStats = getEffectiveStats(defender);
+  
+  let finalPower = power;
+  if (isSuperAttack) {
+    const saLevel = attacker.superAttackLevel || 1;
+    // 5% more damage per SA level, plus flat bonus from potential
+    finalPower = power * (1 + (saLevel - 1) * 0.05) + atkStats.sa * 10;
+  }
+
+  const atkScale = (atkStats.atk * atkMultiplier) / 100;
+  const raw = finalPower * atkScale;
+  const mitigated = raw - (defStats.def * defMultiplier) * 0.35;
   let dmg = Math.max(8, Math.round(mitigated));
+  
+  const isCrit = Math.random() * 100 < atkStats.crit;
+  if (isCrit) dmg = Math.round(dmg * 1.5);
+
   const variance = 0.9 + Math.random() * 0.2;
   dmg = Math.round(dmg * variance);
   if (guarding) dmg = Math.round(dmg * 0.5);
@@ -70,7 +114,8 @@ export function calcDamage(attacker: Creature, defender: Creature, power: number
 }
 
 export function calcHeal(caster: Creature, power: number): number {
-  return Math.max(15, Math.round((power || 80) * (caster.baseStats.atk / 140)));
+  const stats = getEffectiveStats(caster);
+  return Math.max(15, Math.round((power || 80) * (stats.atk / 140))) + stats.heal * 20;
 }
 
 interface ApplyActionResult {
@@ -92,12 +137,45 @@ export function applyAction(
   const hitUids: string[] = [];
   if (!actor) return { combatants: list, logs, hitUids };
 
+  if (actor.paralyzedTurns > 0) {
+    actor.paralyzedTurns--;
+    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is paralyzed and cannot move!` });
+    return { combatants: list, logs, hitUids };
+  }
+
+  // Handle telegraphed skills for bosses
+  if (actor.side === "enemy" && actor.creature.id === "cr-crimson-paladin") {
+    if ((skill.name === "Holy Judgment" || skill.name === "Holy Guardian") && actor.telegraphedSkill?.id !== skill.id) {
+      actor.telegraphedSkill = skill;
+      const msg = skill.name === "Holy Judgment" 
+        ? `${actor.creature.name} is preparing a devastating attack!` 
+        : `${actor.creature.name} is about to grow much stronger!`;
+      logs.push({ id: nextLogId(), kind: "info", message: msg });
+      return { combatants: list, logs, hitUids };
+    }
+  }
+  if (actor.telegraphedSkill?.id === skill.id) {
+    actor.telegraphedSkill = null;
+  }
+
   const mode = getSkillTargetMode(skill);
   const opponents = list.filter((c) => c.side !== actor.side && c.isAlive);
   const allies = list.filter((c) => c.side === actor.side && c.isAlive);
 
   const strike = (target: BattleCombatant) => {
-    const dmg = calcDamage(actor.creature, target.creature, skill.power, target.guarding);
+    const isSuperAttack = skill.id === actor.creature.skills[0]?.id; // SA is skill 1
+    const targetStats = getEffectiveStats(target.creature);
+    
+    // Check Evasion
+    if (Math.random() * 100 < targetStats.evasion) {
+      logs.push({ id: nextLogId(), message: `${target.creature.name} evaded the attack!`, kind: "info" });
+      return;
+    }
+
+    const atkMult = actor.statBuffs?.multiplier ?? 1;
+    const defMult = target.statBuffs?.multiplier ?? 1;
+
+    const dmg = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
     target.currentHp = Math.max(0, target.currentHp - dmg);
     target.guarding = false;
     hitUids.push(target.uid);
@@ -106,6 +184,12 @@ export function applyAction(
       kind: "attack",
       message: `${actor.creature.name} uses ${skill.name} on ${target.creature.name} for ${dmg} damage.`,
     });
+
+    if (skill.name === "Holy Judgment" && Math.random() < 0.15) {
+      target.paralyzedTurns = 1;
+      logs.push({ id: nextLogId(), kind: "info", message: `${target.creature.name} was paralyzed by the attack!` });
+    }
+
     if (target.currentHp === 0 && target.isAlive) {
       target.isAlive = false;
       logs.push({ id: nextLogId(), kind: "defeat", message: `${target.creature.name} was defeated!` });
@@ -131,6 +215,13 @@ export function applyAction(
         message: `${actor.creature.name} uses ${skill.name}, healing ${target.creature.name} for ${heal} HP.`,
       });
     }
+  } else if (mode === "self" && skill.name === "Holy Guardian") {
+    actor.statBuffs = { multiplier: 1.5, turnsLeft: 3 };
+    logs.push({
+      id: nextLogId(),
+      kind: "guard",
+      message: `${actor.creature.name} uses ${skill.name}! Stats surged for 3 turns!`,
+    });
   } else {
     actor.guarding = true;
     logs.push({
@@ -145,6 +236,11 @@ export function applyAction(
   });
   if (skill.cooldown > 0) actor.cooldowns[skill.id] = skill.cooldown;
 
+  if (actor.statBuffs) {
+    actor.statBuffs.turnsLeft--;
+    if (actor.statBuffs.turnsLeft <= 0) actor.statBuffs = null;
+  }
+
   return { combatants: list, logs, hitUids };
 }
 
@@ -153,6 +249,10 @@ export function pickEnemyAction(
   actor: BattleCombatant,
   allCombatants: BattleCombatant[]
 ): { skill: Skill; targetUid: string | null } {
+  if (actor.telegraphedSkill) {
+    return { skill: actor.telegraphedSkill, targetUid: null };
+  }
+
   const usableSkills = actor.creature.skills.filter(
     (s) => s.type !== "Passive" && (actor.cooldowns[s.id] ?? 0) <= 0
   );

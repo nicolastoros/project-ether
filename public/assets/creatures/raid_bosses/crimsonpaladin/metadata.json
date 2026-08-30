@@ -1,0 +1,113 @@
+{
+  "group_id": "f89548ff-60fd-4df2-9bab-de49adba4f69",
+  "states": [
+    {
+      "character": {
+        "id": "e900a9c5-da75-412b-a1fb-650a5c487d3b",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a Mega-level Royal Holy Knight warrior inspired by Dukemon / Gallantmon, upright heroic battle pose, three-quarter front view.\n\nVisual Design:\n- Full-Body Armor: Polished pearl-white and silver Chrome Digizoid plate armor with gold filigree edges, segmented red waist belts, and a massive flowing crimson-red mantle/cape draped behind the shoulders.\n- Shoulders & Arms: Curved bright red-and-gold shoulder pauldrons with golden side spikes, articulated silver robotic arms, and silver gauntlets with golden wrist rings.\n- Helmet & Plume: Silver knight helmet with a crimson-red dragon crest visor, glowing blue eye slits, a sharp silver noseguard, and an extra-long, segmented metallic grey hair plume ribbon flowing dynamically into the air behind the head.\n- Torso & Legs: Sleek cybernetic torso with a black digital hazard triangle crest on the chest, gold-trimmed thigh plates, diamond-shaped red-and-gold knee armor bearing digital markings, and pointed silver sabatons with gold-plated toes.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- High-contrast metallic reflections, clean bold pixel outlines, vibrant red, white, and gold palette.\n- Centered full-body sprite isolated on a clean transparent background.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T15:45:54.949756+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "stand_animation": {
+            "south": [
+              "Idle/animations/stand_animation/south/frame_000.png",
+              "Idle/animations/stand_animation/south/frame_001.png",
+              "Idle/animations/stand_animation/south/frame_002.png",
+              "Idle/animations/stand_animation/south/frame_003.png",
+              "Idle/animations/stand_animation/south/frame_004.png",
+              "Idle/animations/stand_animation/south/frame_005.png",
+              "Idle/animations/stand_animation/south/frame_006.png",
+              "Idle/animations/stand_animation/south/frame_007.png",
+              "Idle/animations/stand_animation/south/frame_008.png"
+            ]
+          },
+          "El_caballero_levanta_con_firmeza_su_brazo_derecho": {
+            "south": [
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_000.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_001.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_002.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_003.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_004.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_005.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_006.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_007.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_008.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_009.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_010.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_011.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_012.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_013.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_014.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_015.png",
+              "Idle/animations/El_caballero_levanta_con_firmeza_su_brazo_derecho/south/frame_016.png"
+            ]
+          },
+          "Crimson_Exterminion": {
+            "south": [
+              "Idle/animations/Crimson_Exterminion/south/frame_000.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_001.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_002.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_003.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_004.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_005.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_006.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_007.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_008.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_009.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_010.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_011.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_012.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_013.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_014.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_015.png",
+              "Idle/animations/Crimson_Exterminion/south/frame_016.png"
+            ]
+          },
+          "Holy_Guardian": {
+            "south": [
+              "Idle/animations/Holy_Guardian/south/frame_000.png",
+              "Idle/animations/Holy_Guardian/south/frame_001.png",
+              "Idle/animations/Holy_Guardian/south/frame_002.png",
+              "Idle/animations/Holy_Guardian/south/frame_003.png",
+              "Idle/animations/Holy_Guardian/south/frame_004.png",
+              "Idle/animations/Holy_Guardian/south/frame_005.png",
+              "Idle/animations/Holy_Guardian/south/frame_006.png",
+              "Idle/animations/Holy_Guardian/south/frame_007.png",
+              "Idle/animations/Holy_Guardian/south/frame_008.png",
+              "Idle/animations/Holy_Guardian/south/frame_009.png",
+              "Idle/animations/Holy_Guardian/south/frame_010.png",
+              "Idle/animations/Holy_Guardian/south/frame_011.png",
+              "Idle/animations/Holy_Guardian/south/frame_012.png",
+              "Idle/animations/Holy_Guardian/south/frame_013.png",
+              "Idle/animations/Holy_Guardian/south/frame_014.png",
+              "Idle/animations/Holy_Guardian/south/frame_015.png",
+              "Idle/animations/Holy_Guardian/south/frame_016.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T23:44:07.690364"
+}

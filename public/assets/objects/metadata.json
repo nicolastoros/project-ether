@@ -1,0 +1,22 @@
+{
+  "group_id": "dedcb1c9-dfcc-464d-9c6f-33ee30db9070",
+  "objects": [
+    {
+      "id": "aec80831-45c2-4379-9539-fbd8c2a00941",
+      "name": "base",
+      "prompt": "crea una estrella de bronce, sin volumen, que pondremos como un rango de nuestras criaturas, adem\u00e1s una estrella de plata, una de oro y una arcoiris",
+      "size": {
+        "width": 48,
+        "height": 48
+      },
+      "directions": 1,
+      "view": "low top-down",
+      "rotations": {
+        "unknown": "rotations/crea_una_estrella_de_bronce_s.png"
+      },
+      "animations": {}
+    }
+  ],
+  "export_version": "1.1",
+  "export_date": "2026-08-29T14:55:26.934942"
+}

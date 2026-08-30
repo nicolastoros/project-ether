@@ -9,8 +9,10 @@ import type {
   Equipment,
   OwnedInventoryItem,
   TamerEquipment,
+  TamerSlotType,
   UserProfile,
   Gift,
+  Element,
 } from "@/types/game";
 import {
   DEFAULT_DAILY_TASKS,
@@ -124,9 +126,9 @@ function bundleToStateFields(bundle: AccountBundle) {
     .filter((e): e is Equipment => e !== null);
 
   const hubTeamIds = bundle.creatures.filter((c) => c.isInHubTeam).map((c) => c.creatureId);
-  const partyCreatureIds: (string | null)[] = [null, null, null];
+  const partyCreatureIds: (string | null)[] = [null, null];
   for (const c of bundle.creatures) {
-    if (c.partySlot && c.partySlot >= 1 && c.partySlot <= 3) {
+    if (c.partySlot && c.partySlot >= 1 && c.partySlot <= 2) {
       partyCreatureIds[c.partySlot - 1] = c.creatureId;
     }
   }
@@ -149,6 +151,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       expToNextLevel: bundle.profile.expToNextLevel,
       avatarKey: bundle.profile.avatarKey,
       isAdmin: bundle.profile.isAdmin,
+      dailyEventAttempts: bundle.profile.dailyEventAttempts || {},
     },
     currencies: {
       ...bundle.currencies,
@@ -169,6 +172,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       startedAt: e.startedAt,
       durationMs: e.durationMs,
     })),
+    teamPresets: bundle.teamPresets,
     guild: bundle.guild,
     dungeon: {
       ...bundle.dungeon,
@@ -226,6 +230,7 @@ interface GameState {
    * step yet: each slot has at most one obtainable item so far, so owning a piece means wearing
    * it. See types/game.ts's TamerEquipment comment. */
   tamerInventory: TamerEquipment[];
+  equippedTamerGear: Partial<Record<TamerSlotType, string>>;
   /** Generic collectible items (Consumable/Quest/Evolution/Skin/Crafting) — Equipment stays in
    * `inventory` above. Quantities stack per item id via OwnedInventoryItem.quantity. */
   ownedItems: OwnedInventoryItem[];
@@ -235,6 +240,7 @@ interface GameState {
   hasUnseenCampaign: boolean;
   hasUnseenTamer: boolean;
   pendingGuildInvitesCount: number;
+  teamPresets: { id: string; name: string; creatureIds: string[] }[];
   /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
   equippedTamerId: string;
   ownedTamerIds: string[];
@@ -273,8 +279,12 @@ interface GameState {
    * increments its dupe count instead (creature ids are unique per account, but duplicates are
    * tracked via Creature.copies rather than being rejected; a future "overlock" system will spend
    * them). Returns null only if creatureId isn't a real catalog id. */
-  grantCreature: (creatureId: string) => { isNew: boolean; copies: number } | null;
-
+  grantCreature: (creatureId: string, quantity?: number) => { isNew: boolean; copies: number } | null;
+  addGuildExp: (exp: number) => void;
+  trainSuperAttack: (creatureId: string) => boolean;
+  unlockPotentialNode: (creatureId: string, nodeId: string, orbCost: { small: number; medium: number; large: number; element: Element }, consumesDupe: boolean) => boolean;
+  saveTeamPreset: (id: string, name: string, creatureIds: string[]) => void;
+  deleteTeamPreset: (id: string) => void;
   addGold: (amount: number) => void;
   spendGold: (amount: number) => void;
   addGems: (amount: number) => void;
@@ -288,6 +298,9 @@ interface GameState {
   equipItem: (creatureId: string, equipmentId: string) => void;
   unequipItem: (creatureId: string, equipmentId: string) => void;
   enhanceEquipment: (equipmentId: string) => void;
+
+  equipTamerGear: (itemId: string) => void;
+  unequipTamerGear: (slot: TamerSlotType) => void;
 
   /** Adds a Tamer gear piece if not already owned — a no-op (returns false) if it's already
    * owned, since there's nothing to stack (unlike Creature.copies). */
@@ -309,8 +322,8 @@ interface GameState {
   consumeItem: (itemId: string, quantity?: number) => boolean;
   /** Sells `quantity` of an item with a sellPriceGold set — false if not sellable or not owned. */
   sellItem: (itemId: string, quantity?: number) => boolean;
-  /** Buys one SHOP_LISTINGS entry — false if unaffordable or the listing id is unknown. */
-  buyListing: (listingId: string) => boolean;
+  /** Buys a SHOP_LISTINGS entry in a specific quantity — false if unaffordable or the listing id is unknown. */
+  buyListing: (listingId: string, quantity?: number) => boolean;
 
   /** Sends up to 6 owned, not-already-busy creatures on an expedition — null if the def id is
    * invalid, no creatures were given, or any are already on another expedition. */
@@ -333,6 +346,7 @@ interface GameState {
   clearDungeonStage: (stageNumber: number) => void;
 
   claimTask: (taskId: string) => void;
+  consumeEventAttempt: (eventId: string) => boolean;
 }
 
 export const useGameStore = create<GameState>()(
@@ -350,16 +364,18 @@ export const useGameStore = create<GameState>()(
       },
       creatures: STARTER_CREATURES,
       activeCreatureId: STARTER_CREATURES[0].id,
-      partyCreatureIds: STARTER_CREATURES.slice(0, 3).map((c) => c.id),
+      partyCreatureIds: STARTER_CREATURES.slice(0, 2).map((c) => c.id),
       hubTeamIds: STARTER_CREATURES.slice(0, HUB_TEAM_SIZE).map((c) => c.id),
       lastExpTickAt: Date.now(),
       inventory: STARTER_EQUIPMENT,
       tamerInventory: [],
+      equippedTamerGear: {},
       ownedItems: [],
       hasUnseenInventory: false,
       hasUnseenCampaign: true,
       hasUnseenTamer: true,
       pendingGuildInvitesCount: 0,
+      teamPresets: [],
       equippedTamerId: "tamer1",
       ownedTamerIds: ["tamer1"],
       activeExpeditions: [],
@@ -393,6 +409,11 @@ export const useGameStore = create<GameState>()(
           // No "switch avatar" UI exists yet (only tamer1, the free default) — only ownership
           // is server-persisted for now; which one is equipped stays client-side.
           equippedTamerId: "tamer1",
+          // Auto-equip all gear on fresh login since it's client-side only
+          equippedTamerGear: fields.tamerInventory.reduce((acc, gear) => {
+            acc[gear.slot] = gear.id;
+            return acc;
+          }, {} as Partial<Record<TamerSlotType, string>>),
           // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
           // account signing in on this browser doesn't inherit the previous one's local progress.
           survivalHighestStageCleared: 0,
@@ -426,10 +447,11 @@ export const useGameStore = create<GameState>()(
           },
           creatures: [],
           activeCreatureId: "",
-          partyCreatureIds: [null, null, null],
+          partyCreatureIds: [null, null],
           hubTeamIds: [],
           inventory: [],
           tamerInventory: [],
+          equippedTamerGear: {},
           ownedItems: [],
           hasUnseenInventory: false,
           hasUnseenCampaign: true,
@@ -437,6 +459,7 @@ export const useGameStore = create<GameState>()(
           equippedTamerId: "tamer1",
           ownedTamerIds: ["tamer1"],
           activeExpeditions: [],
+          teamPresets: [],
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -526,21 +549,90 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
-      gainCreatureExp: (creatureId, amount) =>
+      gainCreatureExp: (creatureId, amount) => {
         set((state) => ({
           creatures: state.creatures.map((c) =>
             c.id === creatureId ? applyExpGain(c, amount) : c
           ),
-        })),
+        }));
+      },
+      trainSuperAttack: (creatureId) => {
+        let success = false;
+        set((state) => {
+          const c = state.creatures.find(cr => cr.id === creatureId);
+          if (!c || c.copies <= 1) return state; // Need at least 1 spare copy
+          
+          let maxLevel = 10;
+          if (c.rarity === "SSR" || c.rarity === "Mythic") maxLevel = 15;
+          if (c.rarity === "LR") maxLevel = 20;
 
-      gainProfileExp: (amount) =>
-        set((state) => ({ profile: applyProfileExpGain(state.profile, amount) })),
+          if (c.superAttackLevel >= maxLevel) return state;
 
-      grantCreature: (creatureId) => {
+          success = true;
+          return {
+            creatures: state.creatures.map(cr =>
+              cr.id === creatureId
+                ? { ...cr, copies: cr.copies - 1, superAttackLevel: cr.superAttackLevel + 1 }
+                : cr
+            )
+          };
+        });
+        return success;
+      },
+      unlockPotentialNode: (creatureId, nodeId, orbCost, consumesDupe) => {
+        let success = false;
+        set((state) => {
+          const c = state.creatures.find(cr => cr.id === creatureId);
+          if (!c) return state;
+          if (c.potentialNodes.includes(nodeId)) return state; // already unlocked
+          if (consumesDupe && c.copies <= 1) return state; // not enough dupes
+
+          // Check orbs
+          const smallOrbId = `it-orb-small-${orbCost.element.toLowerCase()}`;
+          const mediumOrbId = `it-orb-medium-${orbCost.element.toLowerCase()}`;
+          const largeOrbId = `it-orb-large-${orbCost.element.toLowerCase()}`;
+
+          const smallOrb = state.ownedItems.find(i => i.itemId === smallOrbId);
+          const mediumOrb = state.ownedItems.find(i => i.itemId === mediumOrbId);
+          const largeOrb = state.ownedItems.find(i => i.itemId === largeOrbId);
+
+          if ((smallOrb?.quantity || 0) < orbCost.small) return state;
+          if ((mediumOrb?.quantity || 0) < orbCost.medium) return state;
+          if ((largeOrb?.quantity || 0) < orbCost.large) return state;
+
+          // Deduct cost
+          const nextItems = state.ownedItems.map(item => {
+            if (item.itemId === smallOrbId) return { ...item, quantity: item.quantity - orbCost.small };
+            if (item.itemId === mediumOrbId) return { ...item, quantity: item.quantity - orbCost.medium };
+            if (item.itemId === largeOrbId) return { ...item, quantity: item.quantity - orbCost.large };
+            return item;
+          }).filter(i => i.quantity > 0);
+
+          success = true;
+          return {
+            ownedItems: nextItems,
+            creatures: state.creatures.map(cr =>
+              cr.id === creatureId
+                ? {
+                    ...cr,
+                    copies: consumesDupe ? cr.copies - 1 : cr.copies,
+                    potentialNodes: [...cr.potentialNodes, nodeId]
+                  }
+                : cr
+            )
+          };
+        });
+        return success;
+      },
+      gainProfileExp: (amount) => {
+        set((state) => ({ profile: applyProfileExpGain(state.profile, amount) }));
+      },
+
+      grantCreature: (creatureId, quantity = 1) => {
         const { creatures } = get();
         const existing = creatures.find((c) => c.id === creatureId);
         if (existing) {
-          const copies = existing.copies + 1;
+          const copies = existing.copies + quantity;
           set({
             creatures: creatures.map((c) => (c.id === creatureId ? { ...c, copies } : c)),
           });
@@ -548,9 +640,22 @@ export const useGameStore = create<GameState>()(
         }
         const template = STARTER_CREATURES.find((c) => c.id === creatureId);
         if (!template) return null;
-        set({ creatures: [...creatures, { ...template, copies: 1, level: 1, exp: 0, expToNextLevel: 100 }] });
-        return { isNew: true, copies: 1 };
+        set({ creatures: [...creatures, { ...template, copies: quantity, level: 1, exp: 0, expToNextLevel: 100, superAttackLevel: 1, potentialNodes: [] }] });
+        return { isNew: true, copies: quantity };
       },
+
+      addGuildExp: (exp: number) => set((s) => {
+        if (!s.guild) return {};
+        return { guild: { ...s.guild, exp: s.guild.exp + exp } };
+      }),
+
+      saveTeamPreset: (id, name, creatureIds) => set((s) => ({
+        teamPresets: [...s.teamPresets, { id, name, creatureIds }]
+      })),
+
+      deleteTeamPreset: (id) => set((s) => ({
+        teamPresets: s.teamPresets.filter((p) => p.id !== id)
+      })),
 
       addGold: (amount) =>
         set((state) => ({
@@ -666,6 +771,20 @@ export const useGameStore = create<GameState>()(
           ),
         })),
 
+      equipTamerGear: (itemId) => set((state) => {
+        const item = state.tamerInventory.find((t) => t.id === itemId);
+        if (!item) return state;
+        return {
+          equippedTamerGear: { ...state.equippedTamerGear, [item.slot]: item.id },
+        };
+      }),
+
+      unequipTamerGear: (slot) => set((state) => {
+        const next = { ...state.equippedTamerGear };
+        delete next[slot];
+        return { equippedTamerGear: next };
+      }),
+
       grantTamerEquipment: (itemId) => {
         const { tamerInventory } = get();
         if (tamerInventory.some((t) => t.id === itemId)) return false;
@@ -728,19 +847,23 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
-      buyListing: (listingId) => {
+      buyListing: (listingId, quantity = 1) => {
         const listing = SHOP_LISTINGS.find((l) => l.id === listingId);
-        if (!listing) return false;
+        if (!listing || quantity < 1) return false;
         const { currencies, ownedTamerIds } = get();
-        if (listing.price.gold && currencies.gold < listing.price.gold) return false;
-        if (listing.price.gems && currencies.gems < listing.price.gems) return false;
-        if (listing.price.gold) get().spendGold(listing.price.gold);
-        if (listing.price.gems) get().spendGems(listing.price.gems);
+        
+        const totalGold = (listing.price.gold ?? 0) * quantity;
+        const totalGems = (listing.price.gems ?? 0) * quantity;
+
+        if (totalGold && currencies.gold < totalGold) return false;
+        if (totalGems && currencies.gems < totalGems) return false;
+        if (totalGold) get().spendGold(totalGold);
+        if (totalGems) get().spendGems(totalGems);
 
         if (listing.grants.kind === "item") {
-          get().grantItem(listing.grants.itemId, 1);
+          get().grantItem(listing.grants.itemId, (listing.grants.amount ?? 1) * quantity);
         } else if (listing.grants.kind === "creature") {
-          get().grantCreature(listing.grants.creatureId);
+          get().grantCreature(listing.grants.creatureId, quantity);
         } else if (!ownedTamerIds.includes(listing.grants.tamerId)) {
           set({ ownedTamerIds: [...ownedTamerIds, listing.grants.tamerId] });
         }
@@ -872,6 +995,23 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
+      consumeEventAttempt: (eventId) => {
+        const state = get();
+        const currentAttempts = state.profile.dailyEventAttempts?.[eventId] || 0;
+        if (currentAttempts >= 2) return false;
+        
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            dailyEventAttempts: {
+              ...state.profile.dailyEventAttempts,
+              [eventId]: currentAttempts + 1,
+            },
+          },
+        }));
+        return true;
+      },
+
       claimTask: (taskId) =>
         set((state) => {
           const task = state.dailyTasks.find((t) => t.id === taskId);
@@ -917,20 +1057,41 @@ export const useGameStore = create<GameState>()(
         // add catalog entries back in just because they exist in code (a real account's
         // roster is whatever the player owns, not "everything we've ever designed").
         const catalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
-        merged.creatures = (persisted.creatures ?? []).map((saved) => {
-          const base = catalogById.get(saved.id);
-          return base
-            ? {
-                ...base,
-                level: saved.level,
-                exp: saved.exp,
-                expToNextLevel: saved.expToNextLevel,
-                baseStats: saved.baseStats,
-                equipment: saved.equipment,
-                copies: saved.copies,
-              }
-            : saved;
-        });
+        merged.creatures = (persisted.creatures ?? [])
+          .map((saved) => {
+            const base = catalogById.get(saved.id);
+            if (!base) return undefined;
+            const newCreature: Creature = {
+              id: base.id,
+              name: base.name,
+              element: base.element,
+              rarity: base.rarity,
+              level: 1,
+              exp: 0,
+              expToNextLevel: nextLevelExpRequirement(0, 1),
+              stage: base.stage,
+              spriteKey: base.spriteKey,
+              spriteFolder: base.spriteFolder,
+              baseStats: { ...base.baseStats },
+              skills: base.skills.map((s) => ({ ...s })),
+              equipment: {},
+              copies: 1,
+              superAttackLevel: 1,
+              potentialNodes: [],
+            };
+            return {
+              ...newCreature,
+              level: saved.level,
+              exp: saved.exp,
+              expToNextLevel: saved.expToNextLevel,
+              baseStats: saved.baseStats,
+              equipment: saved.equipment,
+              copies: saved.copies,
+              superAttackLevel: saved.superAttackLevel ?? 1,
+              potentialNodes: saved.potentialNodes ?? [],
+            };
+          })
+          .filter((c): c is Creature => c !== undefined);
 
         // Same rule as creatures above: only equipment this account actually owns is
         // kept, refreshed by id from the current content definitions. Real accounts
@@ -950,6 +1111,23 @@ export const useGameStore = create<GameState>()(
         merged.tamerInventory = (persisted.tamerInventory ?? [])
           .map((saved) => tamerCatalogById.get(saved.id))
           .filter((t): t is TamerEquipment => t !== undefined);
+
+        // Migration/loading for equippedTamerGear
+        if (persisted.equippedTamerGear === undefined) {
+          merged.equippedTamerGear = merged.tamerInventory.reduce((acc, gear) => {
+            acc[gear.slot] = gear.id;
+            return acc;
+          }, {} as Partial<Record<TamerSlotType, string>>);
+        } else {
+          const validIds = new Set(merged.tamerInventory.map((t) => t.id));
+          const loadedGear: Partial<Record<TamerSlotType, string>> = {};
+          for (const [slot, id] of Object.entries(persisted.equippedTamerGear)) {
+            if (id && validIds.has(id)) {
+              loadedGear[slot as TamerSlotType] = id;
+            }
+          }
+          merged.equippedTamerGear = loadedGear;
+        }
 
         // Defends against a pre-sealCoins localStorage snapshot, where persisted.currencies
         // exists but has no sealCoins field at all (would otherwise merge in as undefined).

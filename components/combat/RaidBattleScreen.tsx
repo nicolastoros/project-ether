@@ -53,12 +53,23 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const guild = useGameStore((s) => s.guild);
+  const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
 
-  const buffedPlayerCreatures = useMemo(
-    () => playerCreatures.map((c) => applyTamerBuffs(c, tamerInventory, equippedTamerId, useGameStore.getState().profile.level, useGameStore.getState().guild?.level)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  const buffedPlayerCreatures = useMemo(() => {
+    // Only apply stats from gear that is actually equipped
+    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+
+    return playerCreatures.map((c) =>
+      applyTamerBuffs(
+        c,
+        activeGear,
+        equippedTamerId,
+        useGameStore.getState().profile.level,
+        guild?.level
+      )
+    );
+  }, [playerCreatures, tamerInventory, equippedTamerId, equippedTamerGear, guild?.level]);
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
     buildInitialCombatants(buffedPlayerCreatures, [bossCreature])
   );
@@ -78,23 +89,13 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const [itemDropped, setItemDropped] = useState<{ itemId: string; quantity: number } | null>(null);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
+  const [activeBossAnimation, setActiveBossAnimation] = useState<string | undefined>();
 
   const actorUid = turnOrder[turnPointer];
   const actor = combatants.find((c) => c.uid === actorUid) ?? null;
   const isPlayerTurn = phase === "active" && actor?.side === "player";
 
-  function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
-    const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
-    if (skill.type === "Attack") {
-      setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-    }
-    if (hitUids.length > 0) {
-      setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-    }
-    setCombatants(next);
-    setLog((prev) => [...prev, ...logs]);
-    setPendingSkill(null);
-
+  function checkEndConditions(next: BattleCombatant[]) {
     const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
     const playersAlive = next.some((c) => c.side === "player" && c.isAlive);
 
@@ -139,6 +140,39 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     });
   }
 
+  function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
+    const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
+    
+    const isBossAction = byUid.startsWith("enemy-");
+    const currentBossNext = isBossAction ? next.find((c) => c.uid === byUid) : null;
+    const isTelegraphing = isBossAction && currentBossNext?.telegraphedSkill?.id === skill.id;
+
+    if (isBossAction && !isTelegraphing) {
+      // Play boss animation first, delay damage
+      setActiveBossAnimation(skill.name);
+      
+      setTimeout(() => {
+        setActiveBossAnimation(undefined);
+        if (skill.type === "Attack") setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+        if (hitUids.length > 0) setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
+        
+        setCombatants(next);
+        setLog((prev) => [...prev, ...logs]);
+        setPendingSkill(null);
+        checkEndConditions(next);
+      }, 1500); // Wait 1.5s for the animation to play before dealing damage
+    } else {
+      // Normal immediate resolve
+      if (skill.type === "Attack") setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+      if (hitUids.length > 0) setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
+      
+      setCombatants(next);
+      setLog((prev) => [...prev, ...logs]);
+      setPendingSkill(null);
+      checkEndConditions(next);
+    }
+  }
+
   useEffect(() => {
     if (phase !== "active") return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
@@ -172,42 +206,59 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
         <p className="text-xs text-zinc-500">{boss.name} · up to 4v1</p>
       </div>
 
-      <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-4">
-        <div className="flex flex-col gap-4 sm:gap-6">
-          {players.map((c) => (
-            <CombatantCard
-              key={c.uid}
-              combatant={c}
-              direction="south-east"
-              isActingTurn={c.uid === actorUid && phase === "active"}
-              isTargetable={false}
-              attackerUid={attackEvent.uid}
-              attackNonce={attackEvent.nonce}
-              hitUids={hitEvent.uids}
-              hitNonce={hitEvent.nonce}
-            />
-          ))}
-        </div>
+      <div 
+        className="relative w-full h-[420px] sm:h-[580px] overflow-hidden rounded-xl border-2 border-arcade-border shadow-[0_0_20px_rgba(255,215,0,0.15)]"
+        style={{
+          backgroundImage: "url('/assets/maps/raid_battle_1.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center bottom",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/20" /> {/* Slight darken for UI contrast */}
 
-        <div className="shrink-0 font-arcade text-[10px] uppercase tracking-widest text-zinc-500">VS</div>
-
-        <div className="flex flex-col gap-4 sm:gap-6">
+        {/* Boss Area (Top Center) */}
+        <div className="absolute top-[32%] sm:top-[25%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
           {enemies.map((c) => (
-            <CombatantCard
-              key={c.uid}
-              combatant={c}
-              direction="south-west"
-              isActingTurn={c.uid === actorUid && phase === "active"}
-              isTargetable={Boolean(pendingSkill) && c.isAlive}
-              onSelectTarget={pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined}
-              attackerUid={attackEvent.uid}
-              attackNonce={attackEvent.nonce}
-              hitUids={hitEvent.uids}
-              hitNonce={hitEvent.nonce}
-            />
+            <div key={c.uid} className="scale-125 sm:scale-150 origin-bottom transition-transform">
+              <CombatantCard
+                combatant={c}
+                direction="south"
+                activeAnimation={activeBossAnimation}
+                isActingTurn={c.uid === actorUid && phase === "active"}
+                isTargetable={Boolean(pendingSkill) && c.isAlive}
+                onSelectTarget={pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined}
+                attackerUid={attackEvent.uid}
+                attackNonce={attackEvent.nonce}
+                hitUids={hitEvent.uids}
+                hitNonce={hitEvent.nonce}
+              />
+            </div>
           ))}
         </div>
-      </GlowPanel>
+
+        {/* Players Area (Bottom Curve) */}
+        <div className="absolute bottom-0 sm:bottom-2 left-0 right-0 flex justify-center items-end gap-2 sm:gap-6 px-4 z-20">
+          {players.map((c, i) => {
+            // Stagger heights to create a faux-3D curve effect
+            const isOuter = i === 0 || i === players.length - 1;
+            const yOffset = isOuter ? "translate-y-4 sm:translate-y-8" : "translate-y-0";
+            return (
+              <div key={c.uid} className={cn("transition-transform scale-[0.80] sm:scale-100 origin-bottom", yOffset)}>
+                <CombatantCard
+                  combatant={c}
+                  direction="north"
+                  isActingTurn={c.uid === actorUid && phase === "active"}
+                  isTargetable={false}
+                  attackerUid={attackEvent.uid}
+                  attackNonce={attackEvent.nonce}
+                  hitUids={hitEvent.uids}
+                  hitNonce={hitEvent.nonce}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {isPlayerTurn && actor && (
         <GlowPanel className="p-3">

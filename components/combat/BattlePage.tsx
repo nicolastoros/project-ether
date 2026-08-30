@@ -16,7 +16,10 @@ interface BattlePageProps {
 export function BattlePage({ stage }: BattlePageProps) {
   const creatures = useGameStore((s) => s.creatures);
   const spendEnergy = useGameStore((s) => s.spendEnergy);
-  const [playerIds, setPlayerIds] = useState<string[]>([]);
+  const partyCreatureIds = useGameStore((s) => s.partyCreatureIds);
+  const [playerIds, setPlayerIds] = useState<string[]>(
+    partyCreatureIds.filter((id): id is string => Boolean(id))
+  );
   const [started, setStarted] = useState(false);
   const [isSweep, setIsSweep] = useState(false);
   const [battleKey, setBattleKey] = useState(0);
@@ -42,6 +45,7 @@ export function BattlePage({ stage }: BattlePageProps) {
             return [...prev, id];
           })
         }
+        onSetTeam={(ids) => setPlayerIds(ids)}
         onStart={(sweep) => {
           if (!spendEnergy(stage.staminaCost)) {
             alert("Not enough stamina!");
@@ -65,13 +69,21 @@ export function BattlePage({ stage }: BattlePageProps) {
   if (isSweep) {
     return (
       <SweepScreen 
+        key={battleKey}
         stage={stage} 
         playerCreatures={playerCreatures} 
         onExit={() => {
           setStarted(false);
           setIsSweep(false);
-          setPlayerIds([]);
+          setPlayerIds(partyCreatureIds.filter((id): id is string => Boolean(id)));
         }} 
+        onResweep={() => {
+          if (!spendEnergy(stage.staminaCost)) {
+            alert("Not enough stamina to re-sweep!");
+            return;
+          }
+          setBattleKey((k) => k + 1);
+        }}
       />
     );
   }
@@ -85,7 +97,7 @@ export function BattlePage({ stage }: BattlePageProps) {
       onRematch={() => setBattleKey((k) => k + 1)}
       onExit={() => {
         setStarted(false);
-        setPlayerIds([]);
+        setPlayerIds(partyCreatureIds.filter((id): id is string => Boolean(id)));
       }}
     />
   );

@@ -12,6 +12,9 @@ import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn, xpPercent } from "@/lib/utils";
+import { useState } from "react";
+import { HiddenPotentialScreen } from "./HiddenPotentialScreen";
+import { SuperAttackTrainingModal } from "./SuperAttackTrainingModal";
 
 export const SKILL_TYPE_STYLES: Record<Skill["type"], string> = {
   Attack: "bg-red-500",
@@ -28,15 +31,29 @@ interface CreatureDetailModalProps {
 }
 
 export function CreatureDetailModal({
-  creature,
+  creature: propCreature,
   isActive,
   onClose,
   onSetActive,
 }: CreatureDetailModalProps) {
+  const storeCreatures = useGameStore((s) => s.creatures);
+  const creature = propCreature ? storeCreatures.find((c) => c.id === propCreature.id) || propCreature : null;
+
   const hubTeamIds = useGameStore((s) => s.hubTeamIds);
   const toggleHubTeamMember = useGameStore((s) => s.toggleHubTeamMember);
   const isHubMember = creature ? hubTeamIds.includes(creature.id) : false;
   const hubFull = !isHubMember && hubTeamIds.length >= HUB_TEAM_SIZE;
+
+  const [showPotential, setShowPotential] = useState(false);
+  const [showSA, setShowSA] = useState(false);
+
+  if (showPotential && creature) {
+    return <HiddenPotentialScreen creature={creature} onClose={() => setShowPotential(false)} />;
+  }
+
+  if (showSA && creature) {
+    return <SuperAttackTrainingModal creature={creature} onClose={() => setShowSA(false)} />;
+  }
 
   return (
     <AnimatePresence>
@@ -172,6 +189,23 @@ export function CreatureDetailModal({
                 >
                   <Star className={cn("mr-1 inline h-3.5 w-3.5", isHubMember && "fill-current")} />
                   {isHubMember ? "Remove from Team" : "Add to Team"}
+                </PixelButton>
+              </div>
+
+              <div className="mt-2 flex gap-2">
+                <PixelButton
+                  variant="gold"
+                  className="flex-1 bg-violet-600 hover:bg-violet-500 border-violet-800"
+                  onClick={() => setShowSA(true)}
+                >
+                  Train Super Attack
+                </PixelButton>
+                <PixelButton
+                  variant="gold"
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 border-amber-700"
+                  onClick={() => setShowPotential(true)}
+                >
+                  Hidden Potential
                 </PixelButton>
               </div>
             </div>

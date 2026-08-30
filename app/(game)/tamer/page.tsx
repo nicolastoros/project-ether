@@ -46,6 +46,9 @@ function formatAvatarBuffs(avatar: TamerAvatar): string[] {
 
 export default function TamerPage() {
   const tamerInventory = useGameStore((s) => s.tamerInventory);
+  const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
+  const equipTamerGear = useGameStore((s) => s.equipTamerGear);
+  const unequipTamerGear = useGameStore((s) => s.unequipTamerGear);
   const sealCoins = useGameStore((s) => s.currencies.sealCoins);
   const craftTamerEquipment = useGameStore((s) => s.craftTamerEquipment);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
@@ -106,17 +109,20 @@ export default function TamerPage() {
   let scdPercent = equippedTamer.buffs.scdPercent ?? 0;
   let ctPercent = equippedTamer.buffs.ctPercent ?? 0;
 
-  for (const gear of ownedBySlot.values()) {
-    hpPercent += gear.statBonus?.hp ?? 0;
-    atkPercent += gear.statBonus?.atk ?? 0;
-    defPercent += gear.statBonus?.def ?? 0;
-    spdPercent += gear.statBonus?.spd ?? 0;
-    dpPercent += gear.statBonus?.dp ?? 0;
-    asPercent += gear.statBonus?.as ?? 0;
-    htPercent += gear.statBonus?.ht ?? 0;
-    cdPercent += gear.statBonus?.cd ?? 0;
-    scdPercent += gear.statBonus?.scd ?? 0;
-    ctPercent += gear.statBonus?.ct ?? 0;
+  const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+  for (const gear of tamerInventory) {
+    if (equippedGearIds.has(gear.id)) {
+      hpPercent += gear.statBonus?.hp ?? 0;
+      atkPercent += gear.statBonus?.atk ?? 0;
+      defPercent += gear.statBonus?.def ?? 0;
+      spdPercent += gear.statBonus?.spd ?? 0;
+      dpPercent += gear.statBonus?.dp ?? 0;
+      asPercent += gear.statBonus?.as ?? 0;
+      htPercent += gear.statBonus?.ht ?? 0;
+      cdPercent += gear.statBonus?.cd ?? 0;
+      scdPercent += gear.statBonus?.scd ?? 0;
+      ctPercent += gear.statBonus?.ct ?? 0;
+    }
   }
 
   const finalHp = Math.round(scaledTamerHp * (1 + hpPercent / 100));
@@ -250,13 +256,14 @@ export default function TamerPage() {
           {SLOT_ORDER.map((slot) => {
             const owned = ownedBySlot.get(slot);
             const catalogItem = TAMER_EQUIPMENT_CATALOG.find((t) => t.slot === slot);
+            const isEquipped = owned && equippedTamerGear[slot] === owned.id;
 
             if (owned) {
               return (
-                <GlowPanel key={slot} accent="gold" className="flex flex-col items-center gap-2 p-3 text-center">
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
-                    <Image src={owned.icon} alt="" width={48} height={48} className="h-11 w-11 object-contain" />
-                    <EquippedBadge />
+                <GlowPanel key={slot} accent={isEquipped ? "gold" : "none"} className="flex flex-col items-center gap-2 p-3 text-center">
+                  <div className={cn("relative flex h-16 w-16 items-center justify-center rounded-xl border bg-arcade-panel-light pixel-frame", isEquipped ? "border-gold" : "border-arcade-border")}>
+                    <Image src={owned.icon} alt="" width={48} height={48} className={cn("h-11 w-11 object-contain", isEquipped ? "" : "opacity-60")} />
+                    {isEquipped && <EquippedBadge />}
                   </div>
                   <div className="min-w-0">
                     <p className="font-arcade text-xs font-bold text-foreground">{slot}</p>
@@ -268,9 +275,22 @@ export default function TamerPage() {
                   {formatTamerStatBonus(owned.statBonus) && (
                     <p className="text-[8px] font-semibold text-emerald-600">{formatTamerStatBonus(owned.statBonus)}</p>
                   )}
-                  <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600">
-                    <Check className="h-2.5 w-2.5" /> Equipped
-                  </span>
+                  {isEquipped ? (
+                    <div className="w-full mt-1">
+                      <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600 mb-1">
+                        <Check className="h-2.5 w-2.5" /> Equipped
+                      </span>
+                      <PixelButton size="sm" variant="outline" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
+                        Unequip
+                      </PixelButton>
+                    </div>
+                  ) : (
+                    <div className="w-full mt-1">
+                      <PixelButton size="sm" variant="gold" className="w-full text-[10px] h-7" onClick={() => equipTamerGear(owned.id)}>
+                        Equip
+                      </PixelButton>
+                    </div>
+                  )}
                 </GlowPanel>
               );
             }

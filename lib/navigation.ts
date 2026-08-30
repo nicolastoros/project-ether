@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Castle,
+  Calendar,
   Compass,
   Flame,
   Map,
@@ -34,6 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/hub", label: "Hub", icon: Castle },
       { href: "/campaign", label: "Campaign", icon: Map },
       { href: "/survival", label: "Survival", icon: Skull },
+      { href: "/events", label: "Events", icon: Calendar },
       { href: "/raid", label: "Raid Battle", icon: Flame },
       { href: "/expeditions", label: "Expeditions", icon: Compass },
       { href: "/gacha", label: "Summon", icon: Sparkles },
@@ -44,7 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Collection",
     items: [
       { href: "/monsters", label: "Monsters", icon: PawPrint },
-      { href: "/party", label: "Party", icon: Users },
+      { href: "/formations", label: "Formations", icon: Users },
       { href: "/inventory", label: "Inventory", icon: ShieldHalf },
       { href: "/tamer", label: "Tamer", icon: Shirt },
       { href: "/shop", label: "Shop", icon: Store },

@@ -20,6 +20,8 @@ interface CombatantCardProps {
   /** uids struck by the most recent action, plus a nonce so repeat hits re-trigger. */
   hitUids: string[];
   hitNonce: number;
+  /** Name of the active animation to play */
+  activeAnimation?: string;
   /** "sm" is used for tighter arena art (e.g. the World 1-1 stone-circle background). */
   size?: "md" | "sm";
 }
@@ -34,6 +36,7 @@ export function CombatantCard({
   attackNonce,
   hitUids,
   hitNonce,
+  activeAnimation,
   size = "md",
 }: CombatantCardProps) {
   const { creature } = combatant;
@@ -70,8 +73,17 @@ export function CombatantCard({
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className={cn("w-full", barWidth)}>
-        <ProgressBar percent={hpPercent} color="hp" label={`${combatant.currentHp}/${combatant.maxHp}`} />
+      <div className={cn("w-full flex flex-col items-center", barWidth)}>
+        <ProgressBar 
+          percent={hpPercent} 
+          color="hp" 
+          label={
+            <span className="truncate w-full flex gap-1">
+              <span className="text-gold">Lv.{creature.level}</span> <span className="text-white">{creature.name}</span>
+            </span>
+          }
+          innerText={`${combatant.currentHp}/${combatant.maxHp}`} 
+        />
       </div>
 
       <motion.button
@@ -93,6 +105,7 @@ export function CombatantCard({
           <CreatureSprite
             creature={creature}
             direction={direction}
+            activeAnimation={activeAnimation}
             className={cn(
               "h-full w-full transition-[filter]",
               combatant.isAlive
@@ -121,9 +134,6 @@ export function CombatantCard({
           </span>
         )}
       </motion.button>
-
-      <p className={cn(barWidth, "truncate text-[10px] font-semibold text-foreground")}>{creature.name}</p>
-      <p className="text-[9px] text-zinc-500">Lv.{creature.level}</p>
     </div>
   );
 }

@@ -15,37 +15,41 @@ const client = new BigQuery({ projectId: PROJECT_ID, ...(credentials && { creden
 async function run() {
   console.log("Starting DB patch...");
   
-  // 1. Reset all creatures to level 1
   try {
-    console.log("Resetting all creatures to Level 1...");
+    console.log("Creating user_formations table...");
     await client.query(`
-      UPDATE \`${PROJECT_ID}.${DATASET}.user_creatures\`
-      SET level = 1, exp = 0, exp_to_next_level = 100
-      WHERE level > 0
+      CREATE TABLE IF NOT EXISTS \`${PROJECT_ID}.${DATASET}.user_formations\` (
+        id STRING NOT NULL,
+        user_id STRING NOT NULL,
+        name STRING NOT NULL,
+        creature_ids STRING NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+      );
     `);
-    console.log("Creatures reset successfully.");
+    console.log("user_formations table created successfully.");
   } catch (err) {
-    console.error("Error resetting creatures:", err.message);
+    console.error("Error creating user_formations table:", err.message);
   }
 
-  // 2. Add secret_question and secret_answer to users
   try {
-    console.log("Adding secret_question and secret_answer to users...");
+    console.log("Creating raid_bosses table...");
     await client.query(`
-      ALTER TABLE \`${PROJECT_ID}.${DATASET}.users\`
-      ADD COLUMN IF NOT EXISTS secret_question STRING,
-      ADD COLUMN IF NOT EXISTS secret_answer STRING
+      CREATE TABLE IF NOT EXISTS \`${PROJECT_ID}.${DATASET}.raid_bosses\` (
+        id STRING NOT NULL,
+        name STRING NOT NULL,
+        level INT64 NOT NULL,
+        difficulty STRING NOT NULL,
+        hp INT64 NOT NULL,
+        atk INT64 NOT NULL,
+        def INT64 NOT NULL,
+        spd INT64 NOT NULL,
+        attacks STRING NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+      );
     `);
-    
-    await client.query(`
-      UPDATE \`${PROJECT_ID}.${DATASET}.users\`
-      SET secret_question = '¿Cuál es el código de administrador?',
-          secret_answer = 'admin123'
-      WHERE secret_question IS NULL
-    `);
-    console.log("Users table updated successfully.");
+    console.log("raid_bosses table created successfully.");
   } catch (err) {
-    console.error("Error updating users table:", err.message);
+    console.error("Error creating raid_bosses table:", err.message);
   }
 }
 

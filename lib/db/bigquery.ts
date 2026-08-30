@@ -163,6 +163,7 @@ export interface AccountBundle {
     exp: number;
     expToNextLevel: number;
     isAdmin: boolean;
+    dailyEventAttempts?: Record<string, number>;
   };
   currencies: {
     gold: number;
@@ -216,6 +217,7 @@ export interface AccountBundle {
     avatarKey: string;
     role: string;
   };
+  teamPresets: { id: string; name: string; creatureIds: string[] }[];
   pendingGuildInvitesCount: number;
 }
 
@@ -232,10 +234,11 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     expeditionsResult,
     guildResult,
     invitesResult,
+    formationsResult,
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -312,6 +315,13 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT id, name, creature_ids
+        FROM ${table("user_formations")} WHERE user_id = @userId ORDER BY created_at ASC
+      `,
+        params: { userId },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -326,6 +336,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const expeditionRows = expeditionsResult[0];
   const guildRow = guildResult[0][0];
   const pendingGuildInvitesCount = invitesResult[0][0]?.count || 0;
+  const formationRows = formationsResult[0];
 
   if (userRow.is_admin) {
     const ownedIds = new Set(creatureRows.map((row: any) => row.creature_id));
@@ -406,6 +417,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       exp: userRow.exp,
       expToNextLevel: userRow.exp_to_next_level,
       isAdmin: Boolean(userRow.is_admin),
+      dailyEventAttempts: userRow.daily_event_attempts ? JSON.parse(userRow.daily_event_attempts) : {},
     },
     currencies: currencyRow
       ? {
@@ -440,6 +452,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       isInHubTeam: row.is_in_hub_team,
       partySlot: row.party_slot ?? null,
       copies: row.copies ?? 1,
+      superAttackLevel: row.super_attack_level ?? 1,
+      potentialNodes: row.potential_nodes ? row.potential_nodes.split(",") : [],
     })),
     equipment: equipmentRows.map((row) => ({
       equipmentId: row.equipment_id,
@@ -469,6 +483,11 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           role: guildRow.role,
         }
       : undefined,
+    teamPresets: formationRows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      creatureIds: r.creature_ids ? r.creature_ids.split(",") : [],
+    })),
     pendingGuildInvitesCount,
   };
 }
@@ -479,7 +498,7 @@ export async function syncPlayerProgress(
     level: number;
     exp: number;
     expToNextLevel: number;
-    creatures: { creatureId: string; level: number; exp: number; expToNextLevel: number }[];
+    creatures: { creatureId: string; level: number; exp: number; expToNextLevel: number; partySlot: number | null; isInHubTeam: boolean; superAttackLevel: number; potentialNodes: string[]; copies: number }[];
     /** Highest Campaign stage cleared — only ever moves up (GREATEST), so an out-of-order sync
      * (e.g. two tabs) can't accidentally roll progress back. */
     dungeonHighestStageCleared?: number;
@@ -488,6 +507,7 @@ export async function syncPlayerProgress(
      * the browser, silently reverting to whatever was last written at account-creation time on
      * the next fresh hydrate. */
     currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
+    dailyEventAttempts?: Record<string, number>;
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -505,9 +525,16 @@ export async function syncPlayerProgress(
       query: `
         UPDATE ${table("users")}
         SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
+        ${opts.dailyEventAttempts ? ', daily_event_attempts = @dailyEventAttempts' : ''}
         WHERE id = @userId
       `,
-      params: { userId, level: opts.level, exp: opts.exp, expToNextLevel: opts.expToNextLevel },
+      params: { 
+        userId, 
+        level: opts.level, 
+        exp: opts.exp, 
+        expToNextLevel: opts.expToNextLevel,
+        ...(opts.dailyEventAttempts && { dailyEventAttempts: JSON.stringify(opts.dailyEventAttempts) })
+      },
     }),
   ];
 
@@ -530,12 +557,12 @@ export async function syncPlayerProgress(
           USING UNNEST(@creatures) AS source
           ON target.user_id = @userId AND target.creature_id = source.creatureId
           WHEN MATCHED THEN
-            UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel
+            UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel, party_slot = source.partySlot, is_in_hub_team = source.isInHubTeam, super_attack_level = source.superAttackLevel, potential_nodes = source.potentialNodes, copies = source.copies
           WHEN NOT MATCHED THEN
-            INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
-            VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, false, null, 1)
+            INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, super_attack_level, potential_nodes)
+            VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, source.isInHubTeam, source.partySlot, source.copies, source.superAttackLevel, source.potentialNodes)
         `,
-        params: { userId, creatures: creaturesWithStats },
+        params: { userId, creatures: creaturesWithStats.map(c => ({ ...c, potentialNodes: c.potentialNodes.join(",") })) },
         types: {
           creatures: [
             {
@@ -547,6 +574,11 @@ export async function syncPlayerProgress(
               atk: "INT64",
               def: "INT64",
               spd: "INT64",
+              partySlot: "INT64",
+              isInHubTeam: "BOOL",
+              superAttackLevel: "INT64",
+              potentialNodes: "STRING",
+              copies: "INT64",
             },
           ],
         },
@@ -612,14 +644,15 @@ export async function syncPlayerProgress(
  * account already owns and has no notion of copies at all. */
 export async function grantCreatureToUser(
   userId: string,
-  creatureId: string
+  creatureId: string,
+  quantity: number = 1
 ): Promise<{ isNew: boolean; copies: number }> {
   const [existingRows] = await bq().query({
     query: `SELECT copies FROM ${table("user_creatures")} WHERE user_id = @userId AND creature_id = @creatureId LIMIT 1`,
     params: { userId, creatureId },
   });
   if (existingRows.length > 0) {
-    const copies = (existingRows[0].copies ?? 1) + 1;
+    const copies = (existingRows[0].copies ?? 1) + quantity;
     await bq().query({
       query: `
         UPDATE ${table("user_creatures")}
@@ -638,7 +671,7 @@ export async function grantCreatureToUser(
     query: `
       INSERT INTO ${table("user_creatures")}
         (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
-      VALUES (@id, @userId, @creatureId, @level, @exp, @expToNextLevel, @hp, @atk, @def, @spd, false, NULL, 1)
+      VALUES (@id, @userId, @creatureId, @level, @exp, @expToNextLevel, @hp, @atk, @def, @spd, false, NULL, @copies)
     `,
     params: {
       id: randomUUID(),
@@ -651,9 +684,10 @@ export async function grantCreatureToUser(
       atk: base.baseStats.atk,
       def: base.baseStats.def,
       spd: base.baseStats.spd,
+      copies: quantity,
     },
   });
-  return { isNew: true, copies: 1 };
+  return { isNew: true, copies: quantity };
 }
 
 /** Adds a Tamer gear piece to the account — a no-op if already owned (each piece is unique, no
@@ -1249,4 +1283,20 @@ export async function searchUsernamesOnly(query: string): Promise<string[]> {
     params: { query: `%${query}%` }
   });
   return rows.map((r: any) => r.username);
+}
+
+export async function createUserFormation(userId: string, name: string, creatureIds: string[]) {
+  const id = randomUUID();
+  await bq().query({
+    query: `INSERT INTO ${table("user_formations")} (id, user_id, name, creature_ids) VALUES (@id, @userId, @name, @creatureIds)`,
+    params: { id, userId, name, creatureIds: creatureIds.join(",") }
+  });
+  return id;
+}
+
+export async function deleteUserFormation(id: string, userId: string) {
+  await bq().query({
+    query: `DELETE FROM ${table("user_formations")} WHERE id = @id AND user_id = @userId`,
+    params: { id, userId }
+  });
 }

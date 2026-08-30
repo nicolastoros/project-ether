@@ -43,6 +43,34 @@ function skill(
 
 export const STARTER_CREATURES: Creature[] = [
   {
+    id: "cr-crimson-paladin",
+    name: "Crimson Paladin",
+    element: "Light",
+    rarity: "Mythic",
+    level: 100,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "crimsonpaladin",
+    spriteFolder: "/assets/creatures/raid_bosses/crimsonpaladin/Idle/animations/stand_animation/south",
+    baseStats: { hp: 50000, atk: 1500, def: 800, spd: 400 },
+    skills: [
+      skill("sk-cp-1", "Crimson Exterminion", "A precise, devastating light strike on one enemy.", "Attack", 150, 0, 1),
+      skill("sk-cp-2", "Holy Guardian", "A sacred aura that buffs all stats for 3 turns.", "Defense", 0, 5, 1),
+      skill("sk-cp-3", "Holy Judgment", "A massive energy blast that hits all enemies. 15% chance to paralyze.", "Attack", 220, 4, 1),
+    ],
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    animationFrames: {
+      "stand_animation": 9,
+      "Crimson_Exterminion": 17,
+      "Holy Guardian": 17,
+      "Holy Judgment": 17,
+    },
+  },
+  {
     id: "cr-emberling",
     name: "Emberling",
     element: "Fire",
@@ -62,6 +90,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-tidalfin",
@@ -83,6 +113,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-gale-sprite",
@@ -104,6 +136,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-voltling",
@@ -125,6 +159,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-firebit",
@@ -146,6 +182,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-dragoon",
@@ -167,6 +205,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-crimson-guardian",
@@ -193,6 +233,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-silver-dragon",
@@ -216,6 +258,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-venomshade",
@@ -237,6 +281,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-tidewarden",
@@ -258,6 +304,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-emberfiend",
@@ -279,6 +327,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-thundracoil",
@@ -300,6 +350,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-starweaver",
@@ -321,6 +373,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
 
   // --- Mythic tier ---
@@ -350,6 +404,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-goldak",
@@ -372,6 +428,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-gallantknight",
@@ -394,6 +452,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-firefex",
@@ -416,6 +476,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-blitzfire",
@@ -438,6 +500,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-emperortoise",
@@ -459,6 +523,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
 
   // --- LR tier ---
@@ -487,6 +553,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-poseidon",
@@ -509,6 +577,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-magnagold",
@@ -531,6 +601,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
   {
     id: "cr-abaddo",
@@ -553,6 +625,8 @@ export const STARTER_CREATURES: Creature[] = [
     ],
     equipment: {},
     copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
   },
 ];
 
@@ -687,6 +761,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   expToNextLevel: 100,
   avatarKey: "avatar-default",
   isAdmin: false,
+  dailyEventAttempts: {},
 };
 
 // Generic collectible items — Consumable/Quest/Evolution/Skin/Crafting. Equipment (creature gear)
@@ -747,6 +822,29 @@ export const ITEM_CATALOG: InventoryItem[] = [
   { id: "it-skin-crimson-emberling", name: "Crimson Emberling Skin", category: "Skin", rarity: "Mythic", description: "An alternate look for Emberling, wreathed in deeper crimson flame." },
   { id: "it-legendary-ticket", name: "Legendary Ticket", category: "Consumable", rarity: "SSR", description: "A rare ticket used for Legendary Summons. Can summon up to Mythic rarity.", icon: "/assets/items/legendary_ticket.png" },
   { id: "it-mythic-ticket", name: "Mythic Ticket", category: "Consumable", rarity: "Mythic", description: "An ultra rare ticket used for LR Summons. Can summon up to LR rarity.", icon: "/assets/items/mythic_ticket.png" },
+  
+  // Potential Orbs
+  { id: "it-orb-small-fire", name: "Small Red Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Red potential.", icon: "/assets/objects/orbs/red_orb.png" },
+  { id: "it-orb-medium-fire", name: "Medium Red Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Red potential.", icon: "/assets/objects/orbs/red_medium_orb.png" },
+  { id: "it-orb-large-fire", name: "Large Red Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Red potential.", icon: "/assets/objects/orbs/red_large_orb.png" },
+  { id: "it-orb-small-water", name: "Small Blue Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Blue potential.", icon: "/assets/objects/orbs/blue_orb.png" },
+  { id: "it-orb-medium-water", name: "Medium Blue Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Blue potential.", icon: "/assets/objects/orbs/blue_medium_orb.png" },
+  { id: "it-orb-large-water", name: "Large Blue Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Blue potential.", icon: "/assets/objects/orbs/blue_large_orb.png" },
+  { id: "it-orb-small-nature", name: "Small Green Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Green potential.", icon: "/assets/objects/orbs/green_orb.png" },
+  { id: "it-orb-medium-nature", name: "Medium Green Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Green potential.", icon: "/assets/objects/orbs/green_medium_orb.png" },
+  { id: "it-orb-large-nature", name: "Large Green Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Green potential.", icon: "/assets/objects/orbs/green_large_orb.png" },
+  { id: "it-orb-small-light", name: "Small Yellow Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Yellow potential.", icon: "/assets/objects/orbs/yellow_orb.png" },
+  { id: "it-orb-medium-light", name: "Medium Yellow Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Yellow potential.", icon: "/assets/objects/orbs/yellow_medium_orb.png" },
+  { id: "it-orb-large-light", name: "Large Yellow Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Yellow potential.", icon: "/assets/objects/orbs/yellow_large_orb.png" },
+  { id: "it-orb-small-dark", name: "Small Purple Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Purple potential.", icon: "/assets/objects/orbs/purple_orb.png" },
+  { id: "it-orb-medium-dark", name: "Medium Purple Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Purple potential.", icon: "/assets/objects/orbs/purple_medium_orb.png" },
+  { id: "it-orb-large-dark", name: "Large Purple Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Purple potential.", icon: "/assets/objects/orbs/purple_large_orb.png" },
+  { id: "it-orb-small-electric", name: "Small Cyan Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Cyan potential.", icon: "/assets/objects/orbs/cyan_orb.png" },
+  { id: "it-orb-medium-electric", name: "Medium Cyan Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Cyan potential.", icon: "/assets/objects/orbs/cyan_medium_orb.png" },
+  { id: "it-orb-large-electric", name: "Large Cyan Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Cyan potential.", icon: "/assets/objects/orbs/cyan_large_orb.png" },
+  { id: "it-orb-small-neutral", name: "Small Gray Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Gray potential.", icon: "/assets/objects/orbs/gray_orb.png" },
+  { id: "it-orb-medium-neutral", name: "Medium Gray Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Gray potential.", icon: "/assets/objects/orbs/gray_medium_orb.png" },
+  { id: "it-orb-large-neutral", name: "Large Gray Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Gray potential.", icon: "/assets/objects/orbs/gray_large_orb.png" },
 ];
 
 // Weighted 60/30/10 draw across the three training-item tiers — shared by Campaign's stage-clear
@@ -814,7 +912,7 @@ export interface ShopListing {
   rarity: Rarity;
   price: { gold?: number; gems?: number };
   grants:
-    | { kind: "item"; itemId: string }
+    | { kind: "item"; itemId: string; amount?: number }
     | { kind: "creature"; creatureId: string }
     | { kind: "tamer"; tamerId: string };
 }
@@ -872,6 +970,27 @@ export const SHOP_LISTINGS: ShopListing[] = [
     price: { gems: 300 },
     grants: { kind: "creature", creatureId: "cr-tidewarden" },
   },
+  { id: "shop-orb-s-fire", description: "50x Small Red Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-fire", amount: 50 } },
+  { id: "shop-orb-m-fire", description: "20x Medium Red Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-fire", amount: 20 } },
+  { id: "shop-orb-l-fire", description: "5x Large Red Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-fire", amount: 5 } },
+  { id: "shop-orb-s-water", description: "50x Small Blue Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-water", amount: 50 } },
+  { id: "shop-orb-m-water", description: "20x Medium Blue Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-water", amount: 20 } },
+  { id: "shop-orb-l-water", description: "5x Large Blue Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-water", amount: 5 } },
+  { id: "shop-orb-s-nature", description: "50x Small Green Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-nature", amount: 50 } },
+  { id: "shop-orb-m-nature", description: "20x Medium Green Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-nature", amount: 20 } },
+  { id: "shop-orb-l-nature", description: "5x Large Green Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-nature", amount: 5 } },
+  { id: "shop-orb-s-light", description: "50x Small Yellow Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-light", amount: 50 } },
+  { id: "shop-orb-m-light", description: "20x Medium Yellow Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-light", amount: 20 } },
+  { id: "shop-orb-l-light", description: "5x Large Yellow Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-light", amount: 5 } },
+  { id: "shop-orb-s-dark", description: "50x Small Purple Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-dark", amount: 50 } },
+  { id: "shop-orb-m-dark", description: "20x Medium Purple Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-dark", amount: 20 } },
+  { id: "shop-orb-l-dark", description: "5x Large Purple Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-dark", amount: 5 } },
+  { id: "shop-orb-s-electric", description: "50x Small Cyan Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-electric", amount: 50 } },
+  { id: "shop-orb-m-electric", description: "20x Medium Cyan Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-electric", amount: 20 } },
+  { id: "shop-orb-l-electric", description: "5x Large Cyan Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-electric", amount: 5 } },
+  { id: "shop-orb-s-neutral", description: "50x Small Gray Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-neutral", amount: 50 } },
+  { id: "shop-orb-m-neutral", description: "20x Medium Gray Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-neutral", amount: 20 } },
+  { id: "shop-orb-l-neutral", description: "5x Large Gray Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-neutral", amount: 5 } },
 ];
 
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [
