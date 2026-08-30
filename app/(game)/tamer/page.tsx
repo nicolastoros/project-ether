@@ -280,7 +280,7 @@ export default function TamerPage() {
                       <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600 mb-1">
                         <Check className="h-2.5 w-2.5" /> Equipped
                       </span>
-                      <PixelButton size="sm" variant="outline" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
+                      <PixelButton size="sm" variant="ghost" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
                         Unequip
                       </PixelButton>
                     </div>
