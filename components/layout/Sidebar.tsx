@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import { Settings, UserCircle2, LogOut } from "lucide-react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
-import { NAV_GROUPS } from "@/lib/navigation";
+import { getNavGroups } from "@/lib/navigation";
 import { cn, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { NewBadge } from "@/components/ui/NewBadge";
@@ -55,11 +55,12 @@ export function Sidebar() {
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
   const router = useRouter();
+  const navGroups = getNavGroups(profile.isAdmin);
 
   return (
     <aside className="sidebar-surface sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex xl:w-72 2xl:w-80">
       <nav className="scrollbar-hidden relative flex-1 overflow-y-auto px-3.5 pb-4 pt-5 xl:px-4">
-        {NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.title} className="mb-6">
             <div className="mb-2 flex items-center gap-2 px-2">
               <span className="font-arcade text-[10px] uppercase tracking-wider text-slate-400 xl:text-[11px]">

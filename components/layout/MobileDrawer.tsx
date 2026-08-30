@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { useUiStore } from "@/lib/uiStore";
-import { NAV_GROUPS } from "@/lib/navigation";
+import { getNavGroups } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { NewBadge } from "@/components/ui/NewBadge";
 
@@ -19,7 +19,9 @@ export function MobileDrawer() {
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
+  const isAdmin = useGameStore((s) => s.profile.isAdmin);
   const router = useRouter();
+  const navGroups = getNavGroups(isAdmin);
 
   return (
     <AnimatePresence>
@@ -51,7 +53,7 @@ export function MobileDrawer() {
             </div>
 
             <nav className="scrollbar-hidden flex-1 overflow-y-auto px-3 py-4">
-              {NAV_GROUPS.map((group) => (
+              {navGroups.map((group) => (
                 <div key={group.title} className="mb-5">
                   <p className="mb-1.5 px-2 font-arcade text-[9px] uppercase tracking-wider text-zinc-600">
                     {group.title}

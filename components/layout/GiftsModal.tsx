@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Gift } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG, STARTER_CREATURES } from "@/lib/gameData";
-import { grantItemOnServer, grantItemsOnServer, grantCreatureOnServer } from "@/lib/syncProgress";
+import { grantItemOnServer, grantItemsOnServer, grantCreatureOnServer, claimAdminGiftOnServer } from "@/lib/syncProgress";
 import { PixelButton } from "@/components/ui/PixelButton";
 import type { Gift as GiftData } from "@/types/game";
 
@@ -51,12 +51,23 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
     return undefined;
   };
 
+  // Admin-sent gifts (see app/api/admin/gifts, merged into this local list by GameGate) are
+  // already rows in BigQuery — claiming one hits a dedicated endpoint that records the claim AND
+  // grants the reward server-side in one shot, rather than the client granting it directly like
+  // every other gift here. Recognized by id prefix rather than a field on Gift itself, to avoid
+  // widening that shared type for one source. The prefix itself is stripped back off before
+  // hitting the server, which knows the gift only by its raw admin_gifts row id.
+  const ADMIN_GIFT_PREFIX = "admin-gift-";
+  const isAdminGift = (gift: GiftData) => gift.id.startsWith(ADMIN_GIFT_PREFIX);
+
   // claimGift itself only mutates local state (same convention as grantItem/grantCreature
   // elsewhere) — without this, the claimed item/creature only ever lived in the browser and
   // silently reverted on the next refresh, since nothing ever told BigQuery about it.
   const handleClaim = (gift: GiftData) => {
     claimGift(gift.id);
-    if (gift.type === "item" && gift.itemId) {
+    if (isAdminGift(gift)) {
+      claimAdminGiftOnServer(gift.id.slice(ADMIN_GIFT_PREFIX.length));
+    } else if (gift.type === "item" && gift.itemId) {
       grantItemOnServer(gift.itemId, gift.quantity);
     } else if (gift.type === "creature" && gift.creatureId) {
       grantCreatureOnServer(gift.creatureId, gift.quantity);
@@ -66,12 +77,15 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
   // "Claim All" needs its own path rather than calling handleClaim per gift: firing one
   // grantItemOnServer request per gift concurrently (the default gift set alone is ~27 grants)
   // hits BigQuery's per-table concurrent-DML limit, and the rejected ones silently vanish — see
-  // grantItemsOnServer's comment. Batch every item grant into a single request instead.
+  // grantItemsOnServer's comment. Batch every item grant into a single request instead. Admin
+  // gifts are typically few (hand-sent, not a bulk hardcoded wave), so one claim call each is fine.
   const handleClaimAll = () => {
     const itemGrants: { itemId: string; quantity: number }[] = [];
     for (const gift of gifts) {
       claimGift(gift.id);
-      if (gift.type === "item" && gift.itemId) {
+      if (isAdminGift(gift)) {
+        claimAdminGiftOnServer(gift.id.slice(ADMIN_GIFT_PREFIX.length));
+      } else if (gift.type === "item" && gift.itemId) {
         itemGrants.push({ itemId: gift.itemId, quantity: gift.quantity });
       } else if (gift.type === "creature" && gift.creatureId) {
         grantCreatureOnServer(gift.creatureId, gift.quantity);

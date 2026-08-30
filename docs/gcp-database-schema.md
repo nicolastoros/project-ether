@@ -57,6 +57,7 @@ CREATE TABLE `project-scrappy-intelic.project_ether.users` (
   created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   is_admin           BOOL DEFAULT false,   -- added via ALTER TABLE after the fact; NEVER set automatically at registration — only granted by hand (a one-off UPDATE), since registration is public
+  is_banned          BOOL DEFAULT false,   -- added via ALTER TABLE after the fact; set from the admin panel (app/(game)/admin). Blocks new logins (auth.ts) — since sessions are stateless JWTs, an already-open session is instead force-signed-out within ~1min by GameGate's server-status poll (see lib/db/bigquery.ts's isUserBanned)
   PRIMARY KEY (id) NOT ENFORCED
 )
 CLUSTER BY username;
@@ -142,6 +143,51 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_expeditions` (
   started_at    INT64 NOT NULL,
   duration_ms   INT64 NOT NULL,
   PRIMARY KEY (id) NOT ENFORCED,
+  FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+);
+
+-- Admin panel (app/(game)/admin) — single global row (id='global'), toggled from the Maintenance
+-- tab. Read by every logged-in client via the public /api/server-status route (not admin-gated —
+-- only writing it, app/api/admin/maintenance, is); non-admin clients redirect to /maintenance
+-- while maintenance_mode is true (see components/auth/GameGate.tsx).
+CREATE TABLE `project-scrappy-intelic.project_ether.server_config` (
+  id                    STRING NOT NULL,
+  maintenance_mode      BOOL DEFAULT false,
+  maintenance_message   STRING,
+  updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (id) NOT ENFORCED
+);
+
+-- Admin-sent gifts (app/api/admin/gifts) — a real server-side inbox, unlike the hardcoded
+-- local-only gift waves in GameGate.tsx (hasReceivedGiftsV9/V10 etc., which live only in each
+-- browser's persisted Zustand state). target_user_id NULL means broadcast: every user, current
+-- AND future, sees it — matched at read time in getPendingAdminGifts, not by fanning out a row
+-- per recipient.
+CREATE TABLE `project-scrappy-intelic.project_ether.admin_gifts` (
+  id               STRING NOT NULL,
+  target_user_id   STRING,   -- NULL = broadcast to every user, current and future
+  type             STRING NOT NULL,   -- 'item' | 'creature'
+  item_id          STRING,
+  creature_id      STRING,
+  quantity         INT64 NOT NULL,
+  message          STRING,
+  created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  created_by       STRING NOT NULL,   -- users.id of the admin who sent it
+  PRIMARY KEY (id) NOT ENFORCED,
+  FOREIGN KEY (target_user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED,
+  FOREIGN KEY (created_by) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
+);
+
+-- One row per (gift, user) that has claimed it — the join with admin_gifts' NOT EXISTS is what
+-- lets a single broadcast row be claimed independently by every different user. Claiming is
+-- idempotent: lib/db/bigquery.ts's claimAdminGift MERGE-inserts here first and only grants the
+-- reward if that insert actually happened, guarding a double-click/retry against granting twice.
+CREATE TABLE `project-scrappy-intelic.project_ether.admin_gift_claims` (
+  gift_id      STRING NOT NULL,
+  user_id      STRING NOT NULL,
+  claimed_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (gift_id, user_id) NOT ENFORCED,
+  FOREIGN KEY (gift_id) REFERENCES `project-scrappy-intelic.project_ether.admin_gifts`(id) NOT ENFORCED,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 );
 ```

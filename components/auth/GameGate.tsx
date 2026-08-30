@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useGameStore } from "@/lib/store";
 import { syncProgressToServer } from "@/lib/syncProgress";
 import { refreshAccountInStore } from "@/lib/loadAccount";
@@ -16,6 +16,7 @@ export function GameGate({ children }: { children: ReactNode }) {
   const hasHydrated = useGameStore((s) => s.hasHydrated);
   const tickBoxExp = useGameStore((s) => s.tickBoxExp);
   const tickEnergy = useGameStore((s) => s.tickEnergy);
+  const isAdmin = useGameStore((s) => s.profile.isAdmin);
   const router = useRouter();
 
   useEffect(() => {
@@ -114,6 +115,82 @@ export function GameGate({ children }: { children: ReactNode }) {
         hasReceivedGiftsV10: true
       }));
     }
+  }, [hasHydrated, status]);
+
+  // Maintenance mode: an admin can flip this on from /admin without a deploy (see
+  // app/api/admin/maintenance) to boot every non-admin player to a static "Server Maintenance"
+  // page. Checked once on load and then polled on the same cadence as the progress sync above, so
+  // a player already online gets redirected within a minute instead of only on their next login.
+  //
+  // This same poll also catches a ban applied mid-session: sessions here are stateless JWTs (see
+  // auth.ts), so banning someone only blocks their *next* login sign-in attempt — it can't revoke
+  // a session they already hold. isBanned closes that gap (see isUserBanned's comment in
+  // lib/db/bigquery.ts) by signing them out within the same ~minute window.
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated" || isAdmin) return;
+    const checkServerStatus = async () => {
+      try {
+        const res = await fetch("/api/server-status");
+        if (!res.ok) return;
+        const config = await res.json();
+        if (config.isBanned) {
+          await signOut({ redirect: false });
+          router.replace("/");
+          return;
+        }
+        if (config.maintenanceMode) router.replace("/maintenance");
+      } catch {
+        // Non-fatal — if this fetch fails, the player just isn't caught until the next tick.
+      }
+    };
+    checkServerStatus();
+    const id = setInterval(checkServerStatus, PROGRESS_SYNC_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [hasHydrated, status, isAdmin, router]);
+
+  // Admin-sent gifts (app/api/admin/gifts) are a real server-side inbox — unlike the hardcoded
+  // local-only waves above, these can arrive at any time from the admin panel. Poll for pending
+  // ones and merge new ones into the local gifts list (GiftsModal.tsx renders both kinds the same
+  // way, telling them apart by id prefix when claiming).
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated") return;
+    const checkAdminGifts = async () => {
+      try {
+        const res = await fetch("/api/user/gifts");
+        if (!res.ok) return;
+        const { gifts: pending } = await res.json();
+        if (!Array.isArray(pending) || pending.length === 0) return;
+        useGameStore.setState((s) => {
+          const existingIds = new Set(s.gifts.map((g) => g.id));
+          const newGifts: Gift[] = pending
+            .filter((g: { id: string }) => !existingIds.has(`admin-gift-${g.id}`))
+            .map((g: {
+              id: string;
+              type: "item" | "creature";
+              itemId: string | null;
+              creatureId: string | null;
+              quantity: number;
+              message: string;
+              createdAt: number;
+            }) => ({
+              id: `admin-gift-${g.id}`,
+              type: g.type,
+              itemId: g.itemId ?? undefined,
+              creatureId: g.creatureId ?? undefined,
+              quantity: g.quantity,
+              message: g.message,
+              createdAt: g.createdAt,
+            }));
+          if (newGifts.length === 0) return s;
+          return { gifts: [...s.gifts, ...newGifts] };
+        });
+      } catch {
+        // Non-fatal — the gift just doesn't show up locally until the next successful poll.
+      }
+    };
+    checkAdminGifts();
+    const id = setInterval(checkAdminGifts, PROGRESS_SYNC_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [hasHydrated, status]);
 
   if (!hasHydrated || status === "loading" || status === "unauthenticated") {

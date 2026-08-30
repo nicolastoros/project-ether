@@ -31,6 +31,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Banned accounts fail the same way as a wrong password — deliberately generic, so a
+        // banned user (or anyone probing usernames) can't distinguish "banned" from "wrong
+        // password" from the login screen.
+        if (user.is_banned) {
+          await recordLogin(user.id, false);
+          return null;
+        }
+
         await recordLogin(user.id, true);
 
         return {

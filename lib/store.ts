@@ -1019,10 +1019,18 @@ export const useGameStore = create<GameState>()(
               newCreatures = state.creatures.map((c) =>
                 c.id === gift.creatureId ? { ...c, copies: c.copies + gift.quantity } : c
               );
+            } else {
+              // Not owned yet — same catalog-entry construction grantCreature() uses. Admin-sent
+              // gifts (see components/layout/GiftsModal.tsx) are the first real path that can hand
+              // a brand-new creature this way.
+              const template = STARTER_CREATURES.find((c) => c.id === gift.creatureId);
+              if (template) {
+                newCreatures = [
+                  ...state.creatures,
+                  { ...template, copies: gift.quantity, level: 1, exp: 0, expToNextLevel: 100, superAttackLevel: 1, potentialNodes: [] },
+                ];
+              }
             }
-            // A creature gift for one not already owned needs the same catalog-entry
-            // construction grantCreature() does — no live gift uses this path yet, so left as a
-            // known gap rather than duplicating that logic here speculatively.
           }
           
           return {

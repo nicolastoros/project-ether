@@ -42,10 +42,11 @@ export interface DbUser {
   exp: number;
   exp_to_next_level: number;
   is_admin: boolean | null;
+  is_banned: boolean | null;
 }
 
 const USER_SELECT_COLUMNS =
-  "id, username, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin";
+  "id, username, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, is_banned";
 
 export async function getUserByUsername(username: string): Promise<DbUser | null> {
   const [rows] = await bq().query({
@@ -1364,4 +1365,335 @@ export async function deleteUserFormation(id: string, userId: string) {
     query: `DELETE FROM ${table("user_formations")} WHERE id = @id AND user_id = @userId`,
     params: { id, userId }
   });
+}
+
+// ============================================================================
+// Admin panel — every function below is only ever called from an app/api/admin/*
+// route, each of which checks session.user.isAdmin server-side (see lib/adminAuth.ts)
+// before reaching here. None of these enforce that themselves — they trust the caller,
+// same as the rest of this file trusts its callers to have already checked session.user.id.
+// ============================================================================
+
+export interface ServerConfig {
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+}
+
+/** Single global row (id='global') — read by every authenticated client (via the public
+ * /api/server-status route, not admin-gated) to decide whether to redirect to /maintenance. */
+export async function getServerConfig(): Promise<ServerConfig> {
+  const [rows] = await bq().query({
+    query: `SELECT maintenance_mode, maintenance_message FROM ${table("server_config")} WHERE id = 'global' LIMIT 1`,
+  });
+  if (rows.length === 0) return { maintenanceMode: false, maintenanceMessage: "" };
+  return {
+    maintenanceMode: Boolean(rows[0].maintenance_mode),
+    maintenanceMessage: rows[0].maintenance_message ?? "",
+  };
+}
+
+export async function setServerMaintenanceMode(enabled: boolean, message: string): Promise<void> {
+  await bq().query({
+    query: `
+      MERGE ${table("server_config")} AS target
+      USING (SELECT 'global' AS id) AS source
+      ON target.id = source.id
+      WHEN MATCHED THEN
+        UPDATE SET maintenance_mode = @enabled, maintenance_message = @message, updated_at = CURRENT_TIMESTAMP()
+      WHEN NOT MATCHED THEN
+        INSERT (id, maintenance_mode, maintenance_message, updated_at)
+        VALUES ('global', @enabled, @message, CURRENT_TIMESTAMP())
+    `,
+    params: { enabled, message },
+  });
+}
+
+export interface AdminUserSummary {
+  id: string;
+  username: string;
+  displayName: string;
+  level: number;
+  isAdmin: boolean;
+  isBanned: boolean;
+  createdAt: string | null;
+}
+
+export async function searchUsersForAdmin(query: string, limit = 20): Promise<AdminUserSummary[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT id, username, display_name, level, is_admin, is_banned, created_at
+      FROM ${table("users")}
+      WHERE LOWER(username) LIKE CONCAT('%', LOWER(@query), '%')
+         OR LOWER(display_name) LIKE CONCAT('%', LOWER(@query), '%')
+      ORDER BY username
+      LIMIT @limit
+    `,
+    params: { query, limit },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((r: any) => ({
+    id: r.id,
+    username: r.username,
+    displayName: r.display_name,
+    level: r.level,
+    isAdmin: Boolean(r.is_admin),
+    isBanned: Boolean(r.is_banned),
+    createdAt: r.created_at?.value ?? r.created_at ?? null,
+  }));
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  gold: number;
+  gems: number;
+  sealCoins: number;
+  creatureCount: number;
+  lastLoginAt: string | null;
+}
+
+export async function getUserAdminDetail(userId: string): Promise<AdminUserDetail | null> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT
+        u.id, u.username, u.display_name, u.level, u.is_admin, u.is_banned, u.created_at,
+        IFNULL(c.gold, 0) as gold, IFNULL(c.gems, 0) as gems, IFNULL(c.seal_coins, 0) as seal_coins,
+        (SELECT COUNT(*) FROM ${table("user_creatures")} uc WHERE uc.user_id = u.id) as creature_count,
+        (SELECT MAX(logged_in_at) FROM ${table("login_history")} lh WHERE lh.user_id = u.id AND lh.success) as last_login_at
+      FROM ${table("users")} u
+      LEFT JOIN ${table("user_currencies")} c ON c.user_id = u.id
+      WHERE u.id = @userId
+      LIMIT 1
+    `,
+    params: { userId },
+  });
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    username: r.username,
+    displayName: r.display_name,
+    level: r.level,
+    isAdmin: Boolean(r.is_admin),
+    isBanned: Boolean(r.is_banned),
+    createdAt: r.created_at?.value ?? r.created_at ?? null,
+    gold: r.gold,
+    gems: r.gems,
+    sealCoins: r.seal_coins,
+    creatureCount: r.creature_count,
+    lastLoginAt: r.last_login_at?.value ?? r.last_login_at ?? null,
+  };
+}
+
+/** Sessions here are stateless JWTs (see auth.ts) — banning someone only blocks their *next*
+ * login, it can't invalidate a session they already hold. This is what closes that gap: polled
+ * by GameGate (via /api/server-status) on the same cadence as the maintenance check, so an
+ * already-logged-in banned player is signed out within about a minute instead of staying in until
+ * their session naturally expires. */
+export async function isUserBanned(userId: string): Promise<boolean> {
+  const [rows] = await bq().query({
+    query: `SELECT is_banned FROM ${table("users")} WHERE id = @userId LIMIT 1`,
+    params: { userId },
+  });
+  return Boolean(rows[0]?.is_banned);
+}
+
+export async function setUserBanned(userId: string, banned: boolean): Promise<void> {
+  await bq().query({
+    query: `UPDATE ${table("users")} SET is_banned = @banned, updated_at = CURRENT_TIMESTAMP() WHERE id = @userId`,
+    params: { userId, banned },
+  });
+}
+
+/** Only ever called with at least one of the three fields set (enforced by the API route) — built
+ * dynamically so an omitted field never passes an untyped null param, same reasoning as
+ * syncPlayerProgress's dungeon-state UPDATE above. */
+export async function setUserCurrency(
+  userId: string,
+  updates: { gold?: number; gems?: number; sealCoins?: number }
+): Promise<void> {
+  const setClauses: string[] = [];
+  const params: Record<string, unknown> = { userId };
+  if (updates.gold !== undefined) {
+    setClauses.push("gold = @gold");
+    params.gold = updates.gold;
+  }
+  if (updates.gems !== undefined) {
+    setClauses.push("gems = @gems");
+    params.gems = updates.gems;
+  }
+  if (updates.sealCoins !== undefined) {
+    setClauses.push("seal_coins = @sealCoins");
+    params.sealCoins = updates.sealCoins;
+  }
+  if (setClauses.length === 0) return;
+  setClauses.push("updated_at = CURRENT_TIMESTAMP()");
+  await bq().query({
+    query: `UPDATE ${table("user_currencies")} SET ${setClauses.join(", ")} WHERE user_id = @userId`,
+    params,
+  });
+}
+
+export interface ServerStats {
+  totalUsers: number;
+  totalAdmins: number;
+  totalBanned: number;
+  newUsersLast7d: number;
+  loginsLast24h: number;
+  loginsLast7d: number;
+  avgLevel: number;
+}
+
+export async function getServerStats(): Promise<ServerStats> {
+  const [[userRows], [loginRows]] = await Promise.all([
+    bq().query({
+      query: `
+        SELECT
+          COUNT(*) as total_users,
+          COUNTIF(is_admin) as total_admins,
+          COUNTIF(is_banned) as total_banned,
+          COUNTIF(created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)) as new_users_7d,
+          AVG(level) as avg_level
+        FROM ${table("users")}
+      `,
+    }),
+    bq().query({
+      query: `
+        SELECT
+          COUNTIF(logged_in_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY) AND success) as logins_24h,
+          COUNTIF(logged_in_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY) AND success) as logins_7d
+        FROM ${table("login_history")}
+      `,
+    }),
+  ]);
+  const u = userRows[0] ?? {};
+  const l = loginRows[0] ?? {};
+  return {
+    totalUsers: Number(u.total_users ?? 0),
+    totalAdmins: Number(u.total_admins ?? 0),
+    totalBanned: Number(u.total_banned ?? 0),
+    newUsersLast7d: Number(u.new_users_7d ?? 0),
+    loginsLast24h: Number(l.logins_24h ?? 0),
+    loginsLast7d: Number(l.logins_7d ?? 0),
+    avgLevel: Math.round(Number(u.avg_level ?? 0) * 10) / 10,
+  };
+}
+
+export interface AdminGift {
+  id: string;
+  type: "item" | "creature";
+  itemId: string | null;
+  creatureId: string | null;
+  quantity: number;
+  message: string;
+  createdAt: number;
+}
+
+/** targetUserId null means broadcast — every current AND future user sees it, since
+ * getPendingAdminGifts below matches on `target_user_id IS NULL` with no user allowlist. Built
+ * with conditional literal NULLs rather than parameterized ones (BigQuery can't infer an untyped
+ * null param's type — same issue documented on syncPlayerProgress's dungeon-state UPDATE above). */
+export async function createAdminGift(opts: {
+  targetUserId: string | null;
+  type: "item" | "creature";
+  itemId?: string | null;
+  creatureId?: string | null;
+  quantity: number;
+  message: string;
+  createdBy: string;
+}): Promise<{ id: string }> {
+  const id = randomUUID();
+  const params: Record<string, unknown> = {
+    id,
+    type: opts.type,
+    quantity: opts.quantity,
+    message: opts.message,
+    createdBy: opts.createdBy,
+  };
+  const targetUserIdExpr = opts.targetUserId ? "@targetUserId" : "NULL";
+  if (opts.targetUserId) params.targetUserId = opts.targetUserId;
+  const itemIdExpr = opts.itemId ? "@itemId" : "NULL";
+  if (opts.itemId) params.itemId = opts.itemId;
+  const creatureIdExpr = opts.creatureId ? "@creatureId" : "NULL";
+  if (opts.creatureId) params.creatureId = opts.creatureId;
+
+  await bq().query({
+    query: `
+      INSERT INTO ${table("admin_gifts")}
+        (id, target_user_id, type, item_id, creature_id, quantity, message, created_at, created_by)
+      VALUES (@id, ${targetUserIdExpr}, @type, ${itemIdExpr}, ${creatureIdExpr}, @quantity, @message, CURRENT_TIMESTAMP(), @createdBy)
+    `,
+    params,
+  });
+  return { id };
+}
+
+/** Gifts still pending for this user: targeted at them by id, or broadcast (target_user_id NULL),
+ * and not already claimed by them (see admin_gift_claims below — one gift row can be claimed by
+ * many different users when it's a broadcast). */
+export async function getPendingAdminGifts(userId: string): Promise<AdminGift[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT g.id, g.type, g.item_id, g.creature_id, g.quantity, g.message, UNIX_MILLIS(g.created_at) as created_at
+      FROM ${table("admin_gifts")} g
+      WHERE (g.target_user_id = @userId OR g.target_user_id IS NULL)
+        AND NOT EXISTS (
+          SELECT 1 FROM ${table("admin_gift_claims")} c
+          WHERE c.gift_id = g.id AND c.user_id = @userId
+        )
+      ORDER BY g.created_at DESC
+    `,
+    params: { userId },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((r: any) => ({
+    id: r.id,
+    type: r.type,
+    itemId: r.item_id,
+    creatureId: r.creature_id,
+    quantity: r.quantity,
+    message: r.message,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Claims one admin-sent gift for this user: records the claim (idempotent — a MERGE that only
+ * inserts if this user hasn't already claimed this gift, guarding against a double-click or retry
+ * re-granting it) and, only if that claim row was newly inserted, actually grants the reward via
+ * the same MERGE-based grant functions every other gift path uses. */
+export async function claimAdminGift(
+  giftId: string,
+  userId: string
+): Promise<{ ok: boolean; type?: "item" | "creature"; itemId?: string | null; creatureId?: string | null; quantity?: number }> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT id, type, item_id, creature_id, quantity
+      FROM ${table("admin_gifts")}
+      WHERE id = @giftId AND (target_user_id = @userId OR target_user_id IS NULL)
+      LIMIT 1
+    `,
+    params: { giftId, userId },
+  });
+  if (rows.length === 0) return { ok: false };
+  const gift = rows[0];
+
+  const [job] = await bq().createQueryJob({
+    query: `
+      MERGE ${table("admin_gift_claims")} AS target
+      USING (SELECT @giftId AS gift_id, @userId AS user_id) AS source
+      ON target.gift_id = source.gift_id AND target.user_id = source.user_id
+      WHEN NOT MATCHED THEN
+        INSERT (gift_id, user_id, claimed_at) VALUES (@giftId, @userId, CURRENT_TIMESTAMP())
+    `,
+    params: { giftId, userId },
+  });
+  await job.getQueryResults();
+  const [metadata] = await job.getMetadata();
+  const wasAlreadyClaimed = Number(metadata.statistics?.query?.numDmlAffectedRows ?? 0) === 0;
+  if (wasAlreadyClaimed) return { ok: false };
+
+  if (gift.type === "item" && gift.item_id) {
+    await grantItemToUser(userId, gift.item_id, gift.quantity);
+  } else if (gift.type === "creature" && gift.creature_id) {
+    await grantCreatureToUser(userId, gift.creature_id, gift.quantity);
+  }
+  return { ok: true, type: gift.type, itemId: gift.item_id, creatureId: gift.creature_id, quantity: gift.quantity };
 }

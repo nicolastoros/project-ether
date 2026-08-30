@@ -151,6 +151,22 @@ export function grantItemsOnServer(items: { itemId: string; quantity: number }[]
   }));
 }
 
+/** Claims an admin-sent gift (see app/api/admin/gifts and GiftsModal.tsx's "admin-gift-" id
+ * prefix) — unlike the other grant* functions here, this one call both records the server-side
+ * claim AND performs the actual grant (see lib/db/bigquery.ts's claimAdminGift), so there's no
+ * separate grantItemOnServer/grantCreatureOnServer call needed alongside it. */
+export function claimAdminGiftOnServer(giftId: string): void {
+  trackPending(fetch("/api/user/gifts/claim", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
+    body: JSON.stringify({ giftId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above. Worst case: this admin gift shows up
+    // again in the inbox next load and the player just claims it again.
+  }));
+}
+
 /** Persists an item consumption (Inventory's "Use" action, or a Shop sale) server-side. */
 export function consumeItemOnServer(itemId: string, quantity = 1): void {
   trackPending(fetch("/api/user/items/consume", {

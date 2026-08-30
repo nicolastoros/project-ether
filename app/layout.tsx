@@ -34,7 +34,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${baloo2.variable} h-full antialiased`}
     >
-      <body className="min-h-full">
+      {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject their own
+          data-* attributes into <body> before React hydrates — a real mismatch, but a harmless
+          one outside the app's control, not a bug in this tree. Without this, React logs a
+          hydration-mismatch error on every load for anyone with such an extension installed. */}
+      <body className="min-h-full" suppressHydrationWarning>
         <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
