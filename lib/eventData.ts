@@ -26,10 +26,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Fire",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -39,10 +39,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Water",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -52,10 +52,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Nature",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -65,10 +65,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Light",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -78,10 +78,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Dark",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -91,10 +91,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Electric",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   },
   {
@@ -104,10 +104,10 @@ export const ORB_EVENTS: GameEvent[] = [
     element: "Neutral",
     maxDailyAttempts: 2,
     difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 15, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 30, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 50, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
-      { id: "super3", name: "Super3", staminaCost: 80, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
+      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
+      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
+      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 40, medium: 20, large: 5 } },
+      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 50, medium: 30, large: 10 } },
     ]
   }
 ];
