@@ -630,6 +630,14 @@ export const STARTER_CREATURES: Creature[] = [
   },
 ];
 
+// Creatures that live under assets/creatures/raid_bosses — these are raid-exclusive encounters
+// (see lib/raidBosses.ts's getRaidBossCreature, which still reads them out of STARTER_CREATURES
+// directly by id) and must never be obtainable through the gacha. Filtered by sprite path rather
+// than a hardcoded id list so any future raid_bosses/ addition is excluded automatically.
+export const GACHA_CREATURE_POOL: Creature[] = STARTER_CREATURES.filter(
+  (c) => !c.spriteFolder?.includes("/raid_bosses/")
+);
+
 // The 3 creatures offered during registration. All stage 1, one per starter element.
 export const STARTER_CHOICE_IDS = ["cr-emberling", "cr-gale-sprite", "cr-voltling"] as const;
 export type StarterChoiceId = (typeof STARTER_CHOICE_IDS)[number];

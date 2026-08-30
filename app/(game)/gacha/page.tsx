@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GACHA_BANNERS, STARTER_CREATURES } from "@/lib/gameData";
+import { GACHA_BANNERS, GACHA_CREATURE_POOL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
@@ -31,8 +31,9 @@ function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner
       else if (roll < 47 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
       else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
     } else if (banner.currencyItemId === "it-mythic-ticket") {
+      // Mythic-ticket banner caps out at Mythic — LR (Omega, Abaddo, etc.) never drops here,
+      // only from the dedicated LR banners.
       if (roll < 7 && featuredMythics.length > 0) picked = featuredMythics[Math.floor(Math.random() * featuredMythics.length)];
-      else if (roll < 8 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
       else if (roll < 15 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
       else if (roll < 45 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
       else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
@@ -66,7 +67,7 @@ export default function GachaPage() {
     } else {
       if (!spendGems(cost)) return;
     }
-    const rolled = rollCreatures(STARTER_CREATURES, count, banner);
+    const rolled = rollCreatures(GACHA_CREATURE_POOL, count, banner);
     rolled.forEach(c => grantCreature(c.id));
     setResults(rolled);
   };
