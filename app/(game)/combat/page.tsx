@@ -24,13 +24,17 @@ function CombatPageContent() {
       if (diff.rewardAmount.medium > 0) eventRewards.push({ itemId: `it-orb-medium-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.medium });
       if (diff.rewardAmount.large > 0) eventRewards.push({ itemId: `it-orb-large-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.large });
 
-      const mockStage = {
+      const mockStage: any = {
         id: `${ev.id}-${diff.id}`,
         name: `${ev.name} [${diff.name}]`,
         world: 1, // Use W1 for background (ARENA_BACKGROUNDS[1]) and enemy scaling
         worldStageNumber: 8, // Use W1 Boss for enemy team
+        stageNumber: 1,
+        difficulty: "Normal",
+        recommendedPower: diff.recommendedLevel * 100,
+        isLocked: false,
+        isCleared: false,
         staminaCost: diff.staminaCost,
-        recommendedLevel: diff.recommendedLevel,
         rewardGold: diff.staminaCost * 10,
         rewardExp: diff.staminaCost * 5,
         equipmentDropChance: 0,
