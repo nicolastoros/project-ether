@@ -511,6 +511,7 @@ export async function syncPlayerProgress(
      * the next fresh hydrate. */
     currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
     dailyEventAttempts?: Record<string, number>;
+    items?: { itemId: string; quantity: number }[];
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -634,6 +635,32 @@ export async function syncPlayerProgress(
           WHERE user_id = @userId
         `,
         params: { userId, ...opts.currencies },
+      })
+    );
+  }
+
+  if (opts.items && opts.items.length > 0) {
+    queries.push(
+      bq().query({
+        query: `
+          MERGE ${table("user_items")} AS target
+          USING UNNEST(@items) AS source
+          ON target.user_id = @userId AND target.item_id = source.itemId
+          WHEN MATCHED THEN
+            UPDATE SET quantity = source.quantity, updated_at = CURRENT_TIMESTAMP()
+          WHEN NOT MATCHED THEN
+            INSERT (user_id, item_id, quantity)
+            VALUES (@userId, source.itemId, source.quantity)
+        `,
+        params: { userId, items: opts.items },
+        types: {
+          items: [
+            {
+              itemId: "STRING",
+              quantity: "INT64",
+            },
+          ],
+        },
       })
     );
   }
