@@ -995,7 +995,7 @@ export const useGameStore = create<GameState>()(
           const gift = state.gifts.find((g) => g.id === giftId);
           if (!gift) return state;
           
-          let newItems = [...state.ownedItems];
+          const newItems = [...state.ownedItems];
           if (gift.type === "item" && gift.itemId) {
             const existingIndex = newItems.findIndex((i) => i.itemId === gift.itemId);
             if (existingIndex !== -1) {
@@ -1008,14 +1008,19 @@ export const useGameStore = create<GameState>()(
             }
           }
           
-          let newCreatures = [...state.creatures];
+          let newCreatures = state.creatures;
           if (gift.type === "creature" && gift.creatureId) {
-            const existing = newCreatures.find((c) => c.id === gift.creatureId);
+            const existing = state.creatures.find((c) => c.id === gift.creatureId);
             if (existing) {
-              existing.copies += gift.quantity;
-            } else {
-              // Usually handled via grantCreature, but for now we just handle items
+              // Immutable update — mutating the existing object in place left it aliased with
+              // whatever else still held a reference to the pre-claim creature.
+              newCreatures = state.creatures.map((c) =>
+                c.id === gift.creatureId ? { ...c, copies: c.copies + gift.quantity } : c
+              );
             }
+            // A creature gift for one not already owned needs the same catalog-entry
+            // construction grantCreature() does — no live gift uses this path yet, so left as a
+            // known gap rather than duplicating that logic here speculatively.
           }
           
           return {

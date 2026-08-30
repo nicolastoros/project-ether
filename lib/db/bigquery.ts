@@ -262,7 +262,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       }),
       bq().query({
         query: `
-        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies
+        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, potential_nodes, super_attack_level
         FROM ${table("user_creatures")} WHERE user_id = @userId ORDER BY acquired_at
       `,
         params: { userId },
@@ -282,9 +282,14 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
         params: { userId },
       }),
       bq().query({
+        // Aggregated defensively: grantItemToUser now writes one row per item via MERGE, but
+        // accounts that claimed items before that fix may still carry legacy duplicate rows for
+        // the same item_id (see grantItemToUser's comment) — summing here means the bundle is
+        // correct immediately, without needing a one-off migration to land first.
         query: `
-        SELECT item_id, quantity
+        SELECT item_id, SUM(quantity) AS quantity
         FROM ${table("user_items")} WHERE user_id = @userId
+        GROUP BY item_id
       `,
         params: { userId },
       }),
@@ -682,32 +687,34 @@ export async function grantCreatureToUser(
     query: `SELECT copies FROM ${table("user_creatures")} WHERE user_id = @userId AND creature_id = @creatureId LIMIT 1`,
     params: { userId, creatureId },
   });
-  if (existingRows.length > 0) {
-    const copies = (existingRows[0].copies ?? 1) + quantity;
-    await bq().query({
-      query: `
-        UPDATE ${table("user_creatures")}
-        SET copies = @copies
-        WHERE user_id = @userId AND creature_id = @creatureId
-      `,
-      params: { userId, creatureId, copies },
-    });
-    return { isNew: false, copies };
-  }
+  const wasOwned = existingRows.length > 0;
+  const copies = (existingRows[0]?.copies ?? 0) + quantity;
 
   const base = STARTER_CREATURES.find((c) => c.id === creatureId);
   if (!base) throw new Error(`Unknown creature id: ${creatureId}`);
 
+  // A single atomic MERGE instead of branching on the SELECT above and then INSERT/UPDATE
+  // separately — same race as grantItemToUser: two concurrent grants for a creature not yet
+  // owned could both see "not found" and both INSERT, leaving two rows for the same creature id.
+  // The isNew/copies returned below come from the SELECT above rather than the MERGE itself
+  // (BigQuery's MERGE doesn't report which branch ran) — under a genuine race that read can be
+  // slightly stale for the *returned message* (e.g. "joined the roster!" shown twice), but the
+  // row itself, which is what actually matters, is always correctly a single accumulated row.
   await bq().query({
     query: `
-      INSERT INTO ${table("user_creatures")}
-        (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
-      VALUES (@id, @userId, @creatureId, @level, @exp, @expToNextLevel, @hp, @atk, @def, @spd, false, NULL, @copies)
+      MERGE ${table("user_creatures")} AS target
+      USING (SELECT @userId AS user_id, @creatureId AS creature_id) AS source
+      ON target.user_id = source.user_id AND target.creature_id = source.creature_id
+      WHEN MATCHED THEN
+        UPDATE SET copies = target.copies + @quantity
+      WHEN NOT MATCHED THEN
+        INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
+        VALUES (GENERATE_UUID(), @userId, @creatureId, @level, @exp, @expToNextLevel, @hp, @atk, @def, @spd, false, NULL, @quantity)
     `,
     params: {
-      id: randomUUID(),
       userId,
       creatureId,
+      quantity,
       level: base.level,
       exp: base.exp,
       expToNextLevel: base.expToNextLevel,
@@ -715,10 +722,9 @@ export async function grantCreatureToUser(
       atk: base.baseStats.atk,
       def: base.baseStats.def,
       spd: base.baseStats.spd,
-      copies: quantity,
     },
   });
-  return { isNew: true, copies: quantity };
+  return { isNew: !wasOwned, copies };
 }
 
 /** Adds a Tamer gear piece to the account — a no-op if already owned (each piece is unique, no
@@ -743,28 +749,56 @@ export async function grantTamerEquipmentToUser(userId: string, itemId: string):
 /** Adds (or stacks onto) a generic collectible item — Consumable/Quest/Evolution/Skin/Crafting.
  * Unlike Tamer gear, these stack by quantity rather than being unique-per-account. */
 export async function grantItemToUser(userId: string, itemId: string, quantity: number): Promise<void> {
-  const [existingRows] = await bq().query({
-    query: `SELECT quantity FROM ${table("user_items")} WHERE user_id = @userId AND item_id = @itemId LIMIT 1`,
-    params: { userId, itemId },
+  // A single atomic MERGE instead of SELECT-then-INSERT/UPDATE — concurrent grants for the same
+  // item (e.g. claiming a gift bundle with several stacks of the same ticket, which fires several
+  // grants for that item_id nearly simultaneously) could previously all see "not found" in their
+  // own SELECT and each INSERT their own row, splitting one item's quantity across several
+  // duplicate rows instead of accumulating into one. Confirmed live: claiming 3 separate Mythic
+  // Ticket gifts landed as 3 separate rows (40+40+20) instead of one row at 100.
+  await bq().query({
+    query: `
+      MERGE ${table("user_items")} AS target
+      USING (SELECT @userId AS user_id, @itemId AS item_id) AS source
+      ON target.user_id = source.user_id AND target.item_id = source.item_id
+      WHEN MATCHED THEN
+        UPDATE SET quantity = target.quantity + @quantity, updated_at = CURRENT_TIMESTAMP()
+      WHEN NOT MATCHED THEN
+        INSERT (user_id, item_id, quantity) VALUES (@userId, @itemId, @quantity)
+    `,
+    params: { userId, itemId, quantity },
   });
-  if (existingRows.length > 0) {
-    await bq().query({
-      query: `
-        UPDATE ${table("user_items")}
-        SET quantity = quantity + @quantity, updated_at = CURRENT_TIMESTAMP()
-        WHERE user_id = @userId AND item_id = @itemId
-      `,
-      params: { userId, itemId, quantity },
-    });
-    return;
+}
+
+/** Grants several items in ONE query job instead of one grantItemToUser() call each — required
+ * for a big batch like "Claim All" on a multi-gift bundle: firing ~20+ concurrent individual
+ * MERGE statements against the same table hits BigQuery's per-table concurrent-DML limit (~20),
+ * and the ones that get rejected are silently swallowed by the client's best-effort error
+ * handling — the item just never lands, permanently, with no visible error. Confirmed live:
+ * claiming an 8-gift bundle (27 individual item grants once expanded) lost the orbs entirely and
+ * under-counted both ticket types. Mirrors how syncPlayerProgress already batches N creature
+ * updates into one MERGE via UNNEST for the same reason. */
+export async function grantItemsToUser(userId: string, items: { itemId: string; quantity: number }[]): Promise<void> {
+  if (items.length === 0) return;
+  // Collapse duplicate item ids first — MERGE errors ("a row matched more than once") if two
+  // source rows would both match the same target row in one statement.
+  const merged = new Map<string, number>();
+  for (const { itemId, quantity } of items) {
+    merged.set(itemId, (merged.get(itemId) ?? 0) + quantity);
   }
+  const rows = Array.from(merged, ([itemId, quantity]) => ({ itemId, quantity }));
 
   await bq().query({
     query: `
-      INSERT INTO ${table("user_items")} (user_id, item_id, quantity)
-      VALUES (@userId, @itemId, @quantity)
+      MERGE ${table("user_items")} AS target
+      USING UNNEST(@items) AS source
+      ON target.user_id = @userId AND target.item_id = source.itemId
+      WHEN MATCHED THEN
+        UPDATE SET quantity = target.quantity + source.quantity, updated_at = CURRENT_TIMESTAMP()
+      WHEN NOT MATCHED THEN
+        INSERT (user_id, item_id, quantity) VALUES (@userId, source.itemId, source.quantity)
     `,
-    params: { userId, itemId, quantity },
+    params: { userId, items: rows },
+    types: { userId: "STRING", items: [{ itemId: "STRING", quantity: "INT64" }] },
   });
 }
 

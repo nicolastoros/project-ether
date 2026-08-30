@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Gift, Ticket } from "lucide-react";
+import { X, Gift } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG, STARTER_CREATURES } from "@/lib/gameData";
+import { grantItemOnServer, grantItemsOnServer, grantCreatureOnServer } from "@/lib/syncProgress";
 import { PixelButton } from "@/components/ui/PixelButton";
+import type { Gift as GiftData } from "@/types/game";
 
 interface GiftsModalProps {
   isOpen: boolean;
@@ -32,7 +34,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const getGiftName = (gift: any) => {
+  const getGiftName = (gift: GiftData) => {
     if (gift.type === "item" && gift.itemId) {
       return ITEM_CATALOG.find(i => i.id === gift.itemId)?.name || gift.itemId;
     }
@@ -42,11 +44,40 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
     return "Unknown Gift";
   };
 
-  const getGiftIcon = (gift: any) => {
+  const getGiftIcon = (gift: GiftData) => {
     if (gift.type === "item" && gift.itemId) {
       return ITEM_CATALOG.find(i => i.id === gift.itemId)?.icon;
     }
     return undefined;
+  };
+
+  // claimGift itself only mutates local state (same convention as grantItem/grantCreature
+  // elsewhere) — without this, the claimed item/creature only ever lived in the browser and
+  // silently reverted on the next refresh, since nothing ever told BigQuery about it.
+  const handleClaim = (gift: GiftData) => {
+    claimGift(gift.id);
+    if (gift.type === "item" && gift.itemId) {
+      grantItemOnServer(gift.itemId, gift.quantity);
+    } else if (gift.type === "creature" && gift.creatureId) {
+      grantCreatureOnServer(gift.creatureId, gift.quantity);
+    }
+  };
+
+  // "Claim All" needs its own path rather than calling handleClaim per gift: firing one
+  // grantItemOnServer request per gift concurrently (the default gift set alone is ~27 grants)
+  // hits BigQuery's per-table concurrent-DML limit, and the rejected ones silently vanish — see
+  // grantItemsOnServer's comment. Batch every item grant into a single request instead.
+  const handleClaimAll = () => {
+    const itemGrants: { itemId: string; quantity: number }[] = [];
+    for (const gift of gifts) {
+      claimGift(gift.id);
+      if (gift.type === "item" && gift.itemId) {
+        itemGrants.push({ itemId: gift.itemId, quantity: gift.quantity });
+      } else if (gift.type === "creature" && gift.creatureId) {
+        grantCreatureOnServer(gift.creatureId, gift.quantity);
+      }
+    }
+    grantItemsOnServer(itemGrants);
   };
 
   if (!mounted) return null;
@@ -129,7 +160,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
                           <p className="text-xs text-zinc-500">{gift.message}</p>
                           <p className="text-[9px] text-zinc-400 mt-0.5">{new Date(gift.createdAt).toLocaleDateString()}</p>
                         </div>
-                        <PixelButton variant="gold" size="sm" onClick={() => claimGift(gift.id)} className="px-3 py-1 text-xs">
+                        <PixelButton variant="gold" size="sm" onClick={() => handleClaim(gift)} className="px-3 py-1 text-xs">
                           Claim
                         </PixelButton>
                       </div>
@@ -144,9 +175,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
                 <PixelButton
                   variant="gold"
                   className="w-full"
-                  onClick={() => {
-                    gifts.forEach(g => claimGift(g.id));
-                  }}
+                  onClick={handleClaimAll}
                 >
                   Claim All
                 </PixelButton>
