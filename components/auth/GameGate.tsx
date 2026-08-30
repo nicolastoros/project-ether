@@ -65,7 +65,7 @@ export function GameGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hasHydrated || status !== "authenticated") return;
     const store = useGameStore.getState();
-    if (!store.hasReceivedGiftsV7) {
+    if (!store.hasReceivedGiftsV8) {
       const newGifts: Gift[] = [];
       const now = Date.now();
       
@@ -81,7 +81,7 @@ export function GameGate({ children }: { children: ReactNode }) {
       
       useGameStore.setState((s) => ({
         gifts: [...s.gifts, ...newGifts],
-        hasReceivedGiftsV7: true
+        hasReceivedGiftsV8: true
       }));
     }
   }, [hasHydrated, status]);
