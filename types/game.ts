@@ -285,6 +285,9 @@ export interface DungeonStage {
   equipmentDropChance: number; // 0-100
   isLocked: boolean;
   isCleared: boolean;
+  bgmKey?: string;
+  eventId?: string;
+  eventRewards?: { itemId: string; amount: number }[];
 }
 
 export type FriendStatus = "Online" | "In Battle" | "Offline";
