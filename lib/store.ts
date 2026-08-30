@@ -253,6 +253,7 @@ interface GameState {
   survivalHighestStageCleared: number;
   hasHydrated: boolean;
   hasReceivedLaunchTicketsV3: boolean;
+  hasReceivedGiftsV5: boolean;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -265,6 +266,7 @@ interface GameState {
   /** Clears account-specific local state so a different account signing in next doesn't inherit it. */
   logout: () => void;
   setHasHydrated: (hydrated: boolean) => void;
+  setHasReceivedGiftsV5: (received: boolean) => void;
 
   markStagePerfect: (stageId: string) => void;
   recordStageStars: (stageId: string, stars: { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }) => void;
@@ -398,6 +400,7 @@ export const useGameStore = create<GameState>()(
       survivalHighestStageCleared: 0,
       hasHydrated: false,
       hasReceivedLaunchTicketsV3: false,
+      hasReceivedGiftsV5: false,
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -473,6 +476,7 @@ export const useGameStore = create<GameState>()(
         }),
 
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+      setHasReceivedGiftsV5: (received) => set({ hasReceivedGiftsV5: received }),
 
       markStagePerfect: (stageId) =>
         set((state) => {

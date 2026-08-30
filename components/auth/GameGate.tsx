@@ -7,6 +7,7 @@ import { useGameStore } from "@/lib/store";
 import { syncProgressToServer } from "@/lib/syncProgress";
 import { refreshAccountInStore } from "@/lib/loadAccount";
 import { AppShell } from "@/components/layout/AppShell";
+import type { Gift } from "@/types/game";
 
 const PROGRESS_SYNC_INTERVAL_MS = 60_000;
 
@@ -58,6 +59,31 @@ export function GameGate({ children }: { children: ReactNode }) {
     if (!hasHydrated || status !== "authenticated") return;
     const id = setInterval(syncProgressToServer, PROGRESS_SYNC_INTERVAL_MS);
     return () => clearInterval(id);
+  }, [hasHydrated, status]);
+
+  // Grant V5 gifts (Tickets and Orbs) to all users via Inbox
+  useEffect(() => {
+    if (!hasHydrated || status !== "authenticated") return;
+    const store = useGameStore.getState();
+    if (!store.hasReceivedGiftsV5) {
+      const newGifts: Gift[] = [];
+      const now = Date.now();
+      
+      newGifts.push({ id: `gift-v5-leg-${now}`, type: "item", itemId: "it-legendary-ticket", quantity: 20, message: "Community Rewards!", createdAt: now });
+      newGifts.push({ id: `gift-v5-myth-${now}`, type: "item", itemId: "it-mythic-ticket", quantity: 20, message: "Community Rewards!", createdAt: now });
+      
+      const elements = ["fire", "water", "nature", "light", "dark", "electric", "neutral"];
+      for (const el of elements) {
+        newGifts.push({ id: `gift-v5-orb-sm-${el}-${now}`, type: "item", itemId: `it-orb-small-${el}`, quantity: 100, message: "Training Campaign", createdAt: now });
+        newGifts.push({ id: `gift-v5-orb-md-${el}-${now}`, type: "item", itemId: `it-orb-medium-${el}`, quantity: 50, message: "Training Campaign", createdAt: now });
+        newGifts.push({ id: `gift-v5-orb-lg-${el}-${now}`, type: "item", itemId: `it-orb-large-${el}`, quantity: 25, message: "Training Campaign", createdAt: now });
+      }
+      
+      useGameStore.setState((s) => ({
+        gifts: [...s.gifts, ...newGifts],
+        hasReceivedGiftsV5: true
+      }));
+    }
   }, [hasHydrated, status]);
 
   if (!hasHydrated || status === "loading" || status === "unauthenticated") {
