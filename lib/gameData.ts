@@ -1130,6 +1130,22 @@ export function cumulativeStageCountThroughWorld(world: number): number {
   return WORLD_SIZES.slice(0, world).reduce((sum, size) => sum + size, 0);
 }
 
+// Rarity-tiered base + a per-level scalar — mirrors how ITEM_CATALOG.sellPriceGold works for
+// items, just on a scale that reflects a creature actually being the bigger investment.
+const CREATURE_SELL_BASE: Record<Rarity, number> = {
+  Common: 300,
+  Rare: 800,
+  SSR: 2500,
+  Mythic: 8000,
+  LR: 25000,
+};
+
+/** Gold a single copy of this creature is worth in Sell Monster (app/(game)/formations/sell) —
+ * see lib/store.ts's sellCreature, which multiplies this by however many copies are being sold. */
+export function creatureSellValue(creature: Creature): number {
+  return CREATURE_SELL_BASE[creature.rarity] + creature.level * 25;
+}
+
 export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
   const stageNumber = i + 1;
   const difficulty = stageNumber <= 8 ? "Normal" : stageNumber <= 16 ? "Hard" : "Nightmare";

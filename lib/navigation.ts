@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Award,
-  BookOpen,
   Castle,
   Calendar,
   Compass,
@@ -49,7 +48,10 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Collection",
     items: [
       { href: "/monsters", label: "Monsters", icon: PawPrint },
-      { href: "/dex", label: "Dex", icon: BookOpen },
+      // "Formations" stays exactly where it was — it just now opens the new Dokkan-style submenu
+      // (app/(game)/formations/page.tsx) instead of going straight to the team builder, which
+      // moved to /formations/teams. "Dex" is dropped here since it's reachable from that submenu
+      // now (and still lives at /dex, just not top-level nav) — see the submenu's "Monster Dex" tile.
       { href: "/formations", label: "Formations", icon: Users },
       { href: "/inventory", label: "Inventory", icon: ShieldHalf },
       { href: "/tamer", label: "Tamer", icon: Shirt },

@@ -835,6 +835,27 @@ export async function grantCreaturesToUser(userId: string, creatureIds: string[]
   });
 }
 
+/** Sells `quantity` copies of a creature — decrements `copies`, then a follow-up DELETE cleans up
+ * the row if that emptied it out. Two plain statements (no MERGE): the UPDATE's own `copies >=
+ * @quantity` guard is what keeps this safe under a race (a second concurrent sell for more than
+ * what's left just matches 0 rows instead of driving copies negative), and the DELETE only ever
+ * touches a row already at/below 0 — no read-then-branch-then-write gap like a naive
+ * SELECT-then-decide version would have. */
+export async function sellCreatureFromUser(userId: string, creatureId: string, quantity: number): Promise<void> {
+  await bq().query({
+    query: `
+      UPDATE ${table("user_creatures")}
+      SET copies = copies - @quantity
+      WHERE user_id = @userId AND creature_id = @creatureId AND copies >= @quantity
+    `,
+    params: { userId, creatureId, quantity },
+  });
+  await bq().query({
+    query: `DELETE FROM ${table("user_creatures")} WHERE user_id = @userId AND creature_id = @creatureId AND copies <= 0`,
+    params: { userId, creatureId },
+  });
+}
+
 /** Adds a Tamer gear piece to the account — a no-op if already owned (each piece is unique, no
  * copies concept for gear). Used both for the free Campaign-clear pieces and crafted ones. */
 export async function grantTamerEquipmentToUser(userId: string, itemId: string): Promise<{ isNew: boolean }> {

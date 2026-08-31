@@ -6,7 +6,7 @@ import { useGameStore } from "@/lib/store";
 import { grantCreaturesOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
-import { PixelButton } from "@/components/ui/PixelButton";
+import { MenuBannerButton } from "@/components/ui/MenuBannerButton";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { TicketIcon } from "lucide-react";
 import type { Creature, GachaBanner } from "@/types/game";
@@ -104,31 +104,30 @@ export default function GachaPage() {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:mt-6 lg:gap-4">
-          <PixelButton
-            variant="ghost"
+          <MenuBannerButton
+            image="/assets/events/summon_button.png"
+            hasIcon={false}
+            label="Summon"
             disabled={getCurrencyAmount(banner) < banner.singlePullCost}
             onClick={() => handleSummon(1, banner.singlePullCost)}
-            className="flex flex-col items-center gap-1 py-3 lg:py-4 lg:text-base"
-          >
-            <span>Summon x1</span>
-            <span className="flex items-center gap-1 text-[10px] font-normal normal-case text-zinc-500 lg:text-xs">
-              {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.singlePullCost}
-            </span>
-          </PixelButton>
-          <PixelButton
-            variant="gold"
+            caption={
+              <span className="flex items-center justify-center gap-1 text-[10px] font-normal text-zinc-500 lg:text-xs">
+                {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.singlePullCost}
+              </span>
+            }
+          />
+          <MenuBannerButton
+            image="/assets/events/summon_button.png"
+            hasIcon={false}
+            label="Multi-Summon"
             disabled={getCurrencyAmount(banner) < banner.multiPullCost}
             onClick={() => handleSummon(banner.multiPullCount, banner.multiPullCost)}
-            className="flex flex-col items-center gap-1 py-3 lg:py-4 lg:text-base relative overflow-hidden"
-          >
-            {banner.currencyItemId === "it-mythic-ticket" && (
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20 animate-pulse pointer-events-none" />
-            )}
-            <span className="relative z-10">Summon x{banner.multiPullCount}</span>
-            <span className="relative z-10 flex items-center gap-1 text-[10px] font-normal normal-case text-white/90 lg:text-xs">
-              {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.multiPullCost}
-            </span>
-          </PixelButton>
+            caption={
+              <span className="flex items-center justify-center gap-1 text-[10px] font-normal text-zinc-500 lg:text-xs">
+                {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.multiPullCost}
+              </span>
+            }
+          />
         </div>
       </div>
 

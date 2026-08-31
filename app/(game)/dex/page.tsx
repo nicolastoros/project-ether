@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { GACHA_CREATURE_POOL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
+import { BackButton } from "@/components/ui/BackButton";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
@@ -22,15 +23,18 @@ export default function DexPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Dex</h1>
-        {/* One single string expression, not JSX text broken up by {expr} — some combination of
-            this file's JSX text nodes and the em dash character was silently dropping the space
-            immediately before it (confirmed via the rendered DOM, not just visually) when written
-            as plain JSX children. */}
-        <p className="mt-1 text-xs text-zinc-500">
-          {`${ownedCount}/${GACHA_CREATURE_POOL.length} discovered — every creature in the Digital World, whether you've met them yet or not.`}
-        </p>
+      <div className="flex items-center gap-2 lg:gap-4">
+        <BackButton href="/formations" label="Back to Formation Menu" />
+        <div>
+          <h1 className="font-arcade text-lg glow-text-gold">Dex</h1>
+          {/* One single string expression, not JSX text broken up by {expr} — some combination of
+              this file's JSX text nodes and the em dash character was silently dropping the space
+              immediately before it (confirmed via the rendered DOM, not just visually) when written
+              as plain JSX children. */}
+          <p className="mt-1 text-xs text-zinc-500">
+            {`${ownedCount}/${GACHA_CREATURE_POOL.length} discovered — every creature in the Digital World, whether you've met them yet or not.`}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

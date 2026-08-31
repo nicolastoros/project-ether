@@ -128,6 +128,19 @@ export function grantCreaturesOnServer(creatureIds: string[]): void {
   }));
 }
 
+/** Persists selling `quantity` copies of a creature (see lib/store.ts's sellCreature, which
+ * already updated local state) server-side. */
+export function sellCreatureOnServer(creatureId: string, quantity = 1): void {
+  trackPending(fetch("/api/user/creatures/sell", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
+    body: JSON.stringify({ creatureId, quantity }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  }));
+}
+
 /** Persists a Tamer gear grant (free Campaign-clear piece or a crafted one) server-side — same
  * insert-if-missing reasoning as grantCreatureOnServer above. */
 export function grantTamerEquipmentOnServer(itemId: string): void {

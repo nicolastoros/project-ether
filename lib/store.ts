@@ -15,6 +15,7 @@ import type {
   Element,
 } from "@/types/game";
 import {
+  creatureSellValue,
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
   EXPEDITION_DEFS,
@@ -392,6 +393,11 @@ interface GameState {
   consumeItem: (itemId: string, quantity?: number) => boolean;
   /** Sells `quantity` of an item with a sellPriceGold set — false if not sellable or not owned. */
   sellItem: (itemId: string, quantity?: number) => boolean;
+  /** Sells `quantity` copies of an owned creature for gold (see lib/gameData.ts's
+   * creatureSellValue). Refuses (returns false) if that would drop the owned count below what's
+   * currently needed by the hub team, the Campaign party, or any saved formation — selling out
+   * from under an active team silently breaks it otherwise. */
+  sellCreature: (creatureId: string, quantity?: number) => boolean;
   /** Buys a SHOP_LISTINGS entry in a specific quantity — false if unaffordable or the listing id is unknown. */
   buyListing: (listingId: string, quantity?: number) => boolean;
 
@@ -932,6 +938,32 @@ export const useGameStore = create<GameState>()(
         if (!item?.sellPriceGold) return false;
         if (!get().consumeItem(itemId, quantity)) return false;
         get().addGold(item.sellPriceGold * quantity);
+        return true;
+      },
+
+      sellCreature: (creatureId, quantity = 1) => {
+        const { creatures, hubTeamIds, partyCreatureIds, teamPresets } = get();
+        const creature = creatures.find((c) => c.id === creatureId);
+        if (!creature || quantity < 1 || quantity > creature.copies) return false;
+
+        // Only the LAST copy leaving actually matters for team references — a formation just
+        // holds the creature's id, not a specific copy, so selling down to copies > 0 never
+        // breaks anything already using it.
+        const wouldRemoveLastCopy = creature.copies - quantity <= 0;
+        if (wouldRemoveLastCopy) {
+          const isReferenced =
+            hubTeamIds.includes(creatureId) ||
+            partyCreatureIds.includes(creatureId) ||
+            teamPresets.some((p) => p.creatureIds.includes(creatureId));
+          if (isReferenced) return false;
+        }
+
+        set((state) => ({
+          creatures: wouldRemoveLastCopy
+            ? state.creatures.filter((c) => c.id !== creatureId)
+            : state.creatures.map((c) => (c.id === creatureId ? { ...c, copies: c.copies - quantity } : c)),
+        }));
+        get().addGold(creatureSellValue(creature) * quantity);
         return true;
       },
 
