@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Sparkles, X } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG } from "@/lib/gameData";
-import { consumeItemOnServer } from "@/lib/syncProgress";
+import { consumeItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import type { Equipment, InventoryItem, InventoryItemCategory, TamerEquipment } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -121,6 +121,7 @@ export default function InventoryPage() {
   const equipItem = useGameStore((s) => s.equipItem);
   const unequipItem = useGameStore((s) => s.unequipItem);
   const enhanceEquipment = useGameStore((s) => s.enhanceEquipment);
+  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
   const consumeItem = useGameStore((s) => s.consumeItem);
   const regenEnergy = useGameStore((s) => s.regenEnergy);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
@@ -306,7 +307,11 @@ export default function InventoryPage() {
                   variant="ghost"
                   className="w-full"
                   disabled={selectedEquipment.enhancementLevel >= 10}
-                  onClick={() => enhanceEquipment(selectedEquipment.id)}
+                  onClick={() => {
+                    enhanceEquipment(selectedEquipment.id);
+                    tickMissionProgress("task-enhance");
+                    syncProgressToServer();
+                  }}
                 >
                   {selectedEquipment.enhancementLevel >= 10 ? "Max Enhancement" : "Enhance"}
                 </PixelButton>

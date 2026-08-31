@@ -66,6 +66,24 @@ function isSyncItem(value: unknown): value is SyncItem {
   return typeof i.itemId === "string" && typeof i.quantity === "number";
 }
 
+interface SyncDailyTasksState {
+  date: string;
+  tasks: Record<string, { progress: number; claimed: boolean }>;
+}
+
+function isSyncDailyTasksState(value: unknown): value is SyncDailyTasksState {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.date !== "string" || !v.tasks || typeof v.tasks !== "object") return false;
+  return Object.values(v.tasks as Record<string, unknown>).every(
+    (t) =>
+      !!t &&
+      typeof t === "object" &&
+      typeof (t as Record<string, unknown>).progress === "number" &&
+      typeof (t as Record<string, unknown>).claimed === "boolean"
+  );
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -77,7 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies, dailyEventAttempts, items } = body as Record<
+  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies, dailyEventAttempts, items, dailyTasksState } = body as Record<
     string,
     unknown
   >;
@@ -88,7 +106,8 @@ export async function POST(request: Request) {
     !Array.isArray(creatures) ||
     (dungeonHighestStageCleared !== undefined && typeof dungeonHighestStageCleared !== "number") ||
     (currencies !== undefined && !isSyncCurrencies(currencies)) ||
-    (items !== undefined && !Array.isArray(items))
+    (items !== undefined && !Array.isArray(items)) ||
+    (dailyTasksState !== undefined && !isSyncDailyTasksState(dailyTasksState))
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
@@ -103,6 +122,7 @@ export async function POST(request: Request) {
       currencies: currencies as SyncCurrencies | undefined,
       dailyEventAttempts: dailyEventAttempts as Record<string, number> | undefined,
       items: items !== undefined ? (items as unknown[]).filter(isSyncItem) : undefined,
+      dailyTasksState: dailyTasksState as SyncDailyTasksState | undefined,
     });
   } catch (err) {
     console.error("Progress sync failed", err);

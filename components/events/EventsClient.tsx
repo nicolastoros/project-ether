@@ -184,24 +184,19 @@ export function EventsClient() {
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-1">
+    <div className="flex justify-center">
       <button
         onClick={() => setSelectedCategory("training_orbs")}
         className="text-left group mx-auto w-full max-w-4xl"
       >
         <GlowPanel accent="none" className="overflow-hidden p-0 transition-colors hover:border-foreground/50 flex justify-center items-center bg-black">
-          <img 
-            src="/assets/events/hidden_training.png" 
-            alt="Training Orbs" 
+          <img
+            src="/assets/events/hidden_training.png"
+            alt="Training Orbs"
             className="w-full h-auto block object-contain group-hover:scale-105 group-hover:opacity-90 transition-all duration-500"
           />
         </GlowPanel>
       </button>
-      
-      <GlowPanel accent="none" className="p-5 flex flex-col justify-center opacity-50 cursor-not-allowed bg-zinc-950/20 min-h-[112px]">
-        <h3 className="font-arcade text-lg text-foreground line-through">Strike Events</h3>
-        <p className="text-xs text-zinc-500 mt-1">Coming Soon.</p>
-      </GlowPanel>
     </div>
   );
 }

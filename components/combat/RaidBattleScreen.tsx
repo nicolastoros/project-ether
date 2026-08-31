@@ -7,9 +7,10 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import type { Creature, Skill } from "@/types/game";
 import { useGameStore } from "@/lib/store";
-import { ITEM_CATALOG } from "@/lib/gameData";
+import { ACHIEVEMENTS, ITEM_CATALOG } from "@/lib/gameData";
 import type { RaidBoss } from "@/lib/raidBosses";
-import { grantItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { grantItemOnServer, syncProgressToServer, unlockAchievementOnServer } from "@/lib/syncProgress";
+import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { addGuildExpAction } from "@/app/actions/guild";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
@@ -50,6 +51,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const grantItem = useGameStore((s) => s.grantItem);
+  const unlockAchievement = useGameStore((s) => s.unlockAchievement);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const guild = useGameStore((s) => s.guild);
@@ -118,6 +120,15 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
 
         if (guild) {
           addGuildExpAction(guild.id, boss.rewardExp).catch(() => {});
+        }
+
+        if (boss.id === "raid-crimson-paladin-super3") {
+          const achievementId = "ach-crimson-conqueror";
+          if (unlockAchievement(achievementId)) {
+            unlockAchievementOnServer(achievementId);
+            const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
+            if (achievement) notifyAchievementUnlocked(achievement);
+          }
         }
 
         syncProgressToServer();

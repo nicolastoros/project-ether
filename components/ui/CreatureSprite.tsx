@@ -67,9 +67,13 @@ interface CreatureSpriteProps {
   direction?: Direction;
   /** Name of the animation to play (e.g. "Holy Judgment"). Defaults to "stand_animation" if animated. */
   activeAnimation?: string;
+  /** Renders a grayscale silhouette instead of the normal element-colored sprite, and skips the
+   * Mythic/LR aura + Hidden-Potential star overlays regardless of rarity — for a Dex entry the
+   * player doesn't own yet (see app/(game)/dex/page.tsx). */
+  locked?: boolean;
 }
 
-export function CreatureSprite({ creature, className, spin = false, direction: fixedDirection = "south", activeAnimation }: CreatureSpriteProps) {
+export function CreatureSprite({ creature, className, spin = false, direction: fixedDirection = "south", activeAnimation, locked = false }: CreatureSpriteProps) {
   const [frameIndex, setFrameIndex] = useState(0);
 
   const animName = activeAnimation 
@@ -142,15 +146,21 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
     <img
       src={imgSrc}
       alt={creature.name}
-      className="h-full w-full object-contain"
+      className={cn("h-full w-full object-contain", locked && "grayscale contrast-75 brightness-75")}
       style={{ imageRendering: "pixelated" }}
     />
   ) : (
     (() => {
       const Icon = ELEMENT_ICON[creature.element];
-      return <Icon className="h-full w-full" />;
+      return <Icon className={cn("h-full w-full", locked && "grayscale contrast-75 brightness-75")} />;
     })()
   );
+
+  // Locked (unowned) entries never show the Mythic/LR aura or Hidden Potential star, regardless
+  // of the creature's actual rarity/potential — those celebrate progress the player hasn't made.
+  if (locked) {
+    return <span className={cn("relative inline-block", className)}>{content}</span>;
+  }
 
   const unlocked = creature.potentialNodes || [];
   const unlockedNodesCount = unlocked.length;

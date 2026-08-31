@@ -89,6 +89,12 @@ export async function createAccount(opts: {
   const base = STARTER_CREATURES.find((c) => c.id === opts.starterCreatureId);
   if (!base) throw new Error(`Unknown starter creature: ${opts.starterCreatureId}`);
 
+  // "Early Access 2026" (see lib/gameData.ts's ACHIEVEMENTS) is purely a users.created_at fact —
+  // granted right here at registration rather than via the general unlockAchievement() read-
+  // modify-write path, since it's known for certain at insert time and needs no client trust at
+  // all (unlike the other 3, which are client-detected gameplay events).
+  const initialAchievements = new Date().getFullYear() === 2026 ? ["ach-early-access-2026"] : [];
+
   // userId is generated here (not by the DB), so none of these inserts actually depend
   // on another one having committed first — run them concurrently instead of one round
   // trip at a time, since each BigQuery query has multi-second latency.
@@ -101,8 +107,8 @@ export async function createAccount(opts: {
     bq().query({
       query: `
         INSERT INTO ${table("users")}
-          (id, username, email, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, created_at, updated_at, secret_question, secret_answer)
-        VALUES (@id, @username, @email, @passwordHash, @displayName, 'Novice Tamer', @avatarKey, 1, 0, 100, false, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), @secretQuestion, @secretAnswer)
+          (id, username, email, password_hash, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, created_at, updated_at, secret_question, secret_answer, achievements)
+        VALUES (@id, @username, @email, @passwordHash, @displayName, 'Novice Tamer', @avatarKey, 1, 0, 100, false, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), @secretQuestion, @secretAnswer, @achievements)
       `,
       params: {
         id: userId,
@@ -113,6 +119,7 @@ export async function createAccount(opts: {
         avatarKey,
         secretQuestion: opts.secretQuestion,
         secretAnswer: opts.secretAnswer.toLowerCase(),
+        achievements: JSON.stringify(initialAchievements),
       },
     }),
     bq().query({
@@ -223,6 +230,38 @@ export interface AccountBundle {
   };
   teamPresets: { id: string; name: string; creatureIds: string[] }[];
   pendingGuildInvitesCount: number;
+  /** Parsed users.daily_missions_state — null when the column is empty/unparseable OR its stored
+   * date isn't today (server-side half of the daily reset; lib/store.ts's ensureFreshDailyTasks
+   * does the equivalent check client-side for a tab that's been open since before the rollover).
+   * A null here means "generate a fresh day's tasks", same as the client does. */
+  dailyMissionsState: { date: string; tasks: Record<string, { progress: number; claimed: boolean }> } | null;
+  /** Unlocked achievement ids — see lib/gameData.ts's ACHIEVEMENTS for the catalog. */
+  achievements: string[];
+}
+
+/** Server's local "today" as YYYY-MM-DD — the server-side half of the daily-missions reset check
+ * (lib/store.ts's todayDateString is the client-side equivalent; a small client/server clock skew
+ * at most shifts the reset moment slightly, never fabricates progress). */
+function serverTodayDateString(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** Parses users.daily_missions_state, returning null (meaning "generate a fresh day's tasks",
+ * same as an absent/corrupt blob) whenever the stored date isn't today. */
+function parseDailyMissionsState(
+  raw: string | null | undefined
+): { date: string; tasks: Record<string, { progress: number; claimed: boolean }> } | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.date !== serverTodayDateString()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export async function getAccountBundle(userId: string): Promise<AccountBundle | null> {
@@ -242,7 +281,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_missions_state, achievements
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -498,6 +537,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       creatureIds: r.creature_ids ? r.creature_ids.split(",") : [],
     })),
     pendingGuildInvitesCount,
+    dailyMissionsState: parseDailyMissionsState(userRow.daily_missions_state),
+    achievements: userRow.achievements ? JSON.parse(userRow.achievements) : [],
   };
 }
 
@@ -518,6 +559,10 @@ export async function syncPlayerProgress(
     currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
     dailyEventAttempts?: Record<string, number>;
     items?: { itemId: string; quantity: number }[];
+    /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
+     * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
+     * blob-overwrite reasoning as dailyEventAttempts just above. */
+    dailyTasksState?: { date: string; tasks: Record<string, { progress: number; claimed: boolean }> };
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -536,14 +581,16 @@ export async function syncPlayerProgress(
         UPDATE ${table("users")}
         SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
         ${opts.dailyEventAttempts ? ', daily_event_attempts = @dailyEventAttempts' : ''}
+        ${opts.dailyTasksState ? ', daily_missions_state = @dailyTasksState' : ''}
         WHERE id = @userId
       `,
-      params: { 
-        userId, 
-        level: opts.level, 
-        exp: opts.exp, 
+      params: {
+        userId,
+        level: opts.level,
+        exp: opts.exp,
         expToNextLevel: opts.expToNextLevel,
-        ...(opts.dailyEventAttempts && { dailyEventAttempts: JSON.stringify(opts.dailyEventAttempts) })
+        ...(opts.dailyEventAttempts && { dailyEventAttempts: JSON.stringify(opts.dailyEventAttempts) }),
+        ...(opts.dailyTasksState && { dailyTasksState: JSON.stringify(opts.dailyTasksState) }),
       },
     }),
   ];
@@ -726,6 +773,66 @@ export async function grantCreatureToUser(
     },
   });
   return { isNew: !wasOwned, copies };
+}
+
+/** Grants several creatures in ONE query job — required for a gacha x10 pull, which can easily
+ * roll 3-10 creatures at once: firing one grantCreatureToUser MERGE per creature concurrently
+ * hits BigQuery's per-table concurrent-DML limit (~20) the same way unbatched item grants did
+ * (see grantItemsToUser's comment) — the ones rejected are silently swallowed by the client's
+ * best-effort error handling, so a pulled creature just never lands. Mirrors grantItemsToUser's
+ * shape: dedupe by id first (MERGE errors if two source rows match the same target row — very
+ * likely here, since pulling the same creature twice in one x10 is common), one MERGE via
+ * UNNEST. */
+export async function grantCreaturesToUser(userId: string, creatureIds: string[]): Promise<void> {
+  if (creatureIds.length === 0) return;
+  const counts = new Map<string, number>();
+  for (const id of creatureIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+
+  const rows = Array.from(counts, ([creatureId, quantity]) => {
+    const base = STARTER_CREATURES.find((c) => c.id === creatureId);
+    if (!base) return null;
+    return {
+      creatureId,
+      quantity,
+      level: base.level,
+      exp: base.exp,
+      expToNextLevel: base.expToNextLevel,
+      hp: base.baseStats.hp,
+      atk: base.baseStats.atk,
+      def: base.baseStats.def,
+      spd: base.baseStats.spd,
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+  if (rows.length === 0) return;
+
+  await bq().query({
+    query: `
+      MERGE ${table("user_creatures")} AS target
+      USING UNNEST(@creatures) AS source
+      ON target.user_id = @userId AND target.creature_id = source.creatureId
+      WHEN MATCHED THEN
+        UPDATE SET copies = target.copies + source.quantity
+      WHEN NOT MATCHED THEN
+        INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies)
+        VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, false, NULL, source.quantity)
+    `,
+    params: { userId, creatures: rows },
+    types: {
+      creatures: [
+        {
+          creatureId: "STRING",
+          quantity: "INT64",
+          level: "INT64",
+          exp: "INT64",
+          expToNextLevel: "INT64",
+          hp: "INT64",
+          atk: "INT64",
+          def: "INT64",
+          spd: "INT64",
+        },
+      ],
+    },
+  });
 }
 
 /** Adds a Tamer gear piece to the account — a no-op if already owned (each piece is unique, no
@@ -1696,4 +1803,25 @@ export async function claimAdminGift(
     await grantCreatureToUser(userId, gift.creature_id, gift.quantity);
   }
   return { ok: true, type: gift.type, itemId: gift.item_id, creatureId: gift.creature_id, quantity: gift.quantity };
+}
+
+/** Unlocks one achievement for a user — no-op (returns false) if already unlocked. Unlike
+ * claimAdminGift's MERGE-into-a-claims-table approach (built for potentially-concurrent claims of
+ * a shared broadcast gift), this is a plain read-then-write against a single JSON array column:
+ * achievement unlocks are rare, one-shot, per-user events with no cross-user contention to guard
+ * against, so the extra MERGE machinery isn't worth it here — see lib/gameData.ts's ACHIEVEMENTS
+ * catalog and the "why a JSON blob column, not a table" reasoning in the plan this followed. */
+export async function unlockAchievement(userId: string, achievementId: string): Promise<{ isNew: boolean }> {
+  const [rows] = await bq().query({
+    query: `SELECT achievements FROM ${table("users")} WHERE id = @userId LIMIT 1`,
+    params: { userId },
+  });
+  const current: string[] = rows[0]?.achievements ? JSON.parse(rows[0].achievements) : [];
+  if (current.includes(achievementId)) return { isNew: false };
+
+  await bq().query({
+    query: `UPDATE ${table("users")} SET achievements = @achievements, updated_at = CURRENT_TIMESTAMP() WHERE id = @userId`,
+    params: { userId, achievements: JSON.stringify([...current, achievementId]) },
+  });
+  return { isNew: true };
 }

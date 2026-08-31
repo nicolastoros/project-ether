@@ -31,7 +31,12 @@ export function ProgressBar({
   return (
     <div className={cn("w-full", className)}>
       {label && (
-        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-zinc-200 font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+        // text-zinc-600 (not zinc-200 + a drop-shadow meant for a dark backdrop) — every caller
+        // that passes a plain string here (hub HP/EXP, top bar Energy, Survival's HUD) renders
+        // this on the app's light bg-arcade-panel family, where light-gray-on-near-white read as
+        // blurry/illegible. Callers that need their own color (e.g. CombatantCard's battle HUD)
+        // already pass label as JSX with explicit classes, which override this by nesting.
+        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-zinc-600 font-semibold">
           <span>{label}</span>
           {showPercentText && <span>{clamped}%</span>}
         </div>

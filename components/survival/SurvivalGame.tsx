@@ -9,9 +9,10 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { useGameStore } from "@/lib/store";
-import { ITEM_CATALOG } from "@/lib/gameData";
+import { ACHIEVEMENTS, ITEM_CATALOG } from "@/lib/gameData";
 import { ItemIcon } from "@/components/ui/ItemIcon";
-import { grantItemOnServer } from "@/lib/syncProgress";
+import { grantItemOnServer, unlockAchievementOnServer } from "@/lib/syncProgress";
+import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { survivalLoadoutForCreature } from "@/lib/survivalBalance";
 import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
 import type { Creature } from "@/types/game";
@@ -259,6 +260,7 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const grantItem = useGameStore((s) => s.grantItem);
   const clearSurvivalStage = useGameStore((s) => s.clearSurvivalStage);
+  const unlockAchievement = useGameStore((s) => s.unlockAchievement);
   const [itemDropped, setItemDropped] = useState<{ itemId: string; quantity: number } | null>(null);
 
   // useMemo (not a ref) so it's safe to read during render below, but still only decided once
@@ -363,6 +365,15 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
     gainProfileExp(stage.stageNumber * 15);
     clearSurvivalStage(stage.stageNumber);
 
+    if (stage.stageNumber === 1) {
+      const achievementId = "ach-survivor-class";
+      if (unlockAchievement(achievementId)) {
+        unlockAchievementOnServer(achievementId);
+        const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
+        if (achievement) notifyAchievementUnlocked(achievement);
+      }
+    }
+
     // A modest chance at a Consumable, same spirit as Campaign's seal-coin/item rolls but with
     // Survival's own flat rate since it has no equipmentDropChance field to reuse. The local UI
     // state update is deferred a frame (same technique the game loop below already relies on for
@@ -387,6 +398,7 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
     gainProfileExp,
     grantItem,
     clearSurvivalStage,
+    unlockAchievement,
   ]);
 
   function handleRestart() {

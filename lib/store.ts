@@ -38,6 +38,33 @@ export { HUB_TEAM_SIZE };
 const BOX_EXP_PER_SECOND = 1.5;
 const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
 
+/** "YYYY-MM-DD" in the browser's local timezone — the daily-missions reset boundary. Purely
+ * client-local; the server does its own equivalent computation when it generates a fresh day's
+ * blob (see lib/db/bigquery.ts's getAccountBundle) rather than trusting a client-sent date, so a
+ * little client/server clock skew at most shifts the reset moment by a similar margin, never
+ * fabricates progress. */
+function todayDateString(): string {
+  // Built from local getters (not toISOString, which is UTC) so the reset actually lands at local
+  // midnight rather than UTC midnight.
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function freshDailyTasks(): DailyTask[] {
+  return DEFAULT_DAILY_TASKS.map((t) => ({ ...t }));
+}
+
+/** Shared by tickMissionProgress and claimTask: resets to a fresh day's tasks if the persisted
+ * `dailyTasksDate` doesn't match today (a tab left open across midnight, or a stale persisted
+ * cache), otherwise passes the current tasks through unchanged. */
+function ensureFreshDailyTasks(dailyTasks: DailyTask[], dailyTasksDate: string): { tasks: DailyTask[]; date: string } {
+  const today = todayDateString();
+  if (dailyTasksDate === today) return { tasks: dailyTasks, date: today };
+  return { tasks: freshDailyTasks(), date: today };
+}
+
 function applyExpGain(creature: Creature, gained: number): Creature {
   if (creature.level >= MAX_LEVEL) return creature;
   let exp = creature.exp + gained;
@@ -187,6 +214,18 @@ function bundleToStateFields(bundle: AccountBundle) {
       stageStars: parseStageStars(bundle.dungeon.perfectStages || []),
     },
     pendingGuildInvitesCount: bundle.pendingGuildInvitesCount || 0,
+    // bundle.dailyMissionsState is already null unless its stored date is today (see
+    // getAccountBundle's parseDailyMissionsState) — merged onto DEFAULT_DAILY_TASKS by id rather
+    // than trusted as-is, so a task type added in a later release still shows up even for an
+    // account whose saved blob predates it.
+    dailyTasks: bundle.dailyMissionsState
+      ? DEFAULT_DAILY_TASKS.map((def) => {
+          const saved = bundle.dailyMissionsState!.tasks[def.id];
+          return saved ? { ...def, progress: saved.progress, claimed: saved.claimed } : { ...def };
+        })
+      : freshDailyTasks(),
+    dailyTasksDate: bundle.dailyMissionsState?.date ?? todayDateString(),
+    achievements: bundle.achievements || [],
   };
 }
 
@@ -254,6 +293,21 @@ interface GameState {
   activeExpeditions: ActiveExpedition[];
   dungeon: DungeonProgress;
   dailyTasks: DailyTask[];
+  /** "YYYY-MM-DD" (local date) the current `dailyTasks` snapshot was generated for — checked
+   * against today's date before every progress tick/claim so a tab left open across midnight (or
+   * a stale persisted cache) rolls over to a fresh set instead of ticking/claiming yesterday's.
+   * Mirrored server-side in users.daily_missions_state's own "date" field. */
+  dailyTasksDate: string;
+  /** Bumps one daily task's progress (capped at its target), resetting to a fresh day's tasks
+   * first if `dailyTasksDate` is stale. Called from the real gameplay hooks that back each task —
+   * see BattleScreen.tsx (task-dungeon), gacha/page.tsx (task-gacha), inventory/page.tsx
+   * (task-enhance) — NOT from claimTask, which only pays out an already-completed task. */
+  tickMissionProgress: (taskId: string, amount?: number) => void;
+  achievements: string[];
+  /** Adds an achievement id to local state if not already present. Returns whether it was newly
+   * added (false if already unlocked) — callers use that to decide whether to fire the server
+   * grant + unlock notification, not just on every check. */
+  unlockAchievement: (achievementId: string) => boolean;
   gifts: Gift[];
   claimGift: (giftId: string) => void;
   /** Highest Survival stage number cleared so far (see lib/survivalStages.ts) — local-only for now, same as `dungeon`. */
@@ -405,6 +459,8 @@ export const useGameStore = create<GameState>()(
         stageStars: {},
       },
       dailyTasks: DEFAULT_DAILY_TASKS,
+      dailyTasksDate: todayDateString(),
+      achievements: [],
       gifts: [
         { id: "gift-3", type: "item", itemId: "it-mythic-ticket", quantity: 40, message: "Special LR Event!", createdAt: Date.now() },
         { id: "gift-4", type: "item", itemId: "it-legendary-ticket", quantity: 40, message: "Mythic Celebration", createdAt: Date.now() },
@@ -491,6 +547,9 @@ export const useGameStore = create<GameState>()(
             stageStars: {},
           },
           survivalHighestStageCleared: 0,
+          dailyTasks: freshDailyTasks(),
+          dailyTasksDate: todayDateString(),
+          achievements: [],
         }),
 
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
@@ -1057,12 +1116,33 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
+      tickMissionProgress: (taskId, amount = 1) =>
+        set((state) => {
+          const { tasks, date } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate);
+          return {
+            dailyTasksDate: date,
+            dailyTasks: tasks.map((t) =>
+              t.id === taskId && !t.claimed
+                ? { ...t, progress: Math.min(t.target, t.progress + amount) }
+                : t
+            ),
+          };
+        }),
+
+      unlockAchievement: (achievementId) => {
+        const already = get().achievements.includes(achievementId);
+        if (!already) set((state) => ({ achievements: [...state.achievements, achievementId] }));
+        return !already;
+      },
+
       claimTask: (taskId) =>
         set((state) => {
-          const task = state.dailyTasks.find((t) => t.id === taskId);
-          if (!task || task.claimed || task.progress < task.target) return state;
+          const { tasks, date } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate);
+          const task = tasks.find((t) => t.id === taskId);
+          if (!task || task.claimed || task.progress < task.target) return { dailyTasks: tasks, dailyTasksDate: date };
           return {
-            dailyTasks: state.dailyTasks.map((t) =>
+            dailyTasksDate: date,
+            dailyTasks: tasks.map((t) =>
               t.id === taskId ? { ...t, claimed: true } : t
             ),
             currencies: {

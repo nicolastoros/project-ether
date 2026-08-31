@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { GACHA_BANNERS, GACHA_CREATURE_POOL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
+import { grantCreaturesOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -57,6 +58,7 @@ export default function GachaPage() {
   const ownedItems = useGameStore((s) => s.ownedItems);
   const consumeItem = useGameStore((s) => s.consumeItem);
   const grantCreature = useGameStore((s) => s.grantCreature);
+  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
   const [results, setResults] = useState<Creature[] | null>(null);
 
   const banner = GACHA_BANNERS[activeIndex];
@@ -69,6 +71,13 @@ export default function GachaPage() {
     }
     const rolled = rollCreatures(GACHA_CREATURE_POOL, count, banner);
     rolled.forEach(c => grantCreature(c.id));
+    // Persisting the pull itself was missing entirely — rolled creatures only ever lived in local
+    // state, silently vanishing on the next refresh (same class of bug as the gift-claim issue
+    // fixed earlier). Batched (not one grantCreatureOnServer call per pull) since a x10 pull can
+    // easily hit BigQuery's per-table concurrent-DML limit — see grantCreaturesOnServer's comment.
+    grantCreaturesOnServer(rolled.map((c) => c.id));
+    tickMissionProgress("task-gacha");
+    syncProgressToServer();
     setResults(rolled);
   };
 

@@ -6,6 +6,7 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
+import { syncProgressToServer } from "@/lib/syncProgress";
 import { cn } from "@/lib/utils";
 
 export function DailyTaskList() {
@@ -49,7 +50,13 @@ export function DailyTaskList() {
                   size="sm"
                   variant={task.claimed ? "ghost" : "neon"}
                   disabled={!isComplete || task.claimed}
-                  onClick={() => claimTask(task.id)}
+                  onClick={() => {
+                    claimTask(task.id);
+                    // claimTask only mutates local state — without this, a claimed reward's
+                    // gold/gems and the claimed flag itself both revert on the next reload,
+                    // since nothing ever told BigQuery about it.
+                    syncProgressToServer();
+                  }}
                 >
                   {task.claimed ? <Check className="h-3.5 w-3.5" /> : "Claim"}
                 </PixelButton>

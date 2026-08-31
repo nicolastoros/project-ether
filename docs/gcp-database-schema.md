@@ -58,6 +58,18 @@ CREATE TABLE `project-scrappy-intelic.project_ether.users` (
   updated_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   is_admin           BOOL DEFAULT false,   -- added via ALTER TABLE after the fact; NEVER set automatically at registration — only granted by hand (a one-off UPDATE), since registration is public
   is_banned          BOOL DEFAULT false,   -- added via ALTER TABLE after the fact; set from the admin panel (app/(game)/admin). Blocks new logins (auth.ts) — since sessions are stateless JWTs, an already-open session is instead force-signed-out within ~1min by GameGate's server-status poll (see lib/db/bigquery.ts's isUserBanned)
+  daily_missions_state STRING, -- added via ALTER TABLE; JSON blob {date, tasks: {[taskId]: {progress, claimed}}}. A lighter alternative to a
+                                -- normalized user_missions table (see §7 below, drafted but never built) — same "small per-user daily state as
+                                -- a JSON column" shape as daily_event_attempts above. Read/reset by lib/db/bigquery.ts's parseDailyMissionsState
+                                -- (server) and lib/store.ts's ensureFreshDailyTasks (client) — whichever notices the stored date isn't today
+                                -- regenerates a fresh DEFAULT_DAILY_TASKS clone. Written wholesale (not per-field) via syncPlayerProgress,
+                                -- piggybacking on the same sync every other action already fires (see lib/syncProgress.ts).
+  achievements        STRING DEFAULT '[]', -- added via ALTER TABLE; JSON array of unlocked achievement ids (lib/gameData.ts's ACHIEVEMENTS is the
+                                -- catalog). Unlocked via lib/db/bigquery.ts's unlockAchievement (plain read-then-write — unlocks are rare,
+                                -- one-shot, per-user events with no cross-user contention, unlike admin_gifts' claims table below which does
+                                -- need MERGE-based concurrency safety for a shared broadcast gift). "Early Access 2026" is the one exception:
+                                -- granted directly at INSERT time in createAccount, since it's a pure users.created_at fact, not a client-
+                                -- reported gameplay event.
   PRIMARY KEY (id) NOT ENFORCED
 )
 CLUSTER BY username;

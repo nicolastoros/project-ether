@@ -194,6 +194,16 @@ export interface DailyTask {
   claimed: boolean;
 }
 
+/** Trophy/achievement catalog entry — see lib/gameData.ts's ACHIEVEMENTS. Unlocked state itself
+ * isn't part of this (that's just an id living in GameState.achievements / the server's
+ * users.achievements column), so this type is pure content/design data, same as DailyTask isn't
+ * either (its own progress/claimed fields are the exception, kept for backward compatibility). */
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;

@@ -1,4 +1,5 @@
 import type {
+  Achievement,
   Creature,
   DailyTask,
   DungeonStage,
@@ -1001,11 +1002,39 @@ export const SHOP_LISTINGS: ShopListing[] = [
   { id: "shop-orb-l-neutral", description: "5x Large Gray Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-neutral", amount: 5 } },
 ];
 
+// task-login ships pre-completed (progress = target) — reaching this fresh-day clone at all (see
+// lib/store.ts's ensureFreshDailyTasks/bundleToStateFields) already implies a same-day login, so
+// there's no separate "did they log in" check to wire up. The other three now track real progress
+// (see the tickMissionProgress call sites in BattleScreen.tsx, gacha/page.tsx, inventory/page.tsx)
+// and correctly start at 0 — they used to ship fake-pre-completed too, before any backend existed.
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [
   { id: "task-login", description: "Log in to the city hub", progress: 1, target: 1, rewardGold: 500, claimed: false },
-  { id: "task-dungeon", description: "Clear 3 dungeon waves", progress: 1, target: 3, rewardGems: 30, claimed: false },
+  { id: "task-dungeon", description: "Clear 3 dungeon waves", progress: 0, target: 3, rewardGems: 30, claimed: false },
   { id: "task-gacha", description: "Perform 1 summon", progress: 0, target: 1, rewardGold: 1000, claimed: false },
   { id: "task-enhance", description: "Enhance a piece of gear", progress: 0, target: 1, rewardGems: 20, claimed: false },
+];
+
+export const ACHIEVEMENTS: Achievement[] = [
+  {
+    id: "ach-crimson-conqueror",
+    name: "Crimson Conqueror",
+    description: "Defeat the Crimson Paladin raid boss on Super3 difficulty.",
+  },
+  {
+    id: "ach-early-access-2026",
+    name: "Early Access 2026",
+    description: "Joined the Digital World during 2026, before the gates opened to everyone.",
+  },
+  {
+    id: "ach-explorer-digital-world",
+    name: "Explorer of the Digital World",
+    description: "Clear every stage through World 5 in Campaign.",
+  },
+  {
+    id: "ach-survivor-class",
+    name: "Survivor Class",
+    description: "Clear the first stage of Survival mode.",
+  },
 ];
 
 export const GACHA_BANNERS: GachaBanner[] = [
@@ -1092,6 +1121,14 @@ const HIGHEST_STAGE_CLEARED = 0;
 const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
 
 const WORLD_SIZES = [8, 8, 12, 12, 14];
+
+/** Cumulative stage count through the end of `world` (1-indexed) — e.g. 5 -> 54, since worlds
+ * 1-5 are sized [8,8,12,12,14]. Used to check "has this player cleared through World N" against
+ * dungeon.highestStageCleared, without scattering the raw WORLD_SIZES math (or a magic stage
+ * number) at each call site. */
+export function cumulativeStageCountThroughWorld(world: number): number {
+  return WORLD_SIZES.slice(0, world).reduce((sum, size) => sum + size, 0);
+}
 
 export const DUNGEON_STAGES: DungeonStage[] = STAGE_NAMES.map((name, i) => {
   const stageNumber = i + 1;

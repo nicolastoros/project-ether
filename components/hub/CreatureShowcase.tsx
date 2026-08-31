@@ -52,11 +52,13 @@ export function CreatureShowcase() {
 
       <div
         className={cn(
-          "relative flex h-40 items-center justify-center gap-2 overflow-hidden rounded-xl border border-arcade-border bg-gradient-to-b",
+          "relative flex h-48 items-center justify-center gap-2 overflow-hidden rounded-xl border border-arcade-border bg-gradient-to-b",
           ELEMENT_GRADIENT[creature.element]
         )}
       >
-        <div className="flex h-36 w-36 shrink-0 items-center justify-center">
+        {/* Taller than the Digimon's h-32 box below — the Tamer is the player's own avatar and
+            should read as the more prominent figure in the scene, not a same-size sidekick. */}
+        <div className="flex h-44 w-44 shrink-0 items-center justify-center">
           <TamerSprite
             spriteFolder={equippedTamer.spriteFolder}
             name={equippedTamer.name}

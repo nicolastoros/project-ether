@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Award,
+  BookOpen,
   Castle,
   Calendar,
   Compass,
@@ -47,10 +49,12 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Collection",
     items: [
       { href: "/monsters", label: "Monsters", icon: PawPrint },
+      { href: "/dex", label: "Dex", icon: BookOpen },
       { href: "/formations", label: "Formations", icon: Users },
       { href: "/inventory", label: "Inventory", icon: ShieldHalf },
       { href: "/tamer", label: "Tamer", icon: Shirt },
       { href: "/shop", label: "Shop", icon: Store },
+      { href: "/trophies", label: "Trophies", icon: Award },
     ],
   },
   {

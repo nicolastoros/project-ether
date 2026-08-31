@@ -34,7 +34,7 @@ export async function waitForPendingSync(): Promise<void> {
  * it immediately instead of waiting for the next interval tick. Never throws; local play
  * continues either way. */
 export function syncProgressToServer(): void {
-  const { profile, creatures, dungeon, currencies } = useGameStore.getState();
+  const { profile, creatures, dungeon, currencies, dailyTasks, dailyTasksDate } = useGameStore.getState();
   trackPending(fetch("/api/user/sync", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -72,6 +72,10 @@ export function syncProgressToServer(): void {
         lastEnergyTickAt: currencies.lastEnergyTickAt 
       },
       dailyEventAttempts: profile.dailyEventAttempts,
+      dailyTasksState: {
+        date: dailyTasksDate,
+        tasks: Object.fromEntries(dailyTasks.map((t) => [t.id, { progress: t.progress, claimed: t.claimed }])),
+      },
     }),
   }).catch(() => {
     // Non-fatal: local play continues regardless of sync success.
@@ -104,6 +108,23 @@ export function grantCreatureOnServer(creatureId: string, quantity = 1): void {
   }).catch(() => {
     // Non-fatal: the local grant already happened, so play continues either way. If this
     // request fails, the grant just won't have made it to BigQuery — retrying isn't wired up.
+  }));
+}
+
+/** Persists several creature grants in ONE request — use this instead of calling
+ * grantCreatureOnServer in a loop whenever more than one creature is being granted at once (a
+ * gacha x10 pull being the main case: firing ~10 concurrent individual grants hits BigQuery's
+ * per-table concurrent-DML limit, the same issue grantItemsOnServer's comment documents for
+ * items — a pulled creature would just silently never land). */
+export function grantCreaturesOnServer(creatureIds: string[]): void {
+  if (creatureIds.length === 0) return;
+  trackPending(fetch("/api/user/creatures/grant-batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
+    body: JSON.stringify({ creatureIds }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
   }));
 }
 
@@ -164,6 +185,21 @@ export function claimAdminGiftOnServer(giftId: string): void {
   }).catch(() => {
     // Non-fatal — see grantCreatureOnServer's comment above. Worst case: this admin gift shows up
     // again in the inbox next load and the player just claims it again.
+  }));
+}
+
+/** Persists a newly-unlocked achievement server-side — see lib/store.ts's unlockAchievement,
+ * which already updated local state; this just mirrors that to users.achievements. Fire-and-
+ * forget like every other grant here, so a dropped request just means the trophy needs to unlock
+ * again next time its condition is met (harmless — unlockAchievement is itself idempotent). */
+export function unlockAchievementOnServer(achievementId: string): void {
+  trackPending(fetch("/api/user/achievements/unlock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
+    body: JSON.stringify({ achievementId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
   }));
 }
 

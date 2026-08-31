@@ -11,7 +11,8 @@ import type { Creature, DungeonStage, Skill } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useGameStore } from "@/lib/store";
-import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
@@ -20,6 +21,7 @@ import {
   grantItemOnServer,
   grantTamerEquipmentOnServer,
   syncProgressToServer,
+  unlockAchievementOnServer,
 } from "@/lib/syncProgress";
 import { addGuildExpAction } from "@/app/actions/guild";
 import {
@@ -124,6 +126,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
   const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
+  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
+  const unlockAchievement = useGameStore((s) => s.unlockAchievement);
   const grantCreature = useGameStore((s) => s.grantCreature);
   const recordStageStars = useGameStore((s) => s.recordStageStars);
   const addSealCoins = useGameStore((s) => s.addSealCoins);
@@ -240,6 +244,18 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         gainProfileExp(stage.rewardExp * expMultiplier);
         const isFirstStage1Clear = stage.stageNumber === 1 && highestBefore === 0;
         clearDungeonStage(stage.stageNumber);
+        tickMissionProgress("task-dungeon");
+        // "Explorer of the Digital World" — cleared every stage through World 5. Checked against
+        // this stage's own number rather than the post-clear highestStageCleared so a lower-stage
+        // replay after already clearing World 5 doesn't matter either way.
+        if (stage.stageNumber >= cumulativeStageCountThroughWorld(5)) {
+          const achievementId = "ach-explorer-digital-world";
+          if (unlockAchievement(achievementId)) {
+            unlockAchievementOnServer(achievementId);
+            const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
+            if (achievement) notifyAchievementUnlocked(achievement);
+          }
+        }
         if (isFirstStage1Clear) {
           const gift = grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID);
           if (gift) {
