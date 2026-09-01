@@ -7,9 +7,10 @@ import { motion } from "framer-motion";
 import { ChevronDown, RotateCcw, Sparkles, Zap } from "lucide-react";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
-import type { Creature, DungeonStage, Skill } from "@/types/game";
+import type { Creature, DungeonStage, Skill, StatusEffectType } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { useGameStore } from "@/lib/store";
 import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
@@ -28,15 +29,17 @@ import {
   applyAction,
   createCombatant,
   getSkillTargetMode,
+  getUltimateSkill,
   nextLogId,
   pickEnemyAction,
+  resonanceCostForSkill,
   type BattleCombatant,
   type BattleLogEntry,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
-import { CombatantCard } from "./CombatantCard";
+import { CombatantCard, STATUS_BADGE } from "./CombatantCard";
 import { cn, formatNumber } from "@/lib/utils";
 
 // One arena background per world with real battle content — each is the same portrait dimensions
@@ -75,6 +78,10 @@ function CombatantPlate({
 }) {
   const { creature } = combatant;
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
+  const resonancePercent = Math.round((combatant.resonance / combatant.resonanceMax) * 100);
+  const activeStatuses = (Object.keys(combatant.statusEffects) as StatusEffectType[]).filter(
+    (type) => (combatant.statusEffects[type] ?? 0) > 0
+  );
 
   return (
     <div
@@ -86,17 +93,35 @@ function CombatantPlate({
         className
       )}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-black/50">
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-black/50">
         <CreatureSprite
           creature={creature}
           direction={align === "left" ? "south-east" : "south-west"}
           className="h-8 w-8"
         />
+        {activeStatuses.length > 0 && (
+          <span className={cn("absolute -top-1.5 flex gap-0.5", align === "right" ? "-left-1.5" : "-right-1.5")}>
+            {activeStatuses.map((type) => {
+              const badge = STATUS_BADGE[type];
+              const Icon = badge.icon;
+              return (
+                <span
+                  key={type}
+                  title={type}
+                  className={cn("flex h-4 w-4 items-center justify-center rounded-full border border-arcade-border text-white", badge.className)}
+                >
+                  <Icon className="h-2.5 w-2.5" />
+                </span>
+              );
+            })}
+          </span>
+        )}
       </div>
       <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
         <p className="truncate text-[10px] sm:text-xs font-bold text-white">{creature.name}</p>
         <p className="text-[9px] sm:text-[10px] text-zinc-300">Lv.{creature.level}</p>
         <ProgressBar percent={hpPercent} color="hp" label={`${combatant.currentHp}/${combatant.maxHp}`} className="mt-1" />
+        <ProgressBar percent={resonancePercent} color="resonance" className="mt-0.5" />
       </div>
     </div>
   );
@@ -182,6 +207,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
+  // uid of the combatant currently charging/unleashing an Ultimate Attack — see resolveTurn's
+  // isUltimate branch, which holds this set for the charge-up delay before damage lands.
+  const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -194,25 +222,29 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
   function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
     const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
-    if (skill.type === "Attack") {
-      setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-    }
-    if (hitUids.length > 0) {
-      setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-    }
+    const actingCombatant = combatants.find((c) => c.uid === byUid);
+    const isUltimate = actingCombatant?.creature.ultimateSkill?.id === skill.id;
 
-    // Check for deaths
-    const anyDeaths = next.some(c => c.side === "player" && !c.isAlive);
-    if (anyDeaths) setHasDeaths(true);
+    const finalize = () => {
+      if (skill.type === "Attack") {
+        setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+      }
+      if (hitUids.length > 0) {
+        setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
+      }
 
-    setCombatants(next);
-    setLog((prev) => [...prev, ...logs]);
-    setPendingSkill(null);
+      // Check for deaths
+      const anyDeaths = next.some(c => c.side === "player" && !c.isAlive);
+      if (anyDeaths) setHasDeaths(true);
 
-    const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
-    const playersAlive = next.some((c) => c.side === "player" && c.isAlive);
+      setCombatants(next);
+      setLog((prev) => [...prev, ...logs]);
+      setPendingSkill(null);
 
-    if (!enemiesAlive) {
+      const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
+      const playersAlive = next.some((c) => c.side === "player" && c.isAlive);
+
+      if (!enemiesAlive) {
       setPhase("victory");
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Victory! All enemies defeated." }]);
       
@@ -337,6 +369,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       if (nextIdx <= prevPointer) setTurnCount((c) => c + 1);
       return nextIdx;
     });
+    };
+
+    if (isUltimate) {
+      // Play the charge-up aura on the caster before damage/status actually lands — mirrors
+      // RaidBattleScreen's existing boss-telegraph delayed-animation pattern.
+      setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+      setTimeout(() => {
+        setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
+        finalize();
+      }, 1300);
+    } else {
+      finalize();
+    }
   }
 
   // Enemy turns resolve themselves after a short "thinking" delay.
@@ -433,6 +478,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     attackNonce={attackEvent.nonce}
                     hitUids={hitEvent.uids}
                     hitNonce={hitEvent.nonce}
+                    isCastingUltimate={activeUltimateUid.uid === c.uid}
                   />
                 </div>
               );
@@ -471,40 +517,84 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                           Select an enemy target on the battlefield.
                         </p>
                       ) : (
-                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                          {actor.creature.skills
-                            .filter((s) => s.type !== "Passive")
-                            .map((skill) => {
-                              const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
-                              const isReady = cooldownLeft <= 0;
-                              return (
-                                <button
-                                  key={skill.id}
-                                  disabled={!isReady}
-                                  onClick={() => handleSkillClick(skill)}
-                                  className={cn(
-                                    "rounded-lg sm:rounded-xl border border-white/20 bg-white/10 p-2 sm:p-3 text-left transition-colors",
-                                    isReady ? "hover:border-gold hover:bg-white/20" : "cursor-not-allowed opacity-50"
-                                  )}
-                                >
-                                  <div className="flex items-center justify-between gap-1">
-                                    <p className="text-[10px] sm:text-xs font-bold text-white truncate">{skill.name}</p>
-                                    <span
-                                      className={cn(
-                                        "shrink-0 rounded-full px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white",
-                                        SKILL_TYPE_STYLES[skill.type]
-                                      )}
-                                    >
-                                      {skill.type}
+                        <div className="space-y-2 sm:space-y-3">
+                          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                            {actor.creature.skills
+                              .filter((s) => s.type !== "Passive")
+                              .map((skill) => {
+                                const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
+                                const cost = resonanceCostForSkill(skill);
+                                const isReady = cooldownLeft <= 0 && actor.resonance >= cost;
+                                return (
+                                  <button
+                                    key={skill.id}
+                                    disabled={!isReady}
+                                    onClick={() => handleSkillClick(skill)}
+                                    className={cn(
+                                      "rounded-lg sm:rounded-xl border border-white/20 bg-white/10 p-2 sm:p-3 text-left transition-colors",
+                                      isReady ? "hover:border-gold hover:bg-white/20" : "cursor-not-allowed opacity-50"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <p className="text-[10px] sm:text-xs font-bold text-white truncate">{skill.name}</p>
+                                      <span className="flex shrink-0 items-center gap-1">
+                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold text-sky-300">
+                                          <Zap className="h-2 w-2" />{cost}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            "rounded-full px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white",
+                                            SKILL_TYPE_STYLES[skill.type]
+                                          )}
+                                        >
+                                          {skill.type}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{skill.description}</p>
+                                    {cooldownLeft > 0 && (
+                                      <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
+                                    )}
+                                    {cooldownLeft <= 0 && actor.resonance < cost && (
+                                      <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                          </div>
+                          {(() => {
+                            const ultimate = getUltimateSkill(actor.creature);
+                            if (!ultimate || !actor.creature.ultimateSkill) return null;
+                            const cost = actor.creature.ultimateSkill.resonanceCost;
+                            const isReady = actor.resonance >= cost;
+                            return (
+                              <button
+                                disabled={!isReady}
+                                onClick={() => handleSkillClick(ultimate)}
+                                className={cn(
+                                  "relative w-full overflow-hidden rounded-lg sm:rounded-xl border-2 border-gold-bright bg-gradient-to-r from-amber-950/60 via-fuchsia-950/50 to-sky-950/60 p-2 sm:p-3 text-left transition-colors",
+                                  isReady ? "hover:brightness-125" : "cursor-not-allowed opacity-50"
+                                )}
+                              >
+                                <LegendaryCardAura />
+                                <div className="relative flex items-center justify-between gap-1">
+                                  <p className="text-[10px] sm:text-xs font-bold text-white truncate">{ultimate.name}</p>
+                                  <span className="flex shrink-0 items-center gap-1">
+                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold text-sky-300">
+                                      <Zap className="h-2 w-2" />{cost}
                                     </span>
-                                  </div>
-                                  <p className="mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{skill.description}</p>
-                                  {!isReady && (
-                                    <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
-                                  )}
-                                </button>
-                              );
-                            })}
+                                    <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white">
+                                      Ultimate
+                                    </span>
+                                  </span>
+                                </div>
+                                <p className="relative mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{ultimate.description}</p>
+                                {!isReady && (
+                                  <p className="relative mt-0.5 text-[8px] sm:text-[9px] font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                )}
+                              </button>
+                            );
+                          })()}
                         </div>
                       )}
                     </>
@@ -534,6 +624,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                   attackNonce={attackEvent.nonce}
                   hitUids={hitEvent.uids}
                   hitNonce={hitEvent.nonce}
+                  isCastingUltimate={activeUltimateUid.uid === c.uid}
                 />
               ))}
             </div>
@@ -555,12 +646,34 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                   attackNonce={attackEvent.nonce}
                   hitUids={hitEvent.uids}
                   hitNonce={hitEvent.nonce}
+                  isCastingUltimate={activeUltimateUid.uid === c.uid}
                 />
               ))}
             </div>
           </GlowPanel>
         )}
       </div>
+
+      {/* Battle log — surfaces status-effect/Resonance flavor text (paralysis, confusion
+          misfires, poison ticks, Ultimate procs) that the arena's compact skill-menu labels
+          don't have room for. Mirrors RaidBattleScreen's own log panel. */}
+      <GlowPanel accent="none" className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-4xl xl:max-w-6xl 2xl:max-w-[1600px] max-h-32 space-y-1 overflow-y-auto p-3">
+        {log.map((entry) => (
+          <p
+            key={entry.id}
+            className={cn(
+              "text-[10px]",
+              entry.kind === "defeat" && "font-semibold text-red-500",
+              entry.kind === "heal" && "text-emerald-600",
+              entry.kind === "info" && "font-semibold text-gold-bright"
+            )}
+          >
+            {entry.message}
+          </p>
+        ))}
+        <div ref={logEndRef} />
+      </GlowPanel>
+
       {phase !== "active" && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}

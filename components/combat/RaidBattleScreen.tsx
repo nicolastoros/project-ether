@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw, Sparkles, Zap } from "lucide-react";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import type { Creature, Skill } from "@/types/game";
@@ -17,14 +17,17 @@ import {
   applyAction,
   createCombatant,
   getSkillTargetMode,
+  getUltimateSkill,
   nextLogId,
   pickEnemyAction,
+  resonanceCostForSkill,
   type BattleCombatant,
   type BattleLogEntry,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
+import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { CombatantCard } from "./CombatantCard";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -92,6 +95,9 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const [activeBossAnimation, setActiveBossAnimation] = useState<string | undefined>();
+  // uid of the combatant currently charging/unleashing an Ultimate Attack — mirrors
+  // activeBossAnimation's delayed-resolve pattern below, just for player-side ultimates.
+  const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
 
   const actorUid = turnOrder[turnPointer];
   const actor = combatants.find((c) => c.uid === actorUid) ?? null;
@@ -153,20 +159,23 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
 
   function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
     const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
-    
+
     const isBossAction = byUid.startsWith("enemy-");
     const currentBossNext = isBossAction ? next.find((c) => c.uid === byUid) : null;
     const isTelegraphing = isBossAction && currentBossNext?.telegraphedSkill?.id === skill.id;
+    const isUltimate = combatants.find((c) => c.uid === byUid)?.creature.ultimateSkill?.id === skill.id;
 
-    if (isBossAction && !isTelegraphing) {
-      // Play boss animation first, delay damage
-      setActiveBossAnimation(skill.name);
-      
+    if ((isBossAction && !isTelegraphing) || isUltimate) {
+      // Play the boss animation / player Ultimate charge-up first, delay damage.
+      if (isBossAction) setActiveBossAnimation(skill.name);
+      if (isUltimate) setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+
       setTimeout(() => {
         setActiveBossAnimation(undefined);
+        setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
         if (skill.type === "Attack") setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
         if (hitUids.length > 0) setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-        
+
         setCombatants(next);
         setLog((prev) => [...prev, ...logs]);
         setPendingSkill(null);
@@ -242,6 +251,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                 attackNonce={attackEvent.nonce}
                 hitUids={hitEvent.uids}
                 hitNonce={hitEvent.nonce}
+                isCastingUltimate={activeUltimateUid.uid === c.uid}
               />
             </div>
           ))}
@@ -264,6 +274,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                   attackNonce={attackEvent.nonce}
                   hitUids={hitEvent.uids}
                   hitNonce={hitEvent.nonce}
+                  isCastingUltimate={activeUltimateUid.uid === c.uid}
                 />
               </div>
             );
@@ -289,40 +300,84 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
               Choose an enemy to hit with <span className="font-semibold text-foreground">{pendingSkill.name}</span>.
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {actor.creature.skills
-                .filter((s) => s.type !== "Passive")
-                .map((skill) => {
-                  const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
-                  const isReady = cooldownLeft <= 0;
-                  return (
-                    <button
-                      key={skill.id}
-                      disabled={!isReady}
-                      onClick={() => handleSkillClick(skill)}
-                      className={cn(
-                        "rounded-xl border border-arcade-border bg-arcade-panel-light p-2.5 text-left transition-colors",
-                        isReady ? "hover:border-gold" : "cursor-not-allowed opacity-50"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-foreground">{skill.name}</p>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white",
-                            SKILL_TYPE_STYLES[skill.type]
-                          )}
-                        >
-                          {skill.type}
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {actor.creature.skills
+                  .filter((s) => s.type !== "Passive")
+                  .map((skill) => {
+                    const cooldownLeft = actor.cooldowns[skill.id] ?? 0;
+                    const cost = resonanceCostForSkill(skill);
+                    const isReady = cooldownLeft <= 0 && actor.resonance >= cost;
+                    return (
+                      <button
+                        key={skill.id}
+                        disabled={!isReady}
+                        onClick={() => handleSkillClick(skill)}
+                        className={cn(
+                          "rounded-xl border border-arcade-border bg-arcade-panel-light p-2.5 text-left transition-colors",
+                          isReady ? "hover:border-gold" : "cursor-not-allowed opacity-50"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-foreground">{skill.name}</p>
+                          <span className="flex shrink-0 items-center gap-1">
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] font-semibold text-sky-600">
+                              <Zap className="h-2 w-2" />{cost}
+                            </span>
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white",
+                                SKILL_TYPE_STYLES[skill.type]
+                              )}
+                            >
+                              {skill.type}
+                            </span>
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
+                        {cooldownLeft > 0 && (
+                          <p className="mt-1 text-[9px] font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
+                        )}
+                        {cooldownLeft <= 0 && actor.resonance < cost && (
+                          <p className="mt-1 text-[9px] font-semibold text-sky-600">Needs {cost} Resonance</p>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+              {(() => {
+                const ultimate = getUltimateSkill(actor.creature);
+                if (!ultimate || !actor.creature.ultimateSkill) return null;
+                const cost = actor.creature.ultimateSkill.resonanceCost;
+                const isReady = actor.resonance >= cost;
+                return (
+                  <button
+                    disabled={!isReady}
+                    onClick={() => handleSkillClick(ultimate)}
+                    className={cn(
+                      "relative w-full overflow-hidden rounded-xl border-2 border-gold-bright bg-gradient-to-r from-amber-950/10 via-fuchsia-950/10 to-sky-950/10 p-2.5 text-left transition-colors",
+                      isReady ? "hover:brightness-110" : "cursor-not-allowed opacity-50"
+                    )}
+                  >
+                    <LegendaryCardAura />
+                    <div className="relative flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground">{ultimate.name}</p>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] font-semibold text-sky-600">
+                          <Zap className="h-2 w-2" />{cost}
                         </span>
-                      </div>
-                      <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
-                      {!isReady && (
-                        <p className="mt-1 text-[9px] font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
-                      )}
-                    </button>
-                  );
-                })}
+                        <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white">
+                          Ultimate
+                        </span>
+                      </span>
+                    </div>
+                    <p className="relative mt-1 text-[10px] text-zinc-600">{ultimate.description}</p>
+                    {!isReady && (
+                      <p className="relative mt-1 text-[9px] font-semibold text-sky-600">Needs {cost} Resonance</p>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           )}
         </GlowPanel>

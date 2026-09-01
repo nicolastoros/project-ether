@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface ProgressBarProps {
   percent: number;
-  color?: "hp" | "energy" | "exp" | "gold";
+  color?: "hp" | "energy" | "exp" | "gold" | "resonance";
   label?: React.ReactNode;
   innerText?: string;
   showPercentText?: boolean;
@@ -17,6 +17,8 @@ const colorClasses: Record<NonNullable<ProgressBarProps["color"]>, string> = {
   energy: "bg-gradient-to-r from-neon/70 to-neon",
   exp: "bg-gradient-to-r from-violet-600 to-violet-400",
   gold: "bg-gradient-to-r from-gold to-gold-bright",
+  // The battle Resonance meter — the "energía azul" that skills spend and regenerate each turn.
+  resonance: "bg-gradient-to-r from-sky-600 to-sky-400",
 };
 
 export function ProgressBar({

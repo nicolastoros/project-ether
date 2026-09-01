@@ -2,11 +2,23 @@
 
 import { useEffect } from "react";
 import { motion, useAnimationControls } from "framer-motion";
-import { Shield, Skull } from "lucide-react";
+import { Droplet, Moon, Shield, Shuffle, Skull, Zap } from "lucide-react";
 import type { BattleCombatant } from "@/lib/combat";
+import type { StatusEffectType } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { cn } from "@/lib/utils";
+
+// Small corner badges for active status effects — same visual language as the existing
+// `guarding` Shield badge below. Exported so BattleScreen's desktop CombatantPlate (a separate
+// component from this one) can render matching badges.
+export const STATUS_BADGE: Record<StatusEffectType, { icon: typeof Zap; className: string }> = {
+  paralysis: { icon: Zap, className: "bg-amber-500" },
+  sleep: { icon: Moon, className: "bg-indigo-500" },
+  poison: { icon: Droplet, className: "bg-emerald-500" },
+  confusion: { icon: Shuffle, className: "bg-pink-500" },
+};
 
 interface CombatantCardProps {
   combatant: BattleCombatant;
@@ -24,6 +36,9 @@ interface CombatantCardProps {
   activeAnimation?: string;
   /** "sm" is used for tighter arena art (e.g. the World 1-1 stone-circle background). */
   size?: "md" | "sm";
+  /** True while this combatant is charging/unleashing its Ultimate Attack — overlays the
+   * LR-rarity "power surge" aura on the sprite for the charge-up beat before damage lands. */
+  isCastingUltimate?: boolean;
 }
 
 export function CombatantCard({
@@ -38,6 +53,7 @@ export function CombatantCard({
   hitNonce,
   activeAnimation,
   size = "md",
+  isCastingUltimate = false,
 }: CombatantCardProps) {
   const { creature } = combatant;
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
@@ -71,19 +87,25 @@ export function CombatantCard({
       ? "h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem] lg:h-32 lg:w-32 xl:h-36 xl:w-36"
       : "h-28 w-28 sm:h-32 sm:w-32 lg:h-40 lg:w-40 xl:h-48 xl:w-48";
 
+  const resonancePercent = Math.round((combatant.resonance / combatant.resonanceMax) * 100);
+  const activeStatuses = (Object.keys(combatant.statusEffects) as StatusEffectType[]).filter(
+    (type) => (combatant.statusEffects[type] ?? 0) > 0
+  );
+
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className={cn("w-full flex flex-col items-center", barWidth)}>
-        <ProgressBar 
-          percent={hpPercent} 
-          color="hp" 
+      <div className={cn("w-full flex flex-col items-center gap-1", barWidth)}>
+        <ProgressBar
+          percent={hpPercent}
+          color="hp"
           label={
             <span className="truncate w-full flex gap-1">
               <span className="text-gold">Lv.{creature.level}</span> <span className="text-white">{creature.name}</span>
             </span>
           }
-          innerText={`${combatant.currentHp}/${combatant.maxHp}`} 
+          innerText={`${combatant.currentHp}/${combatant.maxHp}`}
         />
+        <ProgressBar percent={resonancePercent} color="resonance" />
       </div>
 
       <motion.button
@@ -98,6 +120,17 @@ export function CombatantCard({
         )}
         aria-label={isTargetable ? `Target ${creature.name}` : creature.name}
       >
+        {isCastingUltimate && (
+          <>
+            <LegendaryCardAura />
+            <motion.span
+              className="pointer-events-none absolute inset-0 rounded-full border-2 border-gold-bright"
+              initial={{ scale: 0.6, opacity: 0.9 }}
+              animate={{ scale: [0.6, 1.6], opacity: [0.9, 0] }}
+              transition={{ duration: 1, repeat: Infinity, ease: "easeOut" }}
+            />
+          </>
+        )}
         <motion.span
           animate={impactControls}
           className="flex h-full w-full items-center justify-center"
@@ -109,11 +142,13 @@ export function CombatantCard({
             className={cn(
               "h-full w-full transition-[filter]",
               combatant.isAlive
-                ? isActingTurn
-                  ? "drop-shadow-[0_0_16px_rgba(255,184,77,0.85)]"
-                  : isTargetable
-                    ? "animate-pulse drop-shadow-[0_0_16px_rgba(248,113,113,0.85)]"
-                    : "drop-shadow-md"
+                ? isCastingUltimate
+                  ? "drop-shadow-[0_0_22px_rgba(245,158,11,0.9)]"
+                  : isActingTurn
+                    ? "drop-shadow-[0_0_16px_rgba(255,184,77,0.85)]"
+                    : isTargetable
+                      ? "animate-pulse drop-shadow-[0_0_16px_rgba(248,113,113,0.85)]"
+                      : "drop-shadow-md"
                 : "grayscale opacity-40"
             )}
           />
@@ -126,6 +161,26 @@ export function CombatantCard({
         {combatant.guarding && combatant.isAlive && (
           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-arcade-border bg-sky-500 text-white shadow-sm">
             <Shield className="h-3 w-3" />
+          </span>
+        )}
+        {activeStatuses.length > 0 && combatant.isAlive && (
+          <span className="absolute -left-1 -top-1 flex flex-col gap-0.5">
+            {activeStatuses.map((type) => {
+              const badge = STATUS_BADGE[type];
+              const Icon = badge.icon;
+              return (
+                <span
+                  key={type}
+                  title={type}
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full border border-arcade-border text-white shadow-sm",
+                    badge.className
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                </span>
+              );
+            })}
           </span>
         )}
         {!combatant.isAlive && (

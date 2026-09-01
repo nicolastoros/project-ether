@@ -39,6 +39,26 @@ export interface Skill {
   unlockLevel: number;
 }
 
+/** Paralysis/Sleep/Poison skip or damage the afflicted combatant each of their own turns;
+ * Confusion instead has a chance to redirect an Attack skill onto a random ally. See
+ * lib/combat.ts's status-effect handling in applyAction() for the exact per-status rules. */
+export type StatusEffectType = "paralysis" | "sleep" | "poison" | "confusion";
+
+/** A Mythic+/LR-exclusive "Ultimate Attack" — a 5th move, separate from the regular 4-skill
+ * kit, gated behind a much higher Resonance cost than any regular skill (see
+ * lib/combat.ts's resonanceCostForSkill). Named "Ultimate" (not "Super Attack") to avoid
+ * colliding with the unrelated, already-shipped Creature.superAttackLevel system. */
+export interface UltimateSkill {
+  id: string;
+  name: string;
+  description: string;
+  power: number;
+  resonanceCost: number;
+  /** Rolled once per hit against each struck target; on success the target's statusEffects
+   * entry for `status` is (re)set to `turns`. */
+  inflicts?: { status: StatusEffectType; turns: number; chance: number };
+}
+
 export type EquipmentSlotType =
   | "Weapon"
   | "Helmet"
@@ -87,6 +107,9 @@ export interface Creature {
   potentialNodes: string[];
   /** Number of frames if spriteFolder is a frame animation, or a map of animationName -> frames. */
   animationFrames?: number | Record<string, number>;
+  /** Mythic+/LR-exclusive 5th move — see UltimateSkill. Absent for every creature that doesn't
+   * have one yet (most Mythic+ creatures currently don't; content starts with the 4 LRs). */
+  ultimateSkill?: UltimateSkill;
 }
 
 export interface Currencies {

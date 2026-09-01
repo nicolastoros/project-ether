@@ -1,4 +1,4 @@
-import type { Creature, Skill } from "@/types/game";
+import type { Creature, Skill, StatusEffectType } from "@/types/game";
 import { getPotentialBonuses } from "./hiddenPotential";
 
 export type BattleSide = "player" | "enemy";
@@ -12,9 +12,51 @@ export interface BattleCombatant {
   cooldowns: Record<string, number>;
   guarding: boolean;
   statBuffs: { multiplier: number; turnsLeft: number } | null;
-  paralyzedTurns: number;
+  /** Turns remaining for each active status — absent/0 means unafflicted. See applyAction()'s
+   * status-resolution block for exactly how each type behaves. */
+  statusEffects: Partial<Record<StatusEffectType, number>>;
+  /** Resonance — the blue energy skills spend, regenerating on the combatant's own turn. */
+  resonance: number;
+  resonanceMax: number;
   telegraphedSkill: Skill | null;
   isAlive: boolean;
+}
+
+// Resonance regenerates on the actor's own turn, before status effects or their action resolve.
+const RESONANCE_START = 50;
+const RESONANCE_MAX = 100;
+const RESONANCE_REGEN_PER_TURN = 25;
+
+/** Regular skills always follow the same 4-slot shape across the whole roster (slot 1 = basic
+ * single-target attack, cooldown 0; slot 2 = Defense/Support self-buff, cooldown 3; slot 3 = AOE
+ * nuke, cooldown 4-5; slot 4 = Passive, unused in battle) — so cost is derived from cooldown
+ * instead of needing a new field on every one of the ~30 existing creatures' skills. */
+export function resonanceCostForSkill(skill: Skill): number {
+  if (skill.cooldown === 0) return 20;
+  if (skill.cooldown <= 3) return 25;
+  return 45;
+}
+
+/** Projects a creature's UltimateSkill into a normal Skill shape so it flows through the
+ * existing getSkillTargetMode/handleSkillClick/applyAction call path unmodified — applyAction
+ * recognizes it via `actor.creature.ultimateSkill?.id === skill.id`, the same pattern
+ * calcDamage already uses to special-case the (unrelated) regular Super Attack scaling. */
+export function getUltimateSkill(creature: Creature): Skill | null {
+  const u = creature.ultimateSkill;
+  if (!u) return null;
+  return {
+    id: u.id,
+    name: u.name,
+    description: u.description,
+    type: "Attack",
+    power: u.power,
+    cooldown: 0,
+    unlockLevel: 1,
+  };
+}
+
+function applyStatus(target: BattleCombatant, status: StatusEffectType, turns: number) {
+  target.statusEffects[status] = turns;
 }
 
 export type BattleLogKind = "attack" | "heal" | "guard" | "defeat" | "info";
@@ -56,7 +98,9 @@ export function createCombatant(creature: Creature, side: BattleSide, index: num
     cooldowns: {},
     guarding: false,
     statBuffs: null,
-    paralyzedTurns: 0,
+    statusEffects: {},
+    resonance: RESONANCE_START,
+    resonanceMax: RESONANCE_MAX,
     telegraphedSkill: null,
     isAlive: true,
   };
@@ -137,10 +181,33 @@ export function applyAction(
   const hitUids: string[] = [];
   if (!actor) return { combatants: list, logs, hitUids };
 
-  if (actor.paralyzedTurns > 0) {
-    actor.paralyzedTurns--;
-    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is paralyzed and cannot move!` });
+  // Resonance regenerates on the actor's own turn, before status effects or their action resolve.
+  actor.resonance = Math.min(actor.resonanceMax, actor.resonance + RESONANCE_REGEN_PER_TURN);
+
+  if ((actor.statusEffects.sleep ?? 0) > 0) {
+    actor.statusEffects.sleep!--;
+    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is fast asleep and cannot move!` });
     return { combatants: list, logs, hitUids };
+  }
+
+  if ((actor.statusEffects.poison ?? 0) > 0) {
+    actor.statusEffects.poison!--;
+    const poisonDmg = Math.max(1, Math.round(actor.maxHp * 0.08));
+    actor.currentHp = Math.max(0, actor.currentHp - poisonDmg);
+    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} takes ${poisonDmg} poison damage!` });
+    if (actor.currentHp === 0 && actor.isAlive) {
+      actor.isAlive = false;
+      logs.push({ id: nextLogId(), kind: "defeat", message: `${actor.creature.name} succumbed to poison!` });
+      return { combatants: list, logs, hitUids };
+    }
+  }
+
+  if ((actor.statusEffects.paralysis ?? 0) > 0) {
+    actor.statusEffects.paralysis!--;
+    if (Math.random() < 0.3) {
+      logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is paralyzed and cannot move!` });
+      return { combatants: list, logs, hitUids };
+    }
   }
 
   // Handle telegraphed skills for bosses
@@ -161,11 +228,12 @@ export function applyAction(
   const mode = getSkillTargetMode(skill);
   const opponents = list.filter((c) => c.side !== actor.side && c.isAlive);
   const allies = list.filter((c) => c.side === actor.side && c.isAlive);
+  const isUltimate = actor.creature.ultimateSkill?.id === skill.id;
 
   const strike = (target: BattleCombatant) => {
     const isSuperAttack = skill.id === actor.creature.skills[0]?.id; // SA is skill 1
     const targetStats = getEffectiveStats(target.creature);
-    
+
     // Check Evasion
     if (Math.random() * 100 < targetStats.evasion) {
       logs.push({ id: nextLogId(), message: `${target.creature.name} evaded the attack!`, kind: "info" });
@@ -186,8 +254,20 @@ export function applyAction(
     });
 
     if (skill.name === "Holy Judgment" && Math.random() < 0.15) {
-      target.paralyzedTurns = 1;
+      applyStatus(target, "paralysis", 2);
       logs.push({ id: nextLogId(), kind: "info", message: `${target.creature.name} was paralyzed by the attack!` });
+    }
+
+    const inflicts = isUltimate ? actor.creature.ultimateSkill?.inflicts : undefined;
+    if (inflicts && Math.random() * 100 < inflicts.chance) {
+      applyStatus(target, inflicts.status, inflicts.turns);
+      const statusMsg: Record<StatusEffectType, string> = {
+        paralysis: `${target.creature.name} is left paralyzed!`,
+        sleep: `${target.creature.name} is put to sleep!`,
+        poison: `${target.creature.name} is poisoned!`,
+        confusion: `${target.creature.name} is thrown into confusion!`,
+      };
+      logs.push({ id: nextLogId(), kind: "info", message: statusMsg[inflicts.status] });
     }
 
     if (target.currentHp === 0 && target.isAlive) {
@@ -196,7 +276,16 @@ export function applyAction(
     }
   };
 
-  if (mode === "choose-enemy") {
+  const isConfused = (actor.statusEffects.confusion ?? 0) > 0;
+  if (isConfused) actor.statusEffects.confusion!--;
+  const confusedMisfire = isConfused && skill.type === "Attack" && Math.random() < 0.4;
+
+  if (confusedMisfire) {
+    const misfireTargets = allies; // includes the actor itself
+    const target = misfireTargets[Math.floor(Math.random() * misfireTargets.length)];
+    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is confused and attacks blindly!` });
+    if (target) strike(target);
+  } else if (mode === "choose-enemy") {
     const target = list.find((c) => c.uid === explicitTargetUid && c.isAlive) ?? opponents[0];
     if (target) strike(target);
   } else if (mode === "all-enemies") {
@@ -236,6 +325,9 @@ export function applyAction(
   });
   if (skill.cooldown > 0) actor.cooldowns[skill.id] = skill.cooldown;
 
+  const resonanceCost = isUltimate ? actor.creature.ultimateSkill!.resonanceCost : resonanceCostForSkill(skill);
+  actor.resonance = Math.max(0, actor.resonance - resonanceCost);
+
   if (actor.statBuffs) {
     actor.statBuffs.turnsLeft--;
     if (actor.statBuffs.turnsLeft <= 0) actor.statBuffs = null;
@@ -253,11 +345,27 @@ export function pickEnemyAction(
     return { skill: actor.telegraphedSkill, targetUid: null };
   }
 
-  const usableSkills = actor.creature.skills.filter(
-    (s) => s.type !== "Passive" && (actor.cooldowns[s.id] ?? 0) <= 0
-  );
   const allies = allCombatants.filter((c) => c.side === actor.side && c.isAlive);
   const opponents = allCombatants.filter((c) => c.side !== actor.side && c.isAlive);
+
+  // Dramatic rather than automatic — only reaches for the Ultimate about half the time it's
+  // actually affordable, so it doesn't fire every single turn once resonance is banked.
+  const ultimate = getUltimateSkill(actor.creature);
+  if (ultimate && actor.creature.ultimateSkill && actor.resonance >= actor.creature.ultimateSkill.resonanceCost && Math.random() < 0.5) {
+    const mode = getSkillTargetMode(ultimate);
+    if (mode === "choose-enemy") {
+      const target = opponents.reduce<BattleCombatant | null>((lowest, c) => {
+        if (!lowest) return c;
+        return c.currentHp < lowest.currentHp ? c : lowest;
+      }, null);
+      return { skill: ultimate, targetUid: target?.uid ?? null };
+    }
+    return { skill: ultimate, targetUid: null };
+  }
+
+  const usableSkills = actor.creature.skills.filter(
+    (s) => s.type !== "Passive" && (actor.cooldowns[s.id] ?? 0) <= 0 && resonanceCostForSkill(s) <= actor.resonance
+  );
 
   const supportSkill = usableSkills.find((s) => getSkillTargetMode(s) === "lowest-ally");
   const woundedAlly = allies.some((c) => c.currentHp / c.maxHp < 0.45);
