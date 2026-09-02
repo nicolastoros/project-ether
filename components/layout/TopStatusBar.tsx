@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { UserCircle2, LogOut, Mail } from "lucide-react";
+import { UserCircle2, LogOut, Mail, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
@@ -10,6 +10,7 @@ import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
+import { MonsterGuideModal } from "@/components/ui/MonsterGuideModal";
 import { xpPercent } from "@/lib/utils";
 import { GiftsModal } from "./GiftsModal";
 
@@ -20,6 +21,7 @@ export function TopStatusBar() {
   const logout = useGameStore((s) => s.logout);
   const router = useRouter();
   const [showGifts, setShowGifts] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   return (
     <header className="sticky top-0 z-20 border-b border-arcade-border bg-arcade-panel/95 backdrop-blur-sm">
@@ -60,6 +62,13 @@ export function TopStatusBar() {
             )}
           </button>
           <button
+            onClick={() => setShowGuide(true)}
+            aria-label="Monster Guide"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-[#38bdf8] hover:text-[#0e7490]"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+          </button>
+          <button
             onClick={async () => {
               await signOut({ redirect: false });
               logout();
@@ -83,6 +92,7 @@ export function TopStatusBar() {
       </div>
 
       <GiftsModal isOpen={showGifts} onClose={() => setShowGifts(false)} />
+      <MonsterGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </header>
   );
 }

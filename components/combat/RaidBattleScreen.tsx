@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { RotateCcw, Sparkles, Zap } from "lucide-react";
-import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
-import { ItemIcon } from "@/components/ui/ItemIcon";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Zap } from "lucide-react";
 import type { Creature, Skill } from "@/types/game";
 import { useGameStore } from "@/lib/store";
 import { ACHIEVEMENTS, ITEM_CATALOG } from "@/lib/gameData";
@@ -25,11 +22,11 @@ import {
   type BattleLogEntry,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
-import { PixelButton } from "@/components/ui/PixelButton";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { CombatantCard } from "./CombatantCard";
-import { cn, formatNumber } from "@/lib/utils";
+import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
+import { cn } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
 
@@ -92,6 +89,17 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   ]);
   const [rewardGranted, setRewardGranted] = useState(false);
   const [itemDropped, setItemDropped] = useState<{ itemId: string; quantity: number } | null>(null);
+  const [creatureResults, setCreatureResults] = useState<CreatureResultEntry[]>([]);
+  const [tamerResult, setTamerResult] = useState<TamerResultEntry | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [achievementUnlockedName, setAchievementUnlockedName] = useState<string | null>(null);
+  // Wall-clock battle start — captured once (in an effect, not during render, per the
+  // react-hooks/purity rule against calling Date.now() directly in a render body), used to
+  // compute elapsedSeconds on victory.
+  const battleStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    battleStartRef.current = Date.now();
+  }, []);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   const [activeBossAnimation, setActiveBossAnimation] = useState<string | undefined>();
@@ -110,11 +118,36 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     if (!enemiesAlive) {
       setPhase("victory");
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: `Victory! ${boss.name} has fallen.` }]);
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - (battleStartRef.current ?? Date.now())) / 1000)));
       if (!rewardGranted) {
         setRewardGranted(true);
         addGold(boss.rewardGold);
+        const levelsBefore = new Map(playerCreatures.map((c) => [c.id, c.level]));
+        const tamerBefore = useGameStore.getState().profile;
         playerCreatures.forEach((c) => gainCreatureExp(c.id, boss.rewardExp));
         gainProfileExp(boss.rewardExp);
+        const updatedCreatures = useGameStore.getState().creatures;
+        const tamerAfter = useGameStore.getState().profile;
+        setTamerResult({
+          expGained: boss.rewardExp,
+          levelBefore: tamerBefore.level,
+          levelAfter: tamerAfter.level,
+          exp: tamerAfter.exp,
+          expToNextLevel: tamerAfter.expToNextLevel,
+        });
+        setCreatureResults(
+          playerCreatures.map((c) => {
+            const updated = updatedCreatures.find((uc) => uc.id === c.id);
+            return {
+              creature: c,
+              expGained: boss.rewardExp,
+              levelBefore: levelsBefore.get(c.id) ?? c.level,
+              levelAfter: updated?.level ?? c.level,
+              exp: updated?.exp ?? c.exp,
+              expToNextLevel: updated?.expToNextLevel ?? c.expToNextLevel,
+            };
+          })
+        );
 
         const materialPool = ITEM_CATALOG.filter((i) => i.category === "Evolution" || i.category === "Crafting");
         if (materialPool.length > 0 && Math.random() * 100 < boss.itemDropChance) {
@@ -133,7 +166,10 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
           if (unlockAchievement(achievementId)) {
             unlockAchievementOnServer(achievementId);
             const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
-            if (achievement) notifyAchievementUnlocked(achievement);
+            if (achievement) {
+              setAchievementUnlockedName(achievement.name);
+              notifyAchievementUnlocked(achievement);
+            }
           }
         }
 
@@ -406,49 +442,22 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       </GlowPanel>
 
       {phase !== "active" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-        >
-          <GlowPanel accent={phase === "victory" ? "gold" : "none"} className="w-full max-w-sm space-y-4 p-5 text-center">
-            <h2 className={cn("font-arcade text-sm", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
-              {phase === "victory" ? "Victory!" : "Defeat"}
-            </h2>
-            {phase === "victory" ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-                  <span className="inline-flex items-center gap-1">
-                    <GoldCoinIcon className="h-3.5 w-3.5" /> +{formatNumber(boss.rewardGold)}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{boss.rewardExp} EXP each
-                  </span>
-                </div>
-                {itemDropped &&
-                  (() => {
-                    const item = ITEM_CATALOG.find((it) => it.id === itemDropped.itemId);
-                    if (!item) return null;
-                    return (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground">
-                        <ItemIcon item={item} className="h-3 w-3" /> +{itemDropped.quantity} {item.name}
-                      </span>
-                    );
-                  })()}
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-500">Your party was defeated. Bring more/stronger creatures next time!</p>
-            )}
-            <div className="flex gap-2">
-              <PixelButton variant="ghost" className="flex-1" onClick={onRematch}>
-                <RotateCcw className="mr-1 inline h-3.5 w-3.5" /> Rematch
-              </PixelButton>
-              <PixelButton variant="gold" className="flex-1" onClick={onExit}>
-                Return to Raids
-              </PixelButton>
-            </div>
-          </GlowPanel>
-        </motion.div>
+        <BattleResultScreen
+          phase={phase}
+          title={boss.name}
+          goldEarned={boss.rewardGold}
+          creatureResults={creatureResults}
+          itemsDropped={itemDropped ? [itemDropped] : []}
+          elapsedSeconds={elapsedSeconds}
+          tamerResult={tamerResult ?? undefined}
+          bonusLines={[achievementUnlockedName && `Achievement Unlocked: ${achievementUnlockedName}!`].filter(
+            (line): line is string => Boolean(line)
+          )}
+          defeatMessage="Your party was defeated. Bring more/stronger creatures next time!"
+          onRematch={onRematch}
+          onExitClick={onExit}
+          exitLabel="Return to Raids"
+        />
       )}
     </div>
   );

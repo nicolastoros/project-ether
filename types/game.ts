@@ -304,6 +304,13 @@ export interface PvpOpponent {
 
 export type DungeonDifficulty = "Normal" | "Hard" | "Nightmare";
 
+/** Per-stage, player-selected challenge tier — Easy through Super, unlocked sequentially per
+ * stage (clear Easy on a stage to unlock Medium on that same stage, etc). Deliberately a
+ * different concept/field from DungeonDifficulty above, which is just a cosmetic label derived
+ * from a stage's absolute position in Campaign and unrelated to tier selection. See
+ * lib/difficultyTiers.ts. */
+export type DifficultyTier = "Easy" | "Medium" | "Hard" | "Super";
+
 export interface DungeonStage {
   id: string;
   stageNumber: number;
@@ -321,6 +328,9 @@ export interface DungeonStage {
   bgmKey?: string;
   eventId?: string;
   eventRewards?: { itemId: string; amount: number }[];
+  /** Absent/undefined means Easy — the original, unscaled stage. Set on the on-the-fly variants
+   * lib/difficultyTiers.ts's getTierStage() produces for Medium/Hard/Super. */
+  tier?: DifficultyTier;
 }
 
 export type FriendStatus = "Online" | "In Battle" | "Offline";

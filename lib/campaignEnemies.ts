@@ -1,5 +1,6 @@
 import type { Creature, DungeonStage } from "@/types/game";
 import { STARTER_CREATURES } from "@/lib/gameData";
+import { TIER_STAT_MULTIPLIERS } from "@/lib/difficultyTiers";
 
 function findBase(id: string): Creature {
   const found = STARTER_CREATURES.find((c) => c.id === id);
@@ -42,13 +43,20 @@ const EARLY_STAGE_DEF_DAMPING: Record<number, number> = { 1: 0.5, 2: 0.6, 3: 0.6
  * world, not the global stage number) — a boss gets an extra bump on top of the normal per-stage
  * growth, so it clearly outclasses the regular stages leading into it. The curve itself is shared
  * across worlds; each world escalates by starting from a stronger catalog tier instead (see
- * WORLD_2_ENEMY_TEMPLATES below). */
-function scaleForStage(base: Creature, worldStageNumber: number, isBoss: boolean): Creature {
+ * WORLD_2_ENEMY_TEMPLATES below). `tierMult` (from lib/difficultyTiers.ts's
+ * TIER_STAT_MULTIPLIERS) layers a difficulty-tier scale-up on top — {1,1,1} for Easy reproduces
+ * today's numbers exactly. */
+function scaleForStage(
+  base: Creature,
+  worldStageNumber: number,
+  isBoss: boolean,
+  tierMult: { hp: number; atk: number; def: number }
+): Creature {
   const growth = 1 + (worldStageNumber - 1) * 0.12;
   const mult = isBoss ? growth * 1.3 : growth;
-  const hpMult = mult * (EARLY_STAGE_HP_DAMPING[worldStageNumber] ?? 1);
-  const atkMult = mult * (EARLY_STAGE_ATK_DAMPING[worldStageNumber] ?? 1);
-  const defMult = mult * (EARLY_STAGE_DEF_DAMPING[worldStageNumber] ?? 1);
+  const hpMult = mult * (EARLY_STAGE_HP_DAMPING[worldStageNumber] ?? 1) * tierMult.hp;
+  const atkMult = mult * (EARLY_STAGE_ATK_DAMPING[worldStageNumber] ?? 1) * tierMult.atk;
+  const defMult = mult * (EARLY_STAGE_DEF_DAMPING[worldStageNumber] ?? 1) * tierMult.def;
   return {
     ...base,
     level: Math.round(base.level + worldStageNumber * (isBoss ? 2 : 1)),
@@ -143,8 +151,12 @@ const ENEMY_TEMPLATES_BY_WORLD: Record<number, Record<number, [Creature, Creatur
   5: WORLD_5_ENEMY_TEMPLATES,
 };
 
-/** Returns this stage's fixed 2-enemy team, or null for stages without defined content yet. */
-export function getStageEnemyTeam(stage: Pick<DungeonStage, "world" | "worldStageNumber">): [Creature, Creature] | null {
+/** Returns this stage's fixed 2-enemy team, or null for stages without defined content yet.
+ * `stage.tier` (absent = Easy) applies the difficulty tier's extra stat multiplier on top of the
+ * normal per-world-position scaling — see lib/difficultyTiers.ts. */
+export function getStageEnemyTeam(
+  stage: Pick<DungeonStage, "world" | "worldStageNumber" | "tier">
+): [Creature, Creature] | null {
   const templates = ENEMY_TEMPLATES_BY_WORLD[stage.world]?.[stage.worldStageNumber];
   if (!templates) return null;
   const isBoss = (
@@ -154,8 +166,9 @@ export function getStageEnemyTeam(stage: Pick<DungeonStage, "world" | "worldStag
     (stage.world === 4 && stage.worldStageNumber === 12) ||
     (stage.world === 5 && stage.worldStageNumber === 14)
   );
+  const tierMult = TIER_STAT_MULTIPLIERS[stage.tier ?? "Easy"];
   return [
-    scaleForStage(templates[0], stage.worldStageNumber, isBoss),
-    scaleForStage(templates[1], stage.worldStageNumber, false),
+    scaleForStage(templates[0], stage.worldStageNumber, isBoss, tierMult),
+    scaleForStage(templates[1], stage.worldStageNumber, false, tierMult),
   ];
 }

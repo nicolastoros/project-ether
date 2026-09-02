@@ -2,20 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronDown, RotateCcw, Sparkles, Zap } from "lucide-react";
-import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
-import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
+import { ChevronDown, Zap } from "lucide-react";
 import type { Creature, DungeonStage, Skill, StatusEffectType } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { useGameStore } from "@/lib/store";
-import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
+import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
-import { ItemIcon } from "@/components/ui/ItemIcon";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
   grantCreatureOnServer,
@@ -37,10 +33,10 @@ import {
   type BattleLogEntry,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
-import { PixelButton } from "@/components/ui/PixelButton";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { CombatantCard, STATUS_BADGE } from "./CombatantCard";
-import { cn, formatNumber } from "@/lib/utils";
+import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
+import { cn } from "@/lib/utils";
 
 // One arena background per world with real battle content — each is the same portrait dimensions
 // with 4 stone-circle markers in identical spots (see ARENA_SLOTS below), so a new world's
@@ -200,17 +196,27 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [rewardGranted, setRewardGranted] = useState(false);
   const [firstClearGift, setFirstClearGift] = useState<{ isNew: boolean; copies: number } | null>(null);
   const [rewardMultiplier, setRewardMultiplier] = useState(1);
-  const [expRewardMultiplier, setExpRewardMultiplier] = useState(1);
   const [isExpEventStage, setIsExpEventStage] = useState(false);
   const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
   const [tamerGearGranted, setTamerGearGranted] = useState<string | null>(null);
   const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
+  const [creatureResults, setCreatureResults] = useState<CreatureResultEntry[]>([]);
+  const [tamerResult, setTamerResult] = useState<TamerResultEntry | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [starsEarned, setStarsEarned] = useState<{ noDeaths: boolean; noItems: boolean; underFiveTurns: boolean } | null>(null);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
   // uid of the combatant currently charging/unleashing an Ultimate Attack — see resolveTurn's
   // isUltimate branch, which holds this set for the charge-up delay before damage lands.
   const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
+  // Wall-clock battle start — captured once (in an effect, not during render, per the
+  // react-hooks/purity rule against calling Date.now() directly in a render body), used to
+  // compute elapsedSeconds on victory.
+  const battleStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    battleStartRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ block: "nearest" });
@@ -253,29 +259,67 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         useGameStore.getState().markStagePerfect(stage.id);
       }
 
-      recordStageStars(stage.id, {
+      // Captured before recordStageStars writes below — that call itself would make this exact
+      // id "already present", so the first-clear check has to run first.
+      const wasStageAlreadyCleared = Boolean(useGameStore.getState().dungeon.stageStars[stage.id]);
+
+      const stars = {
         noDeaths: !(hasDeaths || anyDeaths),
         noItems: true,
         underFiveTurns: turnCount < 5,
-      });
+      };
+      setStarsEarned(stars);
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - (battleStartRef.current ?? Date.now())) / 1000)));
+      recordStageStars(stage.id, stars);
 
       if (!rewardGranted) {
         setRewardGranted(true);
         const highestBefore = useGameStore.getState().dungeon.highestStageCleared;
-        const isFirstClearOfThisStage = stage.stageNumber > highestBefore;
+        // Keyed off this exact stage id (so it's correct per difficulty tier, not just per base
+        // stage number) rather than highestStageCleared, which only ever tracks Easy-tier
+        // progress.
+        const isFirstClearOfThisStage = !wasStageAlreadyCleared;
         const multiplier = isFirstClearOfThisStage ? 2 : 1;
         setRewardMultiplier(multiplier);
 
         const expEventActive = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
         setIsExpEventStage(expEventActive);
         const expMultiplier = multiplier * (expEventActive ? 2 : 1);
-        setExpRewardMultiplier(expMultiplier);
 
         addGold(stage.rewardGold * multiplier);
-        playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * expMultiplier));
-        gainProfileExp(stage.rewardExp * expMultiplier);
-        const isFirstStage1Clear = stage.stageNumber === 1 && highestBefore === 0;
-        clearDungeonStage(stage.stageNumber);
+        const expGainAmount = stage.rewardExp * expMultiplier;
+        const levelsBefore = new Map(playerCreatures.map((c) => [c.id, c.level]));
+        const tamerBefore = useGameStore.getState().profile;
+        playerCreatures.forEach((c) => gainCreatureExp(c.id, expGainAmount));
+        gainProfileExp(expGainAmount);
+        const updatedCreatures = useGameStore.getState().creatures;
+        const tamerAfter = useGameStore.getState().profile;
+        setTamerResult({
+          expGained: expGainAmount,
+          levelBefore: tamerBefore.level,
+          levelAfter: tamerAfter.level,
+          exp: tamerAfter.exp,
+          expToNextLevel: tamerAfter.expToNextLevel,
+        });
+        setCreatureResults(
+          playerCreatures.map((c) => {
+            const updated = updatedCreatures.find((uc) => uc.id === c.id);
+            return {
+              creature: c,
+              expGained: expGainAmount,
+              levelBefore: levelsBefore.get(c.id) ?? c.level,
+              levelAfter: updated?.level ?? c.level,
+              exp: updated?.exp ?? c.exp,
+              expToNextLevel: updated?.expToNextLevel ?? c.expToNextLevel,
+            };
+          })
+        );
+        // Easy-tier clears are the only thing allowed to advance the base 54-stage counter
+        // CampaignHome.tsx's stage-lock logic depends on — a Hard/Super run of an already-unlocked
+        // stage must never touch it.
+        const isEasyTier = !stage.tier || stage.tier === "Easy";
+        const isFirstStage1Clear = isEasyTier && stage.stageNumber === 1 && highestBefore === 0;
+        if (isEasyTier) clearDungeonStage(stage.stageNumber);
         tickMissionProgress("task-dungeon");
         // "Explorer of the Digital World" — cleared every stage through World 5. Checked against
         // this stage's own number rather than the post-clear highestStageCleared so a lower-stage
@@ -675,85 +719,35 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       </GlowPanel>
 
       {phase !== "active" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-        >
-          <GlowPanel accent={phase === "victory" ? "gold" : "none"} className="w-full max-w-sm space-y-4 p-5 text-center">
-            <h2 className={cn("font-arcade text-sm", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
-              {phase === "victory" ? "Victory!" : "Defeat"}
-            </h2>
-            {phase === "victory" ? (
-              <div className="space-y-2">
-                {rewardMultiplier > 1 && (
-                  <p className="font-arcade text-[9px] uppercase tracking-wide text-gold-bright">
-                    First Clear Bonus ×2
-                  </p>
-                )}
-                {isExpEventStage && (
-                  <p className="inline-flex items-center gap-1 font-arcade text-[9px] uppercase tracking-wide text-sky-500">
-                    <Zap className="h-3 w-3 fill-current" /> 2x EXP Event!
-                  </p>
-                )}
-                <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-                  <span className="inline-flex items-center gap-1">
-                    <GoldCoinIcon className="h-3.5 w-3.5" /> +{formatNumber(stage.rewardGold * rewardMultiplier)}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Sparkles className="h-3.5 w-3.5 text-violet-500" /> +{stage.rewardExp * expRewardMultiplier} EXP each
-                  </span>
-                  {sealCoinsDropped > 0 && (
-                    <span className="inline-flex items-center gap-1">
-                      <SealCoinIcon className="h-3.5 w-3.5" /> +{sealCoinsDropped}
-                    </span>
-                  )}
-                </div>
-                {itemsDropped.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1.5">
-                    {itemsDropped.map((drop, i) => {
-                      const item = ITEM_CATALOG.find((it) => it.id === drop.itemId);
-                      if (!item) return null;
-                      return (
-                        <span
-                          key={i}
-                          className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground"
-                        >
-                          <ItemIcon item={item} className="h-3 w-3" /> +{drop.quantity} {item.name}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                {firstClearGift && (
-                  <p className="font-arcade text-[10px] uppercase glow-text-gold">
-                    {firstClearGift.isNew
-                      ? `${FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!`
-                      : `+1 ${FIRST_CLEAR_GIFT_CREATURE_NAME} copy! (×${firstClearGift.copies} owned)`}
-                  </p>
-                )}
-                {tamerGearGranted && (
-                  <p className="font-arcade text-[10px] uppercase glow-text-gold">
-                    {tamerGearGranted} unlocked for your Tamer!
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-500">Your team was defeated. Give it another shot!</p>
-            )}
-            <div className="flex gap-2">
-              <PixelButton variant="ghost" className="flex-1" onClick={onRematch}>
-                <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
-                Rematch
-              </PixelButton>
-              <Link href="/campaign" className="flex-1" onClick={onExit}>
-                <PixelButton variant="gold" className="w-full">
-                  Return to Campaign
-                </PixelButton>
-              </Link>
-            </div>
-          </GlowPanel>
-        </motion.div>
+        <BattleResultScreen
+          phase={phase}
+          title={stage.name}
+          goldEarned={stage.rewardGold * rewardMultiplier}
+          creatureResults={creatureResults}
+          itemsDropped={itemsDropped}
+          sealCoinsDropped={sealCoinsDropped}
+          elapsedSeconds={elapsedSeconds}
+          stars={starsEarned ?? undefined}
+          tamerResult={tamerResult ?? undefined}
+          bonusLines={[
+            rewardMultiplier > 1 && "First Clear Bonus ×2",
+            isExpEventStage && (
+              <span className="inline-flex items-center gap-1 text-sky-500">
+                <Zap className="h-3 w-3 fill-current" /> 2x EXP Event!
+              </span>
+            ),
+            firstClearGift &&
+              (firstClearGift.isNew
+                ? `${FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!`
+                : `+1 ${FIRST_CLEAR_GIFT_CREATURE_NAME} copy! (×${firstClearGift.copies} owned)`),
+            tamerGearGranted && `${tamerGearGranted} unlocked for your Tamer!`,
+          ].filter((line): line is NonNullable<typeof line> => Boolean(line))}
+          defeatMessage="Your team was defeated. Give it another shot!"
+          onRematch={onRematch}
+          exitHref="/campaign"
+          onExitClick={onExit}
+          exitLabel="Return to Campaign"
+        />
       )}
     </div>
   );

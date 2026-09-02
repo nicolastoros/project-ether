@@ -320,6 +320,10 @@ interface GameState {
   hasReceivedGiftsV8: boolean;
   hasReceivedGiftsV9: boolean;
   hasReceivedGiftsV10: boolean;
+  /** Ids of onboarding tips (see lib/tutorialTips.ts) already dismissed — TutorialBubble.tsx
+   * won't show one again once its id lands here. Local-only (never synced to BigQuery): it's a
+   * UI nicety, not game progress, so a new device simply seeing a tip again is harmless. */
+  seenTutorialTips: string[];
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -339,6 +343,7 @@ interface GameState {
 
   markStagePerfect: (stageId: string) => void;
   recordStageStars: (stageId: string, stars: { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }) => void;
+  markTutorialTipSeen: (id: string) => void;
 
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
@@ -481,6 +486,7 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV8: false,
       hasReceivedGiftsV9: false,
       hasReceivedGiftsV10: false,
+      seenTutorialTips: [],
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -568,6 +574,12 @@ export const useGameStore = create<GameState>()(
         set((state) => {
           if (state.dungeon.perfectStages.includes(stageId)) return state;
           return { dungeon: { ...state.dungeon, perfectStages: [...state.dungeon.perfectStages, stageId] } };
+        }),
+
+      markTutorialTipSeen: (id) =>
+        set((state) => {
+          if (state.seenTutorialTips.includes(id)) return state;
+          return { seenTutorialTips: [...state.seenTutorialTips, id] };
         }),
 
       recordStageStars: (stageId, stars) =>
@@ -1231,6 +1243,11 @@ export const useGameStore = create<GameState>()(
               spriteFolder: base.spriteFolder,
               baseStats: { ...base.baseStats },
               skills: base.skills.map((s) => ({ ...s })),
+              // Explicitly whitelisted like every other field here rather than spread from
+              // `base` (see the comment above) — easy to forget when a new Creature field is
+              // added (this one was, for a session), so keep it in sync with types/game.ts.
+              ultimateSkill: base.ultimateSkill,
+              animationFrames: base.animationFrames,
               equipment: {},
               copies: 1,
               superAttackLevel: 1,

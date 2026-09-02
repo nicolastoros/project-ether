@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Map } from "lucide-react";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
+import { getTierStage, parseTierStageId } from "@/lib/difficultyTiers";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
 import { BattlePage } from "@/components/combat/BattlePage";
 
@@ -47,7 +48,12 @@ function CombatPageContent() {
     }
   }
 
-  const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
+  // stageId may be a plain base id ("dg-stage-12") or a composite tier id ("dg-stage-12-hard")
+  // from StageDetailModal.tsx's tier picker — recover the base stage and requested tier, then
+  // rebuild the full (possibly-scaled) DungeonStage via getTierStage.
+  const { baseId, tier } = stageId ? parseTierStageId(stageId) : { baseId: null, tier: "Easy" as const };
+  const baseStage = DUNGEON_STAGES.find((s) => s.id === baseId);
+  const stage = baseStage ? getTierStage(baseStage, tier) : undefined;
 
   // Worlds 1 and 2 have a defined enemy line-up per stage (lib/campaignEnemies.ts); other worlds
   // don't have real battle content yet. This route only exists to serve those real Campaign

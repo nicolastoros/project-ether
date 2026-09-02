@@ -123,12 +123,22 @@ body {
   display: none;
 }
 
+/* App-wide "Digital World" backdrop — a soft, low-contrast glowing-gate/floating-islands
+   illustration (public/assets/background5.png, 1672x941 — picked over the first pass at
+   background.jpg's 1024x572 because that lower resolution visibly blurred once `cover` upscaled
+   it past its native size on wider desktop viewports) chosen specifically because it keeps its
+   center clear and pushes detail to the edges, so it stays legible behind panels instead of
+   competing with them. Covers the full viewport-height container behind
+   Sidebar/TopStatusBar/main/BottomNav; the container itself never scrolls (only <main> does), so a
+   plain `background-size: cover` stays put without needing `background-attachment: fixed` (which
+   has scroll-perf quirks on mobile). background-color is kept as a same-palette fallback while the
+   image loads. */
 .bg-arcade-grid {
   background-color: var(--color-arcade-bg);
-  background-image:
-    radial-gradient(circle at 15% 0%, rgba(125, 192, 255, 0.35), transparent 50%),
-    radial-gradient(circle at 90% 10%, rgba(255, 207, 125, 0.3), transparent 45%),
-    radial-gradient(circle at 50% 100%, rgba(124, 233, 220, 0.25), transparent 50%);
+  background-image: url("/assets/background5.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Desktop sidebar surface: a near-imperceptible white -> pale blue -> blue-gray wash,

@@ -95,16 +95,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { level, exp, expToNextLevel, creatures, dungeonHighestStageCleared, currencies, dailyEventAttempts, items, dailyTasksState } = body as Record<
-    string,
-    unknown
-  >;
+  const {
+    level,
+    exp,
+    expToNextLevel,
+    creatures,
+    dungeonHighestStageCleared,
+    dungeonPerfectStages,
+    currencies,
+    dailyEventAttempts,
+    items,
+    dailyTasksState,
+  } = body as Record<string, unknown>;
   if (
     typeof level !== "number" ||
     typeof exp !== "number" ||
     typeof expToNextLevel !== "number" ||
     !Array.isArray(creatures) ||
     (dungeonHighestStageCleared !== undefined && typeof dungeonHighestStageCleared !== "number") ||
+    (dungeonPerfectStages !== undefined &&
+      (!Array.isArray(dungeonPerfectStages) || !dungeonPerfectStages.every((s) => typeof s === "string"))) ||
     (currencies !== undefined && !isSyncCurrencies(currencies)) ||
     (items !== undefined && !Array.isArray(items)) ||
     (dailyTasksState !== undefined && !isSyncDailyTasksState(dailyTasksState))
@@ -119,6 +129,7 @@ export async function POST(request: Request) {
       expToNextLevel,
       creatures: creatures.filter(isSyncCreature),
       dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
+      dungeonPerfectStages: dungeonPerfectStages as string[] | undefined,
       currencies: currencies as SyncCurrencies | undefined,
       dailyEventAttempts: dailyEventAttempts as Record<string, number> | undefined,
       items: items !== undefined ? (items as unknown[]).filter(isSyncItem) : undefined,

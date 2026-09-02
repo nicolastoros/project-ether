@@ -23,8 +23,12 @@ export interface BattleCombatant {
 }
 
 // Resonance regenerates on the actor's own turn, before status effects or their action resolve.
-const RESONANCE_START = 50;
 const RESONANCE_MAX = 100;
+// Battles were ending before anyone ever banked enough to fire an Ultimate — start every
+// combatant fully charged instead (every ultimateSkill.resonanceCost is <= 85, well under 100),
+// so an Ultimate is available from turn one. Spending it still drains Resonance normally and it
+// regenerates back at the usual pace — this only changes the opening amount, not the economy.
+const RESONANCE_START = RESONANCE_MAX;
 const RESONANCE_REGEN_PER_TURN = 25;
 
 /** Regular skills always follow the same 4-slot shape across the whole roster (slot 1 = basic
