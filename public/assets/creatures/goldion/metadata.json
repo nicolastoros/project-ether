@@ -1,0 +1,36 @@
+{
+  "group_id": "00195f41-1588-425b-8fec-eca37e640ae2",
+  "states": [
+    {
+      "character": {
+        "id": "bf9dbdb5-6600-4582-b09c-f443ac377176",
+        "name": "Idle",
+        "prompt": "Visual Appearance & Armor Design\n\nSolar Lion Helm: Apollomon\u2019s head features a fierce, stylized golden lion helmet with sharp, angular feline features, glowing blue eyes, and a majestic fiery mane of pure crimson and gold solar energy flowing from the crest.\n\nGilded Armor & Plate: His muscular humanoid body is clad in ornate golden Chrome Digizoid plate armor accentuated with vibrant crimson, white, and obsidian trims. The chestplate displays radiant, sun-burst motifs housing concentrated thermal energy.\n\nShoulder Pauldrons & Orbs: Mounted upon each of his broad shoulders are large, spherical armored conduits\u2014representing burning miniature suns\u2014that continuously vent and regulate his overwhelming internal plasma heat.\n\nLimbs & Stance: His forearms and greaves are heavily reinforced with sharp golden gauntlets and claw-tipped sabatons, built for brutal close-quarters combat and delivering superheated physical impacts.\n\nSolar Halo & Mantle: A brilliant radiant ring of burning solar flares often hovers behind his back, pulsating in sync with his combat drive and casting an intense golden glow across the battlefield.\n\nKey Weapons & Special Techniques\n\nSol Blaster: Charges and releases a massive, scorching sphere of high-density solar plasma generated from the flaming orbs on his back and shoulders, incinerating targets at atomic scale.\n\nPhoebus Blow: Channels his entire body's internal solar heat directly into his fists, delivering a devastating, explosive punch imbued with the destructive kinetic and thermal force of an erupting sun.\n\nArrow of Apollo: Condenses blistering thermal energy at his fingertips to fire consecutive, light-speed piercing bolts of radiant plasma that track and impale distant foes.\n\nPersonality & Lore\n\nNoble Discipline: Apollomon embodies strict martial pride, supreme honor, and an unwavering sense of justice, rarely losing his composure unless an ally is threatened.\n\nHidden Berserk Potential: Beneath his noble exterior lies a feral, primal flame",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T17:05:00.543792+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:32:04.429104"
+}

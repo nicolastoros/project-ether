@@ -1,0 +1,36 @@
+{
+  "group_id": "f4c0ff48-b1e5-4421-9077-8f50c5668761",
+  "states": [
+    {
+      "character": {
+        "id": "4365c06c-d241-4cf9-9051-f00adf45dabf",
+        "name": "Idle",
+        "prompt": "Standing as the pinnacle of holy digital evolution, this warrior commands the battlefield with a balance of divine majesty and razor-sharp mechanical lethality. Clad in an aerodynamic suit of biomechanical armor, his primary chassis radiates a pristine, opalescent white, sharply contrasted by elegant golden trims.\n\nAt the center of his V-shaped chest plate lies a glowing, multifaceted crystalline core that pulsates with concentrated digital energy. His head is crowned by a sweeping, multi-pronged golden crest, framing a sharp, visor-like faceplate. His piercing eyes gleam with calm, precise intellect beneath the visor, while his jawline is guarded by intricate silver plating.\n\nHis limbs function as living weapons. His forearms are encased in robust gauntlets extending into massive, double-edged wrist blades etched with glowing digital runes. Most strikingly, his legs taper down into colossal, elongated sword blades instead of traditional feet. These monolithic greatswords allow him to hover just above the terrain, making his every deliberate movement a deadly dance of steel.\n\nDraping from his wide, armored shoulders is an iconic, tattered crimson cape. Shredded and scorched at the hem, the blood-red fabric billows continuously with a fluid, ethereal grace, contrasting the rigid coldness of his metallic armor.\n\nOrbiting silently around his upper body are three autonomous, glowing sword-drones. Hovering with crystalline brilliance, these familiars trail subtle ribbons of golden energy, ready to form an impenetrable shield or launch a relentless offensive barrage.\n\nIn this front-view, idle stance, he is the perfect embodiment of stillness before a tempest. The interplay of his glowing digital runes, the continuous drift of his torn cape, and the synchronized orbit of his floating drone-swords create a visual symphony of awe-inspiring, blade-wielding power.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-02T01:45:38.465791+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:33:22.778701"
+}

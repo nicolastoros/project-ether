@@ -1,0 +1,36 @@
+{
+  "group_id": "327217c5-e32b-4bc0-ac37-a88bde34d681",
+  "states": [
+    {
+      "character": {
+        "id": "c5da5c6d-77af-4843-ac33-62a6f541eb1f",
+        "name": "Idle",
+        "prompt": "Sakuyamon es un Digimon de nivel Definitivo (Mega), tipo Hombre Dios (God Man) y atributo Datos, conocida por ser la evoluci\u00f3n final de Renamon (alcanzada mediante Matrix Evolution en Digimon Tamers) y actuar como una suma sacerdotisa/miko m\u00edstica que domina las artes del Onmy\u014dd\u014d.\n\nDise\u00f1o y Apariencia F\u00edsica\n\nAtuendo de Doncella Santuario (Miko/Kitsune): Viste una armadura ceremonial ajustada y estilizada de color dorado y p\u00farpura real, con cortes orientales que le otorgan gran agilidad y elegancia.\n\nM\u00e1scara de Zorro (Kitsune): Su rostro lleva una m\u00e1scara plateada o dorada con forma de zorro que cubre la mitad superior de su cara, dejando caer un largo cabello plateado/blanco por su espalda.\n\nHombreras y Guanteletes: Sus hombros est\u00e1n protegidos por dos cabezas doradas de zorro que canalizan sus esp\u00edritus elementales. En los antebrazos y piernas viste mangas y grebas holgadas de tela p\u00farpura y armadura dorada decorada con motivos sagrados y cascabeles (Suzu).\n\nFaja y Cintas: Lleva un cinto ceremonial anudado a la cintura con cuerdas sagradas (Shimenawa) y borlas rojas/blancas que flotan r\u00edtmicamente a su alrededor.\n\nArmamento y Habilidades Especiales\n\nVara de Kongou (Kongou Shakuj\u014d): Porta un b\u00e1culo sagrado de metal dorado con anillos en la punta que hacen sonar tintineos rituales para dispersar ilusiones, concentrar magia o repeler entidades malignas.\n\nCuatro Esp\u00edritus Kuda-gitsune: Comanda a cuatro zorros espectrales de bolsillo (Kuda-gitsune) que residen en sus hombreras y faja, canalizando los cuatro elementos sagrados (Fuego, Agua, Viento y Trueno).\n\nRueda de Mandalas (Kongoushin Mandala): Clava su b\u00e1culo en el suelo para trazar un gigantesco c\u00edrculo m\u00e1gico budista/tao\u00edsta dorado, purificando y desintegrando al instante las impurezas y virus dentro de su radio.\n\nIzuna (V\u00f3rtice de Esp\u00edritus): Invoca a sus cuatro zorros m\u00edsticos en un torbellino elemental sincronizado que rastrea y destruye a los objetivos a distancia.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T18:06:40.787440+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:31:49.164019"
+}

@@ -1,0 +1,36 @@
+{
+  "group_id": "c2454ab7-c35d-4fb4-88a7-6d54e042eefa",
+  "states": [
+    {
+      "character": {
+        "id": "be19ba37-9fb0-43da-9931-eb46d14e202c",
+        "name": "Idle",
+        "prompt": "A regal bipedal wolf standing in a proud, upright stance, draped in ornate ceremonial robes, with a glowing, multi-pointed halo of ethereal swords radiating from behind its shoulders, on a solid color background.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-29T00:08:36.681805+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-29T00:11:59.381574"
+}

@@ -1,0 +1,36 @@
+{
+  "group_id": "eb1d5564-9b26-4dfc-b382-2c4ba6801faa",
+  "states": [
+    {
+      "character": {
+        "id": "922ec3e7-3e6c-4deb-b5b9-5de8741f94e1",
+        "name": "Idle",
+        "prompt": "Blaziken is a bipedal, humanoid Pok\u00e9mon that exhibits a striking fusion of avian and martial arts aesthetics. Its slender yet highly muscular physique is primarily covered in vibrant red feathers, accented by patches of beige and yellow. A prominent, V-shaped golden crest adorns its forehead, resembling a crown or a sleek aerodynamic visor. Flowing from the back of its head is a thick, mane-like crest of beige feathers that billows dramatically, giving it the appearance of an experienced, battle-hardened fighter.\n\nIts face features intense, piercing blue eyes and a short, hooked beak. Blaziken\u2019s arms are wrapped in gray, bandage-like bands, ending in three sharp claws. Most notably, thick, fiery flames constantly spout from its strong wrists, burning fiercer and hotter as the Pok\u00e9mon faces stronger opponents.\n\nThe true terrifying power of Blaziken lies in its lower body. Its legs are incredibly powerful, heavily muscled, and covered in shaggy, yellow plumage around the thighs, resembling martial arts trousers. These legs grant it unparalleled jumping ability, allowing it to effortlessly clear a 30-story building in a single leap. Its feet possess three sharp toes and have the ability to emit scorching flames from the ankles, adding explosive thrust to its devastating kicks.\n\nIn combat, this Fire and Fighting-type Pok\u00e9mon is a master of martial arts, utilizing a combination of blinding speed, acrobatic leaps, and flame-enhanced strikes. Its signature fighting style revolves around a relentless flurry of kicks, turning its entire body into a blazing weapon that scorches its enemies upon impact. As it battles, its internal body temperature rapidly rises, exponentially increasing its physical speed and the intensity of the flames enveloping its limbs.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-02T02:05:19.883642+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:32:56.482706"
+}

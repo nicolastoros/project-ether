@@ -1,0 +1,36 @@
+{
+  "group_id": "218244fb-cdc8-4d86-b224-9dc074d81bbe",
+  "states": [
+    {
+      "character": {
+        "id": "7d44604e-d16f-43a4-a256-cd30ab7b2604",
+        "name": "Idle",
+        "prompt": "Visual Appearance & Cybernetic Anatomy\n\nComposite Chrome Digizoid Chassis: His entire body is a hulking, bipedal mechanoid dragon forged in metallic silver, steel gray, and dark iron plating, completely devoid of organic tissue.\n\nCranial Design: His head features the reinforced metal jaw and skull plating derived from Megadramon and Gigadramon, equipped with predatory red optical sensors, jagged metal teeth, and thick hydraulic wiring running along the jawline.\n\nTorso & Power Core: His heavy, industrial torso integrates the cybernetic chest chassis of MetalGreymon, complete with reinforced bulkheads that conceal and regulate his infinite digital reactor core.\n\nArms & Claws: His left arm is fitted with the oversized, razor-sharp mechanical trident claw of Megadramon, while his right arm sports the brutal cybernetic crushing claw of MetalGreymon, capable of rending through solid reinforced alloys.\n\nLower Frame & Tail: Built like an armored siege engine, his legs are heavy, piston-driven pillars ending in broad metal talons. His long, segmented mechanical tail provides dynamic counterweight and sweeping tail strikes.\n\nArmament & Special Techniques\n\nInfinity Cannons (Giga Cannon): Mounted to his back are two colossal, long-range naval artillery barrels. These dual cannons channel the limitless energy of his digital core to unleash dual apocalyptic beams of superheated plasma that vaporize everything in their trajectory.\n\nBooster Claw: Charges his cybernetic claw with high-voltage electrical energy and rocket-assisted propulsion to crush or impale enemy armor at close range.\n\nCatastrophe Day: Overheats his internal reactor to unleash an all-out, omnidirectional detonation of artillery and explosive energy, leveling the surrounding battlefield.\n\nLore & Tactical Nature\n\nSynthetic Origin: Created through a cold, calculated experiment combining the cybernetic enhancements of MetalGreymon, Megadramon, Gigadramon, and MetalMamemon, he exists as a purely artificial instrument o",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T17:07:58.435796+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:31:56.821130"
+}

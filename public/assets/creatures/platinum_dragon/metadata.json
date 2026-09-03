@@ -1,0 +1,36 @@
+{
+  "group_id": "2b735f7f-e1c2-4a3f-9507-a2e4c206986c",
+  "states": [
+    {
+      "character": {
+        "id": "92a7d3a8-5fb6-4ba6-8f92-24f1269c48cf",
+        "name": "Idle",
+        "prompt": "Visual Appearance & Draconic Form\n\nLuminous White Plating: His slender, draconic-humanoid body is primarily encased in sleek, pure white scales and lightweight armor, accented with vivid crimson lining and golden joint fixtures.\n\nDragon Helm & Horns: His head features a sharp, streamlined draconian faceplate flanked by prominent golden horns and glowing green/blue eyes, carrying forward the distinct horn motifs of Gammamon\u2019s lineage.\n\nLarge Seraphic Wings: Spanning from his upper back are four massive, feathered-and-membrane wings of brilliant white with glowing red energy veins. These wings grant immense aerial agility, supersonic flight speeds, and the ability to channel solar heat.\n\nLimbs & Claws: His arms and legs are elongated with sharp golden talons, designed for rapid aerial grapples, diving strikes, and precise melee control while soaring.\n\nTail & Stance: A long, agile reptilian tail with an armored tip extends from his waist, functioning as a mid-air rudder for sharp high-speed maneuvers.\n\nKey Techniques & Combat Capabilities\n\nGallia Fissure: Engulfs his fists or foot claws in superheated, high-density white flames and dives at breakneck speed to deliver a concussive, armor-shattering strike.\n\nDragonia: Channels massive amounts of radiant thermal energy throughout his body and charges forward cloaked in the silhouette of a gigantic blazing light dragon, incinerating everything in his flight path.\n\nMeteor Lux: Spreads his four wings wide to release a rapid-fire barrage of searing light bullets, piercing and purifying enemy defenses from the air.\n\nSailing Wing: Sharpens the edges of his wings with compressed air and light energy, slicing through incoming projectiles or evading complex artillery barrages with ease.\n\nLore & Personality\n\nRighteous Aerial Guardian: Canoweissmon possesses an unwavering heart that rejects corruption and cruelty. He rushes fearlessly into combat to shield smaller, defenseless Digimon from malicious entities.\n\nPure Energy Output: Hi",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T17:18:18.333467+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:31:13.457780"
+}

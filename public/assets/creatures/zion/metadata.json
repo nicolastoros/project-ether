@@ -1,0 +1,36 @@
+{
+  "group_id": "e221a6a4-eb72-497c-bf2b-0630b586fa6e",
+  "states": [
+    {
+      "character": {
+        "id": "26e5a7dc-02ab-498b-941e-b975df4a3b9e",
+        "name": "Idle",
+        "prompt": "Imperialdramon Paladin Mode stands as a legendary, divine figure in the Digital World, representing the ultimate fusion of ancient draconic power and holy knighthood. His towering, bipedal frame is encased in gleaming, opalescent white armor that radiates a pure, celestial aura. This pristine plating is heavily accented with rich, regal gold trims along his broad shoulders, spiked gauntlets, and heavy greaves, signifying his elevated, sacred status as the founder of the Royal Knights.\n\nAt the center of his chest rests a striking golden dragon's head motif, a remnant of his fierce draconic origins, its eyes glowing with calm, righteous energy. His head is crowned by an intricate, bladed helmet featuring a sharp, V-shaped golden crest. Beneath the armor, deep red visors project an unwavering, stoic gaze that evaluates the battlefield with ancient wisdom. Sprouting from his broad back are magnificent, angelic white wings. These vast, feathered appendages replace his previous dark, leathery wings, granting him unparalleled supersonic speed and a majestic, soaring silhouette that dominates the sky.\n\nThe defining centerpiece of this ancient warrior is the colossal weapon he wields: the Omega Blade (Omni Sword). This massive, heavy broadsword was born from the spirit of Omnimon and hums with absolute holy power. The blade itself is pristine white steel etched with glowing, ancient digital runes along its center. Its golden hilt is adorned with a radiant blue central sphere, pulsating with energy. When drawn, the sword casts an overwhelming, purifying light capable of cleaving through absolute darkness, slicing through reality itself to reset corrupted data to a state of nothingness.\n\nIn a combat stance, Imperialdramon Paladin Mode exudes an aura of absolute serenity and world-shaping power. He does not rely on frantic movements or savage strikes; instead, his mere presence commands the atmosphere of the battlefield. The stark contrast between his devastating draconic physi",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-02T02:45:27.656346+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:32:39.624922"
+}

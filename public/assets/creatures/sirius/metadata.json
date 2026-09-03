@@ -1,0 +1,36 @@
+{
+  "group_id": "aabacc73-8ff3-4942-863f-7c3f910b6332",
+  "states": [
+    {
+      "character": {
+        "id": "9017f6ed-9800-411b-9148-f7d50109580f",
+        "name": "Idle",
+        "prompt": "Visual Appearance & Armor Design\n\nLuminous White & Crimson Armor: Encased in sleek, aerodynamic silver-white plate armor adorned with striking crimson red paneling, gold filigree, and blue sensor nodes, evoking a blend of a noble medieval paladin and a futuristic mech.\n\nDragon-Knight Helm: His helmet features an angular visor with sharp white crest horns, framing determined, glowing optical eyes and paying homage to Gammamon's triceratops-like head ridges.\n\nChest & Core: The breastplate is reinforced with a glowing central energy core that regulates the immense, superheated star plasma generated within his body.\n\nMantle & Wings: Flowing from his shoulders is a dynamic energy-infused scarf/mantle that splits into wing-like projections during high-speed flight, leaving radiant trails of starlight in his wake.\n\nLimbs & Stance: His limbs are slender yet mechanically reinforced, featuring sharp golden claws on his greaves that provide high-traction footing and aerodynamic propulsion.\n\nWeapons & Armament\n\nSylvia (Composite Gauntlet Blades): Mounted on both forearms are his signature dual armaments known as Sylvia. These hybrid weapons can instantly shift between sharp composite sword blades for close-quarters parrying and high-output energy cannons for ranged rail-fire.\n\nKey Techniques & Combat Capabilities\n\nPhoton Blaster: Combines both Sylvia armaments to charge and fire a concentrated, piercing beam of superheated starlight capable of vaporizing distant targets on contact.\n\nBreak Quasar: Engulfs the blades of Sylvia in blinding cosmic plasma and executes an ultra-high-speed dash, slicing cleanly through heavy enemy armor with radiant heat and kinetic force.\n\nPlanet Knuckle: Condenses massive gravitational and thermal star energy into his fists to deliver explosive, shockwave-inducing melee strikes.\n\nLore & Temperament\n\nGuiding Beacon of Justice: Embodying the brilliant radiance of the star Sirius, he acts as an incorruptible guardian who charges directly into danger to",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T17:16:17.325217+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:30:53.549249"
+}

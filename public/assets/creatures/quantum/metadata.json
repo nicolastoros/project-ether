@@ -1,0 +1,36 @@
+{
+  "group_id": "ca8fb074-e014-4b80-99e9-74096dd186ca",
+  "states": [
+    {
+      "character": {
+        "id": "3f16b657-68f6-4e37-96d0-98df55fc74da",
+        "name": "Idle",
+        "prompt": "Visual Appearance & Design\n\nHead & Facial Features: Possesses a pale, porcelain humanoid face with a calm, emotionless expression. Her head is framed by an elaborate, futuristic headdress made of translucent, cubic, and polygonal data crystals resembling quantum processor arrays.\n\nBody & Silhouette: She features an ethereal, slender biomechanical physique clad in a clean palette of pure white, luminous turquoise/cyan, and golden circuitry accents. She continuously levitates in a state of weightless suspension.\n\nQuantum Robe & Data Crystals: Below her waist, her body flows into a dress-like arrangement of floating, semitransparent geometric blocks. These digital facets dynamically shift, assemble, and deconstruct in real time, visually representing the endless flow of computational processing.\n\nAbilities & Core Characteristics\n\nQuantum Calculation Engine: Her analytical capacity surpasses conventional supercomputers, allowing her to simulate millions of future outcomes, branching timelines, and tactical scenarios instantaneously.\n\nProbability Manipulation: Rather than relying on standard physical melee combat, she neutralizes threats by disassembling incoming data at a subatomic level and reshaping localized probabilities in her favor.\n\nObserver Mindset: She acts as an impartial, analytical custodian of data, largely motivated by observing rare anomalies and calculating how unforeseen decisions alter deterministic futures.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T17:02:19.334958+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:32:14.134660"
+}

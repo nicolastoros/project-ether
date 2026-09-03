@@ -1,0 +1,36 @@
+{
+  "group_id": "fd8f1c2e-1133-49cf-bb87-fa92efd58469",
+  "states": [
+    {
+      "character": {
+        "id": "42970928-53c0-4d7d-8963-b81076bae713",
+        "name": "Idle",
+        "prompt": "Dise\u00f1o y Apariencia F\u00edsica\n\nFisionom\u00eda de Cuatro Brazos: Posee un cuerpo imponente y marcial con cuatro brazos funcionales, dise\u00f1ados para combinar el combate cuerpo a cuerpo pesado con el dominio de armas blancas.\n\nRasgos Faciales y Yelmo: Su rostro toma inspiraci\u00f3n en un general divino protector (Shinsh\u014d) con facciones felinas estilizadas (similares a un zorro de arena tibetano), enmarcado por una armadura ceremonial con ornamentos puntiagudos.\n\nAnillo Sagrado / Rueda Divina: Al igual que Susanoomon, lleva a su espalda un gran anillo o aro dorado dentado flotante que canaliza su poder y autoridad divina.\n\nArmadura y Acabados: Su indumentaria combina placas de armadura blanca, dorada y escarlata con gemas rojas incrustadas, especialmente en los antebrazos secundarios y hombreras, emulando la est\u00e9tica de las deidades guerreras del folclore oriental del Mundo Digital.\n\nArmamento y Habilidades Especiales\n\nFutsushimitama-no-tsurugi (Espada de Siete Ramas): Su arma principal es una espada colosal de siete filos ramificados que empu\u00f1a con destreza letal.\n\nHabakiri: Concentra el aura y la energ\u00eda divina acumulada en todo su cuerpo en el filo de su espada para desatar un corte masivo capaz de dividir el terreno y el n\u00facleo del adversario.\n\nAramasa: Divide la Futsushimitama-no-tsurugi en siete hojas individuales flotantes, control\u00e1ndolas mediante telequinesis para atacar y cercenar a los objetivos desde todas las direcciones en simult\u00e1neo.\n\nLore y Comportamiento\n\nEl Guardi\u00e1n del Castillo: Cuenta la leyenda que serv\u00eda directamente al Dios de la Destrucci\u00f3n que reconstruy\u00f3 el mundo. Tras la desaparici\u00f3n de su amo, Habakirimon permanece custodiando su castillo a la espera de su regreso.\n\nEstilo de Combate: Alterna fluidamente entre esgrima de alto rango con sus hojas telequin\u00e9ticas y un combate cerrado brutal aprovechando sus cuatro extremidades para inmovilizar y castigar a sus rivales.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-30T18:02:42.283672+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-03T00:31:27.317130"
+}
