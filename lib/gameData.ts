@@ -1036,7 +1036,9 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoulders.png",
-    source: { kind: "campaign-clear", stageId: "dg-stage-8" },
+    // Chapter 1's new finale/boss area ("The Royal Knights", area 15) — was dg-stage-8 back when
+    // Chapter 1 was still the old 8-stage World 1.
+    source: { kind: "campaign-clear", stageId: "dg-stage-15" },
     statBonus: { def: 2, dp: 15, cd: 10 },
   },
   {
@@ -1413,11 +1415,15 @@ export const PVP_LEADERBOARD: PvpOpponent[] = [
 ];
 
 const STAGE_NAMES = [
-  // World 1 (8 stages)
-  "Whispering Grove", "Ember Foothills", "Tidewater Shoals", "Sunken Ruins",
-  "Ashfall Canyon", "Glimmering Caverns", "Thornwood Depths", "Frostpeak Pass",
-  
-  // World 2 (8 stages)
+  // Chapter 1 (15 areas) — see lib/campaignChapters.ts's CAMPAIGN_CHAPTERS, which must stay in
+  // sync with this list (same names, same order). Area 15 is the chapter's boss.
+  "The Beginning", "An Unsettling Feeling", "Spacetime Distortion", "An Uncertain Future",
+  "The Prophecy", "An Unexpected Turn", "Our World", "Bonds of Friendship",
+  "True Strength", "Awakening", "A Dangerous Enemy Approaches", "Together, We'll Save Our World",
+  "The Power Within", "Mystery of the Digital Network", "The Royal Knights",
+
+  // World 2 (8 stages) — dormant: Chapter 2 doesn't have real content yet (see
+  // lib/campaignChapters.ts), so these stay defined but unreachable from the new Campaign nav.
   "Molten Bastion", "Stormlit Shrine", "Duskveil Marsh", "Obsidian Spire",
   "Verdant Labyrinth", "Crimson Aqueduct", "Hollow Bellfort", "Wraithlight Hollow",
   
@@ -1445,7 +1451,7 @@ const HIGHEST_STAGE_CLEARED = 0;
 // visibly reward the player with a level-up. Bumped well above that gap for stages 1-2 only.
 const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
 
-const WORLD_SIZES = [8, 8, 12, 12, 14];
+const WORLD_SIZES = [15, 8, 12, 12, 14];
 
 /** Cumulative stage count through the end of `world` (1-indexed) — e.g. 5 -> 54, since worlds
  * 1-5 are sized [8,8,12,12,14]. Used to check "has this player cleared through World N" against

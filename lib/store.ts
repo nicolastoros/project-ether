@@ -324,6 +324,12 @@ interface GameState {
    * won't show one again once its id lands here. Local-only (never synced to BigQuery): it's a
    * UI nicety, not game progress, so a new device simply seeing a tip again is harmless. */
   seenTutorialTips: string[];
+  /** Base Campaign stage ids (never tier-suffixed — "attempted" is tracked per area, not per
+   * difficulty tier) the player has started and lost at least once — see ChapterAreaList.tsx's
+   * badge: NEW until first attempted, blank while attempted-but-not-yet-won (no longer "unseen",
+   * not yet "completed" either), COMPLETED once >=1 star is earned. Local-only, same rationale as
+   * seenTutorialTips above — purely a "have I looked at this" UI cue, not real progress. */
+  attemptedStageIds: string[];
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -344,6 +350,7 @@ interface GameState {
   markStagePerfect: (stageId: string) => void;
   recordStageStars: (stageId: string, stars: { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }) => void;
   markTutorialTipSeen: (id: string) => void;
+  markStageAttempted: (baseStageId: string) => void;
 
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
@@ -487,6 +494,7 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV9: false,
       hasReceivedGiftsV10: false,
       seenTutorialTips: [],
+      attemptedStageIds: [],
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -580,6 +588,12 @@ export const useGameStore = create<GameState>()(
         set((state) => {
           if (state.seenTutorialTips.includes(id)) return state;
           return { seenTutorialTips: [...state.seenTutorialTips, id] };
+        }),
+
+      markStageAttempted: (baseStageId) =>
+        set((state) => {
+          if (state.attemptedStageIds.includes(baseStageId)) return state;
+          return { attemptedStageIds: [...state.attemptedStageIds, baseStageId] };
         }),
 
       recordStageStars: (stageId, stars) =>

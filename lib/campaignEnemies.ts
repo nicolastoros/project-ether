@@ -1,6 +1,7 @@
 import type { Creature, DungeonStage } from "@/types/game";
 import { STARTER_CREATURES } from "@/lib/gameData";
 import { TIER_STAT_MULTIPLIERS } from "@/lib/difficultyTiers";
+import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
 
 function findBase(id: string): Creature {
   const found = STARTER_CREATURES.find((c) => c.id === id);
@@ -69,8 +70,10 @@ function scaleForStage(
   };
 }
 
-/** World 1's fixed enemy line-up, stage by stage: Firebit/Dragoon carry the early stages,
- * Voltling joins at stage 6, and Tidewarden closes the world out as a boss with one minion. */
+/** Chapter 1's fixed enemy line-up, area by area (15 areas, up from the old 8-stage World 1):
+ * Firebit/Dragoon carry the early areas, Voltling joins at area 6, Tidewarden takes over as the
+ * mid-chapter threat, Venomshade escalates further, and GallantKnight — a literal Royal Knight —
+ * joins for the finale, fitting "The Royal Knights" as the area-15 boss. */
 const WORLD_1_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   1: [FIREBIT, FIREBIT],
   2: [FIREBIT, DRAGOON],
@@ -79,7 +82,14 @@ const WORLD_1_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   5: [FIREBIT, DRAGOON],
   6: [DRAGOON, VOLTLING],
   7: [VOLTLING, VOLTLING],
-  8: [TIDEWARDEN, VOLTLING],
+  8: [VOLTLING, TIDEWARDEN],
+  9: [TIDEWARDEN, VOLTLING],
+  10: [TIDEWARDEN, TIDEWARDEN],
+  11: [TIDEWARDEN, VENOMSHADE],
+  12: [VENOMSHADE, TIDEWARDEN],
+  13: [VENOMSHADE, VENOMSHADE],
+  14: [VENOMSHADE, GALLANTKNIGHT],
+  15: [GALLANTKNIGHT, VENOMSHADE],
 };
 
 /** World 2's fixed enemy line-up — a step up from World 1's catalog tier (Venomshade/Emberfiend
@@ -159,8 +169,11 @@ export function getStageEnemyTeam(
 ): [Creature, Creature] | null {
   const templates = ENEMY_TEMPLATES_BY_WORLD[stage.world]?.[stage.worldStageNumber];
   if (!templates) return null;
+  // Chapter 1 (world 1) derives its boss position from real chapter content (15 areas — see
+  // lib/campaignChapters.ts); Worlds 2-5 are dormant (no Chapter 2-4 content yet) and keep their
+  // previous fixed boss positions directly since they aren't backed by a CampaignChapter entry.
   const isBoss = (
-    (stage.world === 1 && stage.worldStageNumber === 8) ||
+    (stage.world === 1 && isFinalAreaOfChapter(1, stage.worldStageNumber)) ||
     (stage.world === 2 && stage.worldStageNumber === 8) ||
     (stage.world === 3 && stage.worldStageNumber === 12) ||
     (stage.world === 4 && stage.worldStageNumber === 12) ||

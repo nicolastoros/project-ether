@@ -66,6 +66,11 @@ interface BattleResultScreenProps {
   /** Callback-based exit (RaidBattleScreen). Mutually exclusive with exitHref. */
   onExitClick?: () => void;
   exitLabel: string;
+  /** Campaign-only: link straight into the next area's team-select, skipping back through the
+   * Chapter/Area list. Omitted (no button rendered) when there's no next area to jump to — the
+   * last area of a chapter, or any non-Campaign caller (Raid has no "next" concept). */
+  nextHref?: string;
+  nextLabel?: string;
 }
 
 /** Shared post-battle presentation for both BattleScreen and RaidBattleScreen: a KO splash on
@@ -92,6 +97,8 @@ export function BattleResultScreen({
   exitHref,
   onExitClick,
   exitLabel,
+  nextHref,
+  nextLabel = "Next Area",
 }: BattleResultScreenProps) {
   const [showKoSplash, setShowKoSplash] = useState(phase === "victory");
 
@@ -300,21 +307,31 @@ export function BattleResultScreen({
           <p className="text-xs text-zinc-500">{defeatMessage}</p>
         )}
 
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" className="flex-1" onClick={onRematch}>
-            <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
-            Rematch
-          </PixelButton>
-          {exitHref ? (
-            <Link href={exitHref} className="flex-1" onClick={onExitClick}>
-              <PixelButton variant="gold" className="w-full">
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <PixelButton variant="ghost" className="flex-1" onClick={onRematch}>
+              <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
+              Rematch
+            </PixelButton>
+            {exitHref ? (
+              <Link href={exitHref} className="flex-1" onClick={onExitClick}>
+                <PixelButton variant={nextHref ? "ghost" : "gold"} className="w-full">
+                  {exitLabel}
+                </PixelButton>
+              </Link>
+            ) : (
+              <PixelButton variant={nextHref ? "ghost" : "gold"} className="flex-1" onClick={onExitClick}>
                 {exitLabel}
               </PixelButton>
+            )}
+          </div>
+          {/* Primary CTA once a next area exists — the common case is "keep going", not "leave". */}
+          {nextHref && (
+            <Link href={nextHref} className="block" onClick={onExitClick}>
+              <PixelButton variant="gold" className="w-full">
+                {nextLabel}
+              </PixelButton>
             </Link>
-          ) : (
-            <PixelButton variant="gold" className="flex-1" onClick={onExitClick}>
-              {exitLabel}
-            </PixelButton>
           )}
         </div>
       </GlowPanel>

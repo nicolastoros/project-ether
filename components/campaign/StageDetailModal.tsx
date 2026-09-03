@@ -10,6 +10,7 @@ import { DUNGEON_STAGES, ITEM_CATALOG, TAMER_EQUIPMENT_CATALOG } from "@/lib/gam
 import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { DIFFICULTY_TIERS, getTierStage, isTierUnlocked, tierStageId } from "@/lib/difficultyTiers";
+import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
 import { useGameStore } from "@/lib/store";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
@@ -204,7 +205,7 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
                 <PixelButton variant="gold" className="w-full lg:py-4 lg:text-base">
                   {Boolean(dungeon.stageStars[tierStageId(stage.id, selectedTier)])
                     ? "Replay"
-                    : stage.worldStageNumber === 8
+                    : isFinalAreaOfChapter(stage.world, stage.worldStageNumber)
                       ? "Boss Battle"
                       : "Battle"}
                 </PixelButton>

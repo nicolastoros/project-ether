@@ -19,7 +19,7 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
   "/campaign": {
     id: "campaign",
     title: "Campaign",
-    body: "Each World has a run of Stages leading to a Boss — clear them for Gold, EXP, and gear. Every stage also has Easy/Medium/Hard/Super difficulty tiers, unlocked one at a time as you clear the one before.",
+    body: "Each Chapter has a run of Areas leading to a Boss — clear them for Gold, EXP, and gear. Every area also has Normal/Medium/Hard/Super difficulty tiers, unlocked one at a time as you clear the one before.",
   },
   "/survival": {
     id: "survival",

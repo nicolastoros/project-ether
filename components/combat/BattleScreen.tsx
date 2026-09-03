@@ -12,6 +12,7 @@ import { useGameStore } from "@/lib/store";
 import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
 import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
+import { parseTierStageId } from "@/lib/difficultyTiers";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
   grantCreatureOnServer,
@@ -158,6 +159,13 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const guild = useGameStore((s) => s.guild);
+
+  // The next area in the same chapter, Easy tier (if one exists) — powers the results screen's
+  // "Next Area" shortcut. Same-world guard means this naturally stays undefined past a chapter's
+  // last area (the next global stageNumber belongs to a different, not-yet-available chapter).
+  const nextAreaStage = DUNGEON_STAGES.find(
+    (s) => s.stageNumber === stage.stageNumber + 1 && s.world === stage.world
+  );
 
   // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
@@ -396,6 +404,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     if (!playersAlive) {
       setPhase("defeat");
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Defeat... your team was wiped out." }]);
+      // Tier-agnostic — losing on any difficulty still means "we went in and saw this area", so
+      // the Chapter/Area list's NEW badge shouldn't keep claiming it's unseen (see
+      // ChapterAreaList.tsx: NEW -> attempted-but-not-won (no badge) -> COMPLETED).
+      useGameStore.getState().markStageAttempted(parseTierStageId(stage.id).baseId);
       return;
     }
 
@@ -729,6 +741,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
       {phase !== "active" && (
         <BattleResultScreen
+          nextHref={
+            phase === "victory" && nextAreaStage ? `/combat?stage=${nextAreaStage.id}` : undefined
+          }
           phase={phase}
           title={stage.name}
           goldEarned={stage.rewardGold * rewardMultiplier}
@@ -753,9 +768,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           ].filter((line): line is NonNullable<typeof line> => Boolean(line))}
           defeatMessage="Your team was defeated. Give it another shot!"
           onRematch={onRematch}
-          exitHref="/campaign"
+          exitHref={`/campaign?chapter=${stage.world}`}
           onExitClick={onExit}
-          exitLabel="Return to Campaign"
+          exitLabel="Exit"
         />
       )}
     </div>
