@@ -81,10 +81,13 @@ export function CombatantCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitNonce]);
 
-  const barWidth = size === "sm" ? "max-w-[7.5rem] lg:max-w-[9rem]" : "max-w-[9rem] lg:max-w-[11rem]";
+  const barWidth = size === "sm" ? "max-w-[6rem] sm:max-w-[7.5rem] lg:max-w-[9rem]" : "max-w-[9rem] lg:max-w-[11rem]";
   const spriteSize =
     size === "sm"
-      ? "h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem] lg:h-32 lg:w-32 xl:h-36 xl:w-36"
+      // Base tier shrunk from the old flat h-24 (96px) — BattleScreen's mobile arena (the only
+      // place size="sm" is used) is tight enough that at 96px the bottom skill menu overlay was
+      // covering the player creatures' own sprites. sm: and up are unchanged from before.
+      ? "h-16 w-16 sm:h-[6.5rem] sm:w-[6.5rem] lg:h-32 lg:w-32 xl:h-36 xl:w-36"
       : "h-28 w-28 sm:h-32 sm:w-32 lg:h-40 lg:w-40 xl:h-48 xl:w-48";
 
   const resonancePercent = Math.round((combatant.resonance / combatant.resonanceMax) * 100);

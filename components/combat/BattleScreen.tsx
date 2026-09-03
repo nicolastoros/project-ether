@@ -480,8 +480,13 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
               style={{ imageRendering: "pixelated" }}
             />
 
-            {/* Enemy HP Plates (Top Right) */}
-            <div className="absolute top-4 right-4 flex flex-row flex-wrap justify-end gap-2 sm:gap-4 z-20">
+            {/* Enemy HP Plates (Top Right) — large-desktop only. Each CombatantCard sprite already
+                carries its own compact name/HP/Resonance readout right above its head (see
+                CombatantCard.tsx), so these bigger portrait plates are pure duplication; below
+                2xl the arena isn't wide enough yet for both to coexist without crowding into the
+                sprites themselves (confirmed by screenshot at an in-between ~1100-1400px width —
+                only genuinely large monitors have room to spare for both). */}
+            <div className="hidden 2xl:flex absolute top-4 right-4 flex-row flex-wrap justify-end gap-2 sm:gap-4 z-20">
               {enemies.map((c) => (
                 <CombatantPlate key={c.uid} combatant={c} align="right" isActingTurn={c.uid === actorUid && phase === "active"} />
               ))}
@@ -530,8 +535,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
             {/* Bottom UI Wrapper (Plates + Menu) */}
             <div className="absolute bottom-0 left-0 right-0 z-30 flex flex-col justify-end">
-              {/* Player HP Plates (stacked dynamically above the menu) */}
-              <div className="flex flex-row flex-wrap gap-2 sm:gap-4 px-4 pb-3 sm:pb-4 pointer-events-none">
+              {/* Player HP Plates — large-desktop only, same reasoning as the enemy plates above. */}
+              <div className="hidden 2xl:flex flex-row flex-wrap gap-2 sm:gap-4 px-4 pb-3 sm:pb-4 pointer-events-none">
                 {players.map((c) => (
                   <div key={c.uid} className="pointer-events-auto">
                     <CombatantPlate combatant={c} align="left" isActingTurn={c.uid === actorUid && phase === "active"} />
@@ -561,8 +566,13 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                           Select an enemy target on the battlefield.
                         </p>
                       ) : (
-                        <div className="space-y-2 sm:space-y-3">
-                          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                        // One 2x2 grid, not a 3-skill grid plus a separate full-width Ultimate
+                        // row underneath — a creature's regular kit is always exactly 3 non-
+                        // Passive skills, so the Ultimate (when it has one) naturally lands in the
+                        // grid's 4th, otherwise-empty cell instead of adding a whole extra row.
+                        // That extra row was tall enough on mobile to push the bottom menu overlay
+                        // up over the player creatures' own sprites in the arena above it.
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
                             {actor.creature.skills
                               .filter((s) => s.type !== "Passive")
                               .map((skill) => {
@@ -605,7 +615,6 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                   </button>
                                 );
                               })}
-                          </div>
                           {(() => {
                             const ultimate = getUltimateSkill(actor.creature);
                             if (!ultimate || !actor.creature.ultimateSkill) return null;
@@ -616,7 +625,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                 disabled={!isReady}
                                 onClick={() => handleSkillClick(ultimate)}
                                 className={cn(
-                                  "relative w-full overflow-hidden rounded-lg sm:rounded-xl border-2 border-gold-bright bg-gradient-to-r from-amber-950/60 via-fuchsia-950/50 to-sky-950/60 p-2 sm:p-3 text-left transition-colors",
+                                  "relative overflow-hidden rounded-lg sm:rounded-xl border-2 border-gold-bright bg-gradient-to-r from-amber-950/60 via-fuchsia-950/50 to-sky-950/60 p-2 sm:p-3 text-left transition-colors",
                                   isReady ? "hover:brightness-125" : "cursor-not-allowed opacity-50"
                                 )}
                               >

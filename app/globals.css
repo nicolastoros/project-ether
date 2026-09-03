@@ -52,6 +52,22 @@ body {
   color: var(--foreground);
 }
 
+/* Mobile-only safety net: some decorative elements (e.g. the rotating rainbow ring on LR-rarity
+   card auras, MythicCardAura.tsx) report a layout size wider than their own clipped bounds due to
+   a browser quirk around animated/transformed children inside an overflow-hidden parent — visually
+   they stay correctly clipped, but without this guard a phone's touch scroll can still pan the
+   whole page sideways into that phantom space. overflow-y is pinned back to visible (not left to
+   default) because setting only overflow-x otherwise auto-promotes overflow-y to `auto`, which
+   would quietly turn body into a second scroll container fighting the page's real one. Desktop is
+   untouched — this hasn't shown up there, and drops away above the same lg breakpoint the rest of
+   the app already uses as the mobile/desktop fork. */
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+}
+
 /* Soft rounded card frame — replaces the old notched pixel corners. */
 .pixel-frame {
   border-radius: 1.25rem;
