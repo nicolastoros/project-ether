@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { BigQuery } from "@google-cloud/bigquery";
-import { STARTER_CREATURES } from "@/lib/gameData";
+import { STARTER_CREATURES, applyAwakenBump } from "@/lib/gameData";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 
 const PROJECT_ID = process.env.BIGQUERY_PROJECT_ID ?? "project-scrappy-intelic";
@@ -205,6 +205,7 @@ export interface AccountBundle {
     copies: number;
     superAttackLevel: number;
     potentialNodes: string[];
+    awakenLevel: number;
   }[];
   equipment: {
     equipmentId: string;
@@ -302,7 +303,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       }),
       bq().query({
         query: `
-        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, potential_nodes, super_attack_level
+        SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, potential_nodes, super_attack_level, awaken_level
         FROM ${table("user_creatures")} WHERE user_id = @userId ORDER BY acquired_at
       `,
         params: { userId },
@@ -477,7 +478,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           energyRegenMinutes: currencyRow.energy_regen_minutes,
           lastEnergyTickAt: currencyRow.last_energy_tick_at,
         }
-      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 120, energyRegenMinutes: 1, lastEnergyTickAt: Date.now() },
+      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 240, energyRegenMinutes: 1, lastEnergyTickAt: Date.now() },
     dungeon: dungeonRow
       ? {
           highestStageCleared: dungeonRow.highest_stage_cleared,
@@ -502,6 +503,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       copies: row.copies ?? 1,
       superAttackLevel: row.super_attack_level ?? 1,
       potentialNodes: row.potential_nodes ? row.potential_nodes.split(",") : [],
+      awakenLevel: row.awaken_level ?? 0,
     })),
     equipment: equipmentRows.map((row) => ({
       equipmentId: row.equipment_id,
@@ -548,7 +550,7 @@ export async function syncPlayerProgress(
     level: number;
     exp: number;
     expToNextLevel: number;
-    creatures: { creatureId: string; level: number; exp: number; expToNextLevel: number; partySlot: number | null; isInHubTeam: boolean; superAttackLevel: number; potentialNodes: string[]; copies: number }[];
+    creatures: { creatureId: string; level: number; exp: number; expToNextLevel: number; partySlot: number | null; isInHubTeam: boolean; superAttackLevel: number; potentialNodes: string[]; copies: number; awakenLevel: number }[];
     /** Highest Campaign stage cleared — only ever moves up (GREATEST), so an out-of-order sync
      * (e.g. two tabs) can't accidentally roll progress back. */
     dungeonHighestStageCleared?: number;
@@ -599,12 +601,22 @@ export async function syncPlayerProgress(
     const creaturesWithStats = opts.creatures.map((c) => {
       const base = STARTER_CREATURES.find((sc) => sc.id === c.creatureId);
       const pot = getPotentialBonuses(c.potentialNodes || []);
+      // These raw hp/atk/def/spd columns aren't actually read back into live game state (the
+      // client rebuilds baseStats itself from the template + level/potential — see
+      // bundleToStateFields in lib/store.ts) but keep them consistent with an Awaken anyway.
+      const { baseStats: awakenedBase } = c.awakenLevel >= 1 && base
+        ? applyAwakenBump(base.rarity, base.baseStats)
+        : { baseStats: base?.baseStats };
+      const hpBase = awakenedBase?.hp ?? 500;
+      const atkBase = awakenedBase?.atk ?? 100;
+      const defBase = awakenedBase?.def ?? 50;
+      const spdBase = awakenedBase?.spd ?? 100;
       return {
         ...c,
-        hp: (base?.baseStats.hp ?? 500) + 8 * (c.level - 1) + pot.hp,
-        atk: (base?.baseStats.atk ?? 100) + 3 * (c.level - 1) + pot.atk,
-        def: (base?.baseStats.def ?? 50) + 2 * (c.level - 1) + pot.def,
-        spd: (base?.baseStats.spd ?? 100) + 1 * (c.level - 1) + pot.spd,
+        hp: hpBase + 8 * (c.level - 1) + pot.hp,
+        atk: atkBase + 3 * (c.level - 1) + pot.atk,
+        def: defBase + 2 * (c.level - 1) + pot.def,
+        spd: spdBase + 1 * (c.level - 1) + pot.spd,
       };
     });
 
@@ -615,10 +627,10 @@ export async function syncPlayerProgress(
           USING UNNEST(@creatures) AS source
           ON target.user_id = @userId AND target.creature_id = source.creatureId
           WHEN MATCHED THEN
-            UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel, party_slot = source.partySlot, is_in_hub_team = source.isInHubTeam, super_attack_level = source.superAttackLevel, potential_nodes = source.potentialNodes, copies = source.copies
+            UPDATE SET level = source.level, exp = source.exp, exp_to_next_level = source.expToNextLevel, party_slot = source.partySlot, is_in_hub_team = source.isInHubTeam, super_attack_level = source.superAttackLevel, potential_nodes = source.potentialNodes, copies = source.copies, awaken_level = source.awakenLevel
           WHEN NOT MATCHED THEN
-            INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, super_attack_level, potential_nodes)
-            VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, source.isInHubTeam, source.partySlot, source.copies, source.superAttackLevel, source.potentialNodes)
+            INSERT (id, user_id, creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, super_attack_level, potential_nodes, awaken_level)
+            VALUES (GENERATE_UUID(), @userId, source.creatureId, source.level, source.exp, source.expToNextLevel, source.hp, source.atk, source.def, source.spd, source.isInHubTeam, source.partySlot, source.copies, source.superAttackLevel, source.potentialNodes, source.awakenLevel)
         `,
         params: { userId, creatures: creaturesWithStats.map(c => ({ ...c, potentialNodes: c.potentialNodes.join(",") })) },
         types: {
@@ -637,6 +649,7 @@ export async function syncPlayerProgress(
               superAttackLevel: "INT64",
               potentialNodes: "STRING",
               copies: "INT64",
+              awakenLevel: "INT64",
             },
           ],
         },

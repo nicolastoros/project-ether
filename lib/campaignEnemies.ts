@@ -92,18 +92,28 @@ const WORLD_1_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   15: [GALLANTKNIGHT, VENOMSHADE],
 };
 
-/** World 2's fixed enemy line-up — a step up from World 1's catalog tier (Venomshade/Emberfiend
- * are Dark, Thundracoil is SSR), same stage-by-stage shape: two early creatures alternate,
- * a third joins at stage 6, and the Mythic Silver Dragon closes the world out as boss. */
+/** Chapter 2's fixed enemy line-up, area by area (15 areas, up from the old 8-stage World 2) — a
+ * step up from Chapter 1's catalog tier: Starweaver/Emberfiend/Thundracoil are all SSR (versus
+ * Chapter 1's Common/Rare opening roster), Crimson Guardian and Wargek join as Mythics mid-chapter,
+ * and Silver Dragon — a fittingly luminous "protect the original world" Mythic — closes out area
+ * 15 (global area 30) as the boss. None of these overlap Chapter 1's roster, keeping each
+ * chapter's enemy cast visually distinct. */
 const WORLD_2_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
-  1: [VENOMSHADE, VENOMSHADE],
-  2: [VENOMSHADE, EMBERFIEND],
-  3: [EMBERFIEND, VENOMSHADE],
+  1: [STARWEAVER, STARWEAVER],
+  2: [STARWEAVER, EMBERFIEND],
+  3: [EMBERFIEND, STARWEAVER],
   4: [EMBERFIEND, EMBERFIEND],
-  5: [VENOMSHADE, EMBERFIEND],
+  5: [STARWEAVER, EMBERFIEND],
   6: [EMBERFIEND, THUNDRACOIL],
   7: [THUNDRACOIL, THUNDRACOIL],
-  8: [SILVER_DRAGON, THUNDRACOIL],
+  8: [THUNDRACOIL, EMBERFIEND],
+  9: [THUNDRACOIL, CRIMSON_GUARDIAN],
+  10: [CRIMSON_GUARDIAN, THUNDRACOIL],
+  11: [CRIMSON_GUARDIAN, CRIMSON_GUARDIAN],
+  12: [CRIMSON_GUARDIAN, WARGEK],
+  13: [WARGEK, CRIMSON_GUARDIAN],
+  14: [WARGEK, SILVER_DRAGON],
+  15: [SILVER_DRAGON, WARGEK],
 };
 
 const WORLD_3_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
@@ -169,12 +179,13 @@ export function getStageEnemyTeam(
 ): [Creature, Creature] | null {
   const templates = ENEMY_TEMPLATES_BY_WORLD[stage.world]?.[stage.worldStageNumber];
   if (!templates) return null;
-  // Chapter 1 (world 1) derives its boss position from real chapter content (15 areas — see
-  // lib/campaignChapters.ts); Worlds 2-5 are dormant (no Chapter 2-4 content yet) and keep their
-  // previous fixed boss positions directly since they aren't backed by a CampaignChapter entry.
+  // Chapters 1 and 2 (worlds 1-2) derive their boss position from real chapter content — see
+  // lib/campaignChapters.ts. Worlds 3-5 are still dormant (no Chapter 3-4 content yet) and keep
+  // their previous fixed boss positions directly since they aren't backed by a CampaignChapter
+  // entry.
   const isBoss = (
     (stage.world === 1 && isFinalAreaOfChapter(1, stage.worldStageNumber)) ||
-    (stage.world === 2 && stage.worldStageNumber === 8) ||
+    (stage.world === 2 && isFinalAreaOfChapter(2, stage.worldStageNumber)) ||
     (stage.world === 3 && stage.worldStageNumber === 12) ||
     (stage.world === 4 && stage.worldStageNumber === 12) ||
     (stage.world === 5 && stage.worldStageNumber === 14)

@@ -87,13 +87,13 @@ function ItemCard({
 }) {
   return (
     <button onClick={onClick} className="text-left">
-      <GlowPanel accent="none" className="flex flex-col items-center gap-1.5 p-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light">
-          <ItemIcon item={item} className="h-9 w-9 text-zinc-500" />
+      <GlowPanel accent="none" className="flex flex-col items-center gap-1.5 p-3 text-center sm:gap-2 sm:p-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-16 sm:w-16">
+          <ItemIcon item={item} className="h-9 w-9 text-zinc-500 sm:h-11 sm:w-11" />
         </div>
-        <p className="truncate text-[11px] font-semibold text-foreground">{item.name}</p>
+        <p className="truncate text-xs font-semibold text-foreground sm:text-sm">{item.name}</p>
         <RarityBadge rarity={item.rarity} />
-        <span className="rounded-full border border-gold/60 bg-gold/10 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-gold-bright">
+        <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white shadow-sm sm:text-sm">
           ×{quantity}
         </span>
       </GlowPanel>
@@ -147,28 +147,28 @@ export default function InventoryPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Inventory</h1>
-          <p className="mt-1 text-xs text-zinc-500">
+          <h1 className="font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">Inventory</h1>
+          <p className="mt-1 text-sm text-zinc-600 sm:text-base">
             Everything you&apos;ve found across Campaign, Survival, and beyond.
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5" />} value={currencies.gold} />
-          <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5" />} value={currencies.gems} />
-          <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5" />} value={currencies.sealCoins} />
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} value={currencies.gold} />
+          <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} value={currencies.gems} />
+          <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} value={currencies.sealCoins} />
         </div>
       </div>
 
-      <div className="scrollbar-hidden flex gap-1.5 overflow-x-auto pb-1">
+      <div className="scrollbar-hidden flex gap-1.5 overflow-x-auto pb-1 sm:gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 font-arcade text-[10px] uppercase tracking-wide transition-colors",
+              "shrink-0 rounded-full border px-3 py-1.5 font-arcade text-xs uppercase tracking-wide transition-colors sm:px-4 sm:py-2 sm:text-sm",
               activeTab === tab.id
-                ? "border-gold bg-gold/10 text-gold-bright"
-                : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
+                ? "border-gold bg-gold text-white"
+                : "border-arcade-border bg-arcade-panel-light text-zinc-600 hover:text-foreground"
             )}
           >
             {tab.label}

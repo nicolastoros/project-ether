@@ -9,6 +9,7 @@ import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
+import { sortCreaturesByRarity } from "@/lib/gameData";
 
 interface MultiCreaturePickerProps {
   creatures: Creature[];
@@ -35,10 +36,11 @@ export function MultiCreaturePicker({
   confirmLabel = "Confirm",
   confirmDisabled,
 }: MultiCreaturePickerProps) {
+  const sortedCreatures = sortCreaturesByRarity(creatures);
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-        {creatures.map((creature) => {
+        {sortedCreatures.map((creature) => {
           const isExcluded = excludedIds?.has(creature.id) ?? false;
           const isSelected = selectedIds.includes(creature.id);
           const isDisabled = isExcluded || (!isSelected && selectedIds.length >= maxCount);

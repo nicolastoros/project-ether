@@ -163,30 +163,30 @@ export function BattleResultScreen({
     >
       <GlowPanel
         accent={phase === "victory" ? "gold" : "none"}
-        className="my-auto w-full max-w-md space-y-4 p-5 text-center lg:max-w-lg lg:p-7"
+        className="my-auto w-full max-w-md space-y-4 p-5 text-center sm:max-w-lg sm:space-y-5 sm:p-7 lg:max-w-xl lg:space-y-6 lg:p-8"
       >
         <div>
-          <h2 className={cn("font-arcade text-base", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
+          <h2 className={cn("font-arcade text-lg sm:text-xl lg:text-2xl", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
             {phase === "victory" ? "Victory!" : "Defeat"}
           </h2>
-          <p className="mt-1 text-xs text-zinc-500">{title}</p>
+          <p className="mt-1 text-sm text-zinc-500 sm:text-base lg:text-lg">{title}</p>
         </div>
 
         {phase === "victory" ? (
           <>
             {(elapsedSeconds !== undefined || stars) && (
-              <div className="flex items-center justify-center gap-4 text-xs text-zinc-500">
+              <div className="flex items-center justify-center gap-4 text-sm text-zinc-500 sm:gap-6 sm:text-base">
                 {elapsedSeconds !== undefined && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" /> {formatElapsed(elapsedSeconds)}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> {formatElapsed(elapsedSeconds)}
                   </span>
                 )}
                 {stars && (
-                  <span className="inline-flex items-center gap-0.5">
+                  <span className="inline-flex items-center gap-1">
                     {[stars.noDeaths, stars.noItems, stars.underFiveTurns].map((earned, i) => (
                       <Star
                         key={i}
-                        className={cn("h-4 w-4", earned ? "fill-gold-bright text-gold-bright" : "text-zinc-300")}
+                        className={cn("h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8", earned ? "fill-gold-bright text-gold-bright" : "text-zinc-300")}
                       />
                     ))}
                   </span>
@@ -197,35 +197,35 @@ export function BattleResultScreen({
             {bonusLines.length > 0 && (
               <div className="space-y-1">
                 {bonusLines.map((line, i) => (
-                  <div key={i} className="font-arcade text-[9px] uppercase tracking-wide text-gold-bright">
+                  <div key={i} className="font-arcade text-[10px] uppercase tracking-wide text-gold-bright sm:text-xs lg:text-sm">
                     {line}
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-              <span className="inline-flex items-center gap-1">
-                <GoldCoinIcon className="h-3.5 w-3.5" /> +{formatNumber(goldEarned)}
+            <div className="flex items-center justify-center gap-4 text-sm text-zinc-600 sm:gap-6 sm:text-base lg:text-lg">
+              <span className="inline-flex items-center gap-1.5">
+                <GoldCoinIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> +{formatNumber(goldEarned)}
               </span>
               {sealCoinsDropped > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <SealCoinIcon className="h-3.5 w-3.5" /> +{sealCoinsDropped}
+                <span className="inline-flex items-center gap-1.5">
+                  <SealCoinIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> +{sealCoinsDropped}
                 </span>
               )}
             </div>
 
             {itemsDropped.length > 0 && (
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
                 {itemsDropped.map((drop, i) => {
                   const item = ITEM_CATALOG.find((it) => it.id === drop.itemId);
                   if (!item) return null;
                   return (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground"
+                      className="inline-flex items-center gap-2 rounded-full border border-arcade-border bg-arcade-panel-light px-3.5 py-2 text-sm text-foreground sm:gap-2.5 sm:px-4 sm:py-2.5 sm:text-base lg:text-lg"
                     >
-                      <ItemIcon item={item} className="h-3 w-3" /> +{drop.quantity} {item.name}
+                      <ItemIcon item={item} className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8" /> +{drop.quantity} {item.name}
                     </span>
                   );
                 })}
@@ -234,18 +234,18 @@ export function BattleResultScreen({
 
             {tamerResult && (
               <div className="text-left">
-                <p className="mb-2 font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Tamer</p>
-                <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-2.5">
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">Tamer</p>
+                <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-3 sm:p-4">
                   <div className="flex items-center justify-between gap-2">
                     {tamerResult.levelAfter > tamerResult.levelBefore ? (
-                      <p className="flex items-center gap-1 font-arcade text-[10px] font-semibold text-gold-bright">
-                        <TrendingUp className="h-3 w-3" /> Lv.{tamerResult.levelBefore} → {tamerResult.levelAfter}
+                      <p className="flex items-center gap-1.5 font-arcade text-xs font-semibold text-gold-bright sm:text-sm">
+                        <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" /> Lv.{tamerResult.levelBefore} → {tamerResult.levelAfter}
                       </p>
                     ) : (
-                      <p className="font-arcade text-[10px] font-semibold text-foreground">Lv.{tamerResult.levelAfter}</p>
+                      <p className="font-arcade text-xs font-semibold text-foreground sm:text-sm">Lv.{tamerResult.levelAfter}</p>
                     )}
-                    <p className="flex items-center gap-1 text-xs text-sky-500">
-                      <Sparkles className="h-3 w-3" /> +{formatNumber(tamerResult.expGained)} EXP
+                    <p className="flex items-center gap-1.5 text-sm text-sky-500 sm:text-base">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" /> +{formatNumber(tamerResult.expGained)} EXP
                     </p>
                   </div>
                   {tamerResult.levelAfter < MAX_LEVEL ? (
@@ -253,10 +253,10 @@ export function BattleResultScreen({
                       percent={xpPercent(tamerResult.exp, tamerResult.expToNextLevel)}
                       color="exp"
                       innerText={`${formatNumber(tamerResult.exp)}/${formatNumber(tamerResult.expToNextLevel)}`}
-                      className="mt-1.5"
+                      className="mt-2"
                     />
                   ) : (
-                    <p className="mt-1.5 font-arcade text-[9px] uppercase text-gold-bright">Max level</p>
+                    <p className="mt-2 font-arcade text-xs uppercase text-gold-bright sm:text-sm">Max level</p>
                   )}
                 </div>
               </div>
@@ -264,36 +264,36 @@ export function BattleResultScreen({
 
             {creatureResults.length > 0 && (
               <div className="text-left">
-                <p className="mb-2 font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Team Result</p>
-                <div className="space-y-2">
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">Team Result</p>
+                <div className="space-y-2 sm:space-y-3">
                   {creatureResults.map(({ creature, expGained, levelBefore, levelAfter, exp, expToNextLevel }) => {
                     const leveledUp = levelAfter > levelBefore;
                     return (
                       <div
                         key={creature.id}
-                        className="flex items-center gap-3 rounded-xl border border-arcade-border bg-arcade-panel-light p-2.5"
+                        className="flex items-center gap-3 rounded-xl border border-arcade-border bg-arcade-panel-light p-3 sm:gap-4 sm:p-4"
                       >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-arcade-border bg-arcade-panel">
-                          <CreatureSprite creature={creature} className="h-8 w-8" />
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-arcade-border bg-arcade-panel sm:h-16 sm:w-16">
+                          <CreatureSprite creature={creature} className="h-10 w-10 sm:h-12 sm:w-12" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-semibold text-foreground">{creature.name}</p>
+                            <p className="truncate text-base font-semibold text-foreground sm:text-lg">{creature.name}</p>
                             {leveledUp ? (
-                              <p className="flex shrink-0 items-center gap-1 font-arcade text-[9px] font-semibold text-gold-bright">
-                                <TrendingUp className="h-3 w-3" /> Lv.{levelBefore} → {levelAfter}
+                              <p className="flex shrink-0 items-center gap-1 font-arcade text-xs font-semibold text-gold-bright sm:text-sm">
+                                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" /> Lv.{levelBefore} → {levelAfter}
                               </p>
                             ) : (
-                              <p className="shrink-0 font-arcade text-[9px] uppercase text-zinc-400">Lv.{levelAfter}</p>
+                              <p className="shrink-0 font-arcade text-xs uppercase text-zinc-400 sm:text-sm">Lv.{levelAfter}</p>
                             )}
                           </div>
-                          <p className="flex items-center gap-1 text-xs text-sky-500">
-                            <Sparkles className="h-3 w-3" /> +{formatNumber(expGained)} EXP
+                          <p className="flex items-center gap-1.5 text-sm text-sky-500 sm:text-base">
+                            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" /> +{formatNumber(expGained)} EXP
                           </p>
                           {levelAfter < MAX_LEVEL ? (
-                            <ProgressBar percent={xpPercent(exp, expToNextLevel)} color="exp" className="mt-1" />
+                            <ProgressBar percent={xpPercent(exp, expToNextLevel)} color="exp" className="mt-1.5" />
                           ) : (
-                            <p className="mt-1 font-arcade text-[8px] uppercase text-gold-bright">Max level</p>
+                            <p className="mt-1.5 font-arcade text-[10px] uppercase text-gold-bright sm:text-xs">Max level</p>
                           )}
                         </div>
                       </div>
@@ -304,23 +304,23 @@ export function BattleResultScreen({
             )}
           </>
         ) : (
-          <p className="text-xs text-zinc-500">{defeatMessage}</p>
+          <p className="text-sm text-zinc-500 sm:text-base">{defeatMessage}</p>
         )}
 
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <PixelButton variant="ghost" className="flex-1" onClick={onRematch}>
-              <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex gap-2 sm:gap-3">
+            <PixelButton variant="ghost" className="flex-1 sm:py-3 sm:text-base" onClick={onRematch}>
+              <RotateCcw className="mr-1 inline h-4 w-4 sm:h-5 sm:w-5" />
               Rematch
             </PixelButton>
             {exitHref ? (
               <Link href={exitHref} className="flex-1" onClick={onExitClick}>
-                <PixelButton variant={nextHref ? "ghost" : "gold"} className="w-full">
+                <PixelButton variant={nextHref ? "ghost" : "gold"} className="w-full sm:py-3 sm:text-base">
                   {exitLabel}
                 </PixelButton>
               </Link>
             ) : (
-              <PixelButton variant={nextHref ? "ghost" : "gold"} className="flex-1" onClick={onExitClick}>
+              <PixelButton variant={nextHref ? "ghost" : "gold"} className="flex-1 sm:py-3 sm:text-base" onClick={onExitClick}>
                 {exitLabel}
               </PixelButton>
             )}
@@ -328,7 +328,7 @@ export function BattleResultScreen({
           {/* Primary CTA once a next area exists — the common case is "keep going", not "leave". */}
           {nextHref && (
             <Link href={nextHref} className="block" onClick={onExitClick}>
-              <PixelButton variant="gold" className="w-full">
+              <PixelButton variant="gold" className="w-full sm:py-3.5 sm:text-base">
                 {nextLabel}
               </PixelButton>
             </Link>

@@ -16,6 +16,7 @@ import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat
 import { syncProgressToServer } from "@/lib/syncProgress";
 import type { Creature, Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
+import { sortCreaturesByRarity } from "@/lib/gameData";
 
 const MAX_NAME_LENGTH = 16;
 const CAMPAIGN_SLOTS = 2;
@@ -45,13 +46,14 @@ export default function FormationTeamsPage() {
   const filteredCreatures = useMemo(() => {
     const min = minLevel === "" ? null : Number(minLevel);
     const max = maxLevel === "" ? null : Number(maxLevel);
-    return creatures.filter((c) => {
+    const filtered = creatures.filter((c) => {
       if (selectedElements.size > 0 && !selectedElements.has(c.element)) return false;
       if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity)) return false;
       if (min !== null && c.level < min) return false;
       if (max !== null && c.level > max) return false;
       return true;
     });
+    return sortCreaturesByRarity(filtered);
   }, [creatures, selectedElements, selectedRarities, minLevel, maxLevel]);
 
   const activeFilterCount =

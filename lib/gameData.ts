@@ -1,6 +1,7 @@
 import type {
   Achievement,
   Creature,
+  CreatureStats,
   DailyTask,
   DungeonStage,
   Equipment,
@@ -1158,7 +1159,9 @@ export const ITEM_CATALOG: InventoryItem[] = [
   { id: "it-skin-crimson-emberling", name: "Crimson Emberling Skin", category: "Skin", rarity: "Mythic", description: "An alternate look for Emberling, wreathed in deeper crimson flame." },
   { id: "it-legendary-ticket", name: "Legendary Ticket", category: "Consumable", rarity: "SSR", description: "A rare ticket used for Legendary Summons. Can summon up to Mythic rarity.", icon: "/assets/items/legendary_ticket.png" },
   { id: "it-mythic-ticket", name: "Mythic Ticket", category: "Consumable", rarity: "Mythic", description: "An ultra rare ticket used for LR Summons. Can summon up to LR rarity.", icon: "/assets/items/mythic_ticket.png" },
-  
+  { id: "it-awaken-coin", name: "Awaken Coin", category: "Consumable", rarity: "Mythic", description: "Used to Awaken an owned SSR creature into its Mythic form.", icon: "/assets/objects/awaken_coin.png" },
+  { id: "it-exchange-coin", name: "Exchange Coin", category: "Consumable", rarity: "SSR", description: "Redeem for a specific creature in the Shop's Creature Exchange.", icon: "/assets/objects/exchange_creature_coin.png" },
+
   // Potential Orbs
   { id: "it-orb-small-fire", name: "Small Red Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Red potential.", icon: "/assets/objects/orbs/red_orb.png" },
   { id: "it-orb-medium-fire", name: "Medium Red Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Red potential.", icon: "/assets/objects/orbs/red_medium_orb.png" },
@@ -1181,6 +1184,49 @@ export const ITEM_CATALOG: InventoryItem[] = [
   { id: "it-orb-small-neutral", name: "Small Gray Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Gray potential.", icon: "/assets/objects/orbs/gray_orb.png" },
   { id: "it-orb-medium-neutral", name: "Medium Gray Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Gray potential.", icon: "/assets/objects/orbs/gray_medium_orb.png" },
   { id: "it-orb-large-neutral", name: "Large Gray Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Gray potential.", icon: "/assets/objects/orbs/gray_large_orb.png" },
+];
+
+// --- Awaken (it-awaken-coin) ---
+// Only SSR->Mythic exists today — Mythic->LR is a real future step (some Mythics will eventually
+// awaken into a specific LR) but there's no target/mapping data for that yet, so applyAwakenBump
+// below is intentionally a no-op past SSR rather than guessing at it.
+export const AWAKEN_COST = 140;
+// Tuned against the existing hand-authored Mythic roster (lib/gameData.ts's "Mythic tier" block)
+// so a freshly-awakened SSR lands comfortably inside that band regardless of which SSR it was,
+// same "clearly beats the tier below" rule that block's own comments already establish.
+export const AWAKEN_STAT_MULTIPLIER = { hp: 1.8, atk: 1.45, def: 1.6, spd: 1.15 };
+
+/** Applies the Awaken rarity+stat bump on top of a creature's *template* rarity/baseStats — used
+ * both by the awakenCreature store action (fresh spend) and by both rehydrate paths in
+ * lib/store.ts (reapplying a previously-spent Awaken on top of the pristine template every time a
+ * creature is rebuilt from STARTER_CREATURES, since rarity/baseStats themselves are never what's
+ * persisted — see lib/store.ts's Creature.awakenLevel comment). */
+export function applyAwakenBump(rarity: Rarity, baseStats: CreatureStats): { rarity: Rarity; baseStats: CreatureStats } {
+  if (rarity !== "SSR") return { rarity, baseStats };
+  return {
+    rarity: "Mythic",
+    baseStats: {
+      ...baseStats,
+      hp: Math.round(baseStats.hp * AWAKEN_STAT_MULTIPLIER.hp),
+      atk: Math.round(baseStats.atk * AWAKEN_STAT_MULTIPLIER.atk),
+      def: Math.round(baseStats.def * AWAKEN_STAT_MULTIPLIER.def),
+      spd: Math.round(baseStats.spd * AWAKEN_STAT_MULTIPLIER.spd),
+    },
+  };
+}
+
+// --- Creature Exchange (it-exchange-coin) ---
+export const EXCHANGE_COST = 150;
+export const EXCHANGE_CREATURE_IDS = [
+  "cr-emperortoise",
+  "cr-goldak",
+  "cr-firefex",
+  "cr-blazefire",
+  "cr-blitzfire",
+  "cr-jeshunter",
+  "cr-mugen",
+  "cr-wolfang",
+  "cr-murasame",
 ];
 
 // Weighted 60/30/10 draw across the three training-item tiers — shared by Campaign's stage-clear
@@ -1422,11 +1468,13 @@ const STAGE_NAMES = [
   "True Strength", "Awakening", "A Dangerous Enemy Approaches", "Together, We'll Save Our World",
   "The Power Within", "Mystery of the Digital Network", "The Royal Knights",
 
-  // World 2 (8 stages) — dormant: Chapter 2 doesn't have real content yet (see
-  // lib/campaignChapters.ts), so these stay defined but unreachable from the new Campaign nav.
-  "Molten Bastion", "Stormlit Shrine", "Duskveil Marsh", "Obsidian Spire",
-  "Verdant Labyrinth", "Crimson Aqueduct", "Hollow Bellfort", "Wraithlight Hollow",
-  
+  // Chapter 2 (15 areas) — see lib/campaignChapters.ts's CAMPAIGN_CHAPTERS, must stay in sync
+  // (same names, same order). Area 30 (this chapter's 15th) is the chapter's boss.
+  "The Parallel World", "Two Worlds, One Balance", "The Resonance Within", "Chosen by Resonance",
+  "Beyond Their Limits", "A Consciousness Awakens", "The Unknown Entity", "Signs of Another World",
+  "A World That Shouldn't Exist", "The First Replica", "Echoes of Reality", "Worlds Out of Sync",
+  "The Collision Begins", "Reality in Danger", "Protect the Original World",
+
   // World 3 (12 stages)
   "Ironclad Foundry", "Sable Undercroft", "Gale Citadel", "Dragon's Reprieve",
   "Celestial Terrace", "Lunar Eclipse", "Solar Flare", "Abyssal Trench",
@@ -1451,7 +1499,7 @@ const HIGHEST_STAGE_CLEARED = 0;
 // visibly reward the player with a level-up. Bumped well above that gap for stages 1-2 only.
 const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
 
-const WORLD_SIZES = [15, 8, 12, 12, 14];
+const WORLD_SIZES = [15, 15, 12, 12, 14];
 
 /** Cumulative stage count through the end of `world` (1-indexed) — e.g. 5 -> 54, since worlds
  * 1-5 are sized [8,8,12,12,14]. Used to check "has this player cleared through World N" against
@@ -1459,6 +1507,29 @@ const WORLD_SIZES = [15, 8, 12, 12, 14];
  * number) at each call site. */
 export function cumulativeStageCountThroughWorld(world: number): number {
   return WORLD_SIZES.slice(0, world).reduce((sum, size) => sum + size, 0);
+}
+
+// Highest rarity first — the default sort for every screen that lists a player's creatures
+// (team select, formations, monsters, sell, etc.), so the rarest/most-relevant ones surface
+// without the player having to hunt for them.
+export const RARITY_SORT_ORDER: Record<Rarity, number> = {
+  LR: 0,
+  Mythic: 1,
+  SSR: 2,
+  Rare: 3,
+  Common: 4,
+};
+
+/** Sorts creatures highest-rarity-first; ties broken by level (higher first) then name. */
+export function sortCreaturesByRarity<T extends { rarity: Rarity; level: number; name: string }>(
+  creatures: T[],
+): T[] {
+  return [...creatures].sort((a, b) => {
+    const rarityDiff = RARITY_SORT_ORDER[a.rarity] - RARITY_SORT_ORDER[b.rarity];
+    if (rarityDiff !== 0) return rarityDiff;
+    if (b.level !== a.level) return b.level - a.level;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 // Rarity-tiered base + a per-level scalar — mirrors how ITEM_CATALOG.sellPriceGold works for

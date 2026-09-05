@@ -11,6 +11,7 @@ import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { cn, formatNumber } from "@/lib/utils";
+import { sortCreaturesByRarity } from "@/lib/gameData";
 
 function formatTargetTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -97,7 +98,7 @@ export function SurvivalStageModal({
                     larger screens (lg:max-w-2xl above) actually gives every card more room
                     instead of just fitting more off-screen. */}
                 <div className="scrollbar-hidden grid max-h-64 grid-cols-4 gap-3 overflow-y-auto pb-1 sm:grid-cols-5 lg:grid-cols-6">
-                  {creatures.map((creature) => {
+                  {sortCreaturesByRarity(creatures).map((creature) => {
                     const isSelected = creature.id === selectedCreatureId;
                     return (
                       <button

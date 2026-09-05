@@ -15,6 +15,7 @@ import { cn, xpPercent } from "@/lib/utils";
 import { useState } from "react";
 import { HiddenPotentialScreen } from "./HiddenPotentialScreen";
 import { SuperAttackTrainingModal } from "./SuperAttackTrainingModal";
+import { AwakenScreen } from "./AwakenScreen";
 
 export const SKILL_TYPE_STYLES: Record<Skill["type"], string> = {
   Attack: "bg-red-500",
@@ -46,6 +47,7 @@ export function CreatureDetailModal({
 
   const [showPotential, setShowPotential] = useState(false);
   const [showSA, setShowSA] = useState(false);
+  const [showAwaken, setShowAwaken] = useState(false);
 
   if (showPotential && creature) {
     return <HiddenPotentialScreen creature={creature} onClose={() => setShowPotential(false)} />;
@@ -53,6 +55,10 @@ export function CreatureDetailModal({
 
   if (showSA && creature) {
     return <SuperAttackTrainingModal creature={creature} onClose={() => setShowSA(false)} />;
+  }
+
+  if (showAwaken && creature) {
+    return <AwakenScreen creature={creature} onClose={() => setShowAwaken(false)} />;
   }
 
   return (
@@ -208,6 +214,16 @@ export function CreatureDetailModal({
                   Hidden Potential
                 </PixelButton>
               </div>
+
+              {creature.rarity === "SSR" && (
+                <PixelButton
+                  variant="gold"
+                  className="mt-2 w-full bg-gradient-to-r from-amber-500 to-gold-bright"
+                  onClick={() => setShowAwaken(true)}
+                >
+                  Awaken
+                </PixelButton>
+              )}
             </div>
             </div>
           </motion.div>

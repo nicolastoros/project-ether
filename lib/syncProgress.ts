@@ -60,6 +60,7 @@ export function syncProgressToServer(): void {
           superAttackLevel: c.superAttackLevel,
           potentialNodes: c.potentialNodes,
           copies: c.copies,
+          awakenLevel: c.awakenLevel ?? 0,
         };
       }),
       dungeonHighestStageCleared: dungeon.highestStageCleared,

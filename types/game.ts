@@ -110,6 +110,13 @@ export interface Creature {
   /** Mythic+/LR-exclusive 5th move — see UltimateSkill. Absent for every creature that doesn't
    * have one yet (most Mythic+ creatures currently don't; content starts with the 4 LRs). */
   ultimateSkill?: UltimateSkill;
+  /** How many times this creature has been Awakened — 0/absent = not awakened, 1 = SSR->Mythic
+   * done (a future Mythic->LR step would be 2). NOT the source of truth for the bumped rarity/
+   * stats themselves — rarity/baseStats are always rebuilt fresh from the STARTER_CREATURES
+   * template on every load (see lib/store.ts's bundleToStateFields and its persist `merge`
+   * option), so this counter is what actually persists; lib/gameData.ts's applyAwakenBump
+   * reapplies the bump on top of the template each time using this value. */
+  awakenLevel?: number;
 }
 
 export interface Currencies {

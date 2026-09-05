@@ -17,6 +17,7 @@ interface SyncCreature {
   superAttackLevel: number;
   potentialNodes: string[];
   copies: number;
+  awakenLevel: number;
 }
 
 function isSyncCreature(value: unknown): value is SyncCreature {
@@ -33,6 +34,12 @@ function isSyncCreature(value: unknown): value is SyncCreature {
     Array.isArray(c.potentialNodes) &&
     typeof c.copies === "number"
   );
+}
+
+/** awakenLevel defaults to 0 for any creature payload that predates this field (an older cached
+ * client bundle, or a request from before this field existed) rather than rejecting it outright. */
+function withAwakenLevel(c: SyncCreature): SyncCreature {
+  return { ...c, awakenLevel: typeof c.awakenLevel === "number" ? c.awakenLevel : 0 };
 }
 
 interface SyncCurrencies {
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
       level,
       exp,
       expToNextLevel,
-      creatures: creatures.filter(isSyncCreature),
+      creatures: creatures.filter(isSyncCreature).map(withAwakenLevel),
       dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
       dungeonPerfectStages: dungeonPerfectStages as string[] | undefined,
       currencies: currencies as SyncCurrencies | undefined,

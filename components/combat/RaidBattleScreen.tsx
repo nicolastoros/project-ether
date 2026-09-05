@@ -88,7 +88,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     { id: nextLogId(), kind: "info", message: `${boss.name} — the raid begins!` },
   ]);
   const [rewardGranted, setRewardGranted] = useState(false);
-  const [itemDropped, setItemDropped] = useState<{ itemId: string; quantity: number } | null>(null);
+  const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
   const [creatureResults, setCreatureResults] = useState<CreatureResultEntry[]>([]);
   const [tamerResult, setTamerResult] = useState<TamerResultEntry | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -154,8 +154,14 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
           const picked = materialPool[Math.floor(Math.random() * materialPool.length)];
           grantItem(picked.id, 1);
           grantItemOnServer(picked.id, 1);
-          setItemDropped({ itemId: picked.id, quantity: 1 });
+          setItemsDropped((prev) => [...prev, { itemId: picked.id, quantity: 1 }]);
         }
+
+        // Awaken Coins: 1-5 random on every Raid win, same as a Campaign chapter boss.
+        const awakenCoins = 1 + Math.floor(Math.random() * 5);
+        grantItem("it-awaken-coin", awakenCoins);
+        grantItemOnServer("it-awaken-coin", awakenCoins);
+        setItemsDropped((prev) => [...prev, { itemId: "it-awaken-coin", quantity: awakenCoins }]);
 
         if (guild) {
           addGuildExpAction(guild.id, boss.rewardExp).catch(() => {});
@@ -447,7 +453,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
           title={boss.name}
           goldEarned={boss.rewardGold}
           creatureResults={creatureResults}
-          itemsDropped={itemDropped ? [itemDropped] : []}
+          itemsDropped={itemsDropped}
           elapsedSeconds={elapsedSeconds}
           tamerResult={tamerResult ?? undefined}
           bonusLines={[achievementUnlockedName && `Achievement Unlocked: ${achievementUnlockedName}!`].filter(

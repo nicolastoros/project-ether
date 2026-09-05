@@ -97,7 +97,7 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_currencies` (
                                             -- sueltan las etapas de Campaign (DungeonStage.equipmentDropChance),
                                             -- se gasta crafteando equipo del Tamer
   energy                INT64 DEFAULT 0,
-  energy_max            INT64 DEFAULT 120,
+  energy_max            INT64 DEFAULT 240,
   energy_regen_minutes  INT64 DEFAULT 5,
   last_energy_tick_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
@@ -338,6 +338,12 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_creatures` (
   copies             INT64 DEFAULT 1,  -- añadida via ALTER TABLE; dupes de la misma criatura suman acá
                                         -- en vez de crear otra fila — pensado para un futuro sistema
                                         -- de "overlock"/limit break que consuma estas copias
+  super_attack_level INT64 DEFAULT 1,  -- añadida via ALTER TABLE (no documentada antes de esto)
+  potential_nodes    STRING,           -- añadida via ALTER TABLE; ids de Hidden Potential, separados por coma
+  awaken_level       INT64 DEFAULT 0,  -- añadida via ALTER TABLE; 0 = sin Awaken, 1 = SSR->Mythic
+                                        -- ya aplicado (ver lib/gameData.ts's applyAwakenBump — la
+                                        -- rareza/stats reales NO se guardan acá, se recalculan del
+                                        -- catálogo + este contador cada vez que se reconstruye)
   acquired_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   PRIMARY KEY (id) NOT ENFORCED,
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED,

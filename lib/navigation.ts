@@ -3,7 +3,6 @@ import {
   Award,
   Castle,
   Calendar,
-  Compass,
   Flame,
   Map,
   Skull,
@@ -39,7 +38,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/survival", label: "Survival", icon: Skull },
       { href: "/events", label: "Events", icon: Calendar },
       { href: "/raid", label: "Raid Battle", icon: Flame },
-      { href: "/expeditions", label: "Expeditions", icon: Compass },
+      // Hidden from the menu for now (per the user's request) — the /expeditions route and page
+      // are untouched, so re-adding this entry later is a one-line change.
       { href: "/gacha", label: "Summon", icon: Sparkles },
       { href: "/pvp", label: "PvP Arena", icon: Trophy },
     ],

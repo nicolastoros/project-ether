@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useGameStore } from "@/lib/store";
-import { creatureSellValue } from "@/lib/gameData";
+import { creatureSellValue, sortCreaturesByRarity } from "@/lib/gameData";
 import { sellCreatureOnServer } from "@/lib/syncProgress";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { BackButton } from "@/components/ui/BackButton";
@@ -59,7 +59,7 @@ export default function SellMonsterPage() {
         </GlowPanel>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {creatures.map((creature) => {
+          {sortCreaturesByRarity(creatures).map((creature) => {
             const maxQuantity = creature.copies;
             const quantity = getQuantity(creature.id, maxQuantity);
             const unitValue = creatureSellValue(creature);

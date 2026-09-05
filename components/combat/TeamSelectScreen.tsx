@@ -11,6 +11,7 @@ import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
+import { sortCreaturesByRarity } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { Check, X, Bookmark, BookmarkPlus, Trash2 } from "lucide-react";
 import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat";
@@ -69,6 +70,7 @@ export function TeamSelectScreen({
 
   const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
   const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
+  const sortedCreatures = sortCreaturesByRarity(creatures);
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -89,7 +91,7 @@ export function TeamSelectScreen({
       </div>
 
       <GlowPanel accent="none" className="p-3 lg:p-4">
-        <h2 className="font-arcade text-xs text-white mb-2 lg:text-sm">Stage Missions</h2>
+        <h2 className="font-arcade text-sm text-foreground mb-2 sm:text-base lg:text-lg">Stage Missions</h2>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <MissionItem completed={stars.noDeaths} label="Win without losing any monster" />
           <MissionItem completed={stars.noItems} label="Win without using support items" />
@@ -99,47 +101,47 @@ export function TeamSelectScreen({
 
       <GlowPanel accent="none" className="p-3 lg:p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-arcade text-xs text-white lg:text-sm flex items-center gap-2">
-            <Bookmark className="h-4 w-4" /> Formations
+          <h2 className="font-arcade text-sm text-foreground sm:text-base lg:text-lg flex items-center gap-2">
+            <Bookmark className="h-4 w-4 sm:h-5 sm:w-5" /> Formations
           </h2>
-          <PixelButton 
-            variant="ghost" 
-            size="sm" 
+          <PixelButton
+            variant="ghost"
+            size="sm"
             disabled={selectedIds.length === 0 || isSaving}
             onClick={handleSavePreset}
-            className="text-[10px] lg:text-xs py-1 h-auto flex items-center gap-1"
+            className="text-xs sm:text-sm py-1.5 h-auto flex items-center gap-1"
           >
-            <BookmarkPlus className="h-3 w-3" /> Save Current
+            <BookmarkPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Save Current
           </PixelButton>
         </div>
-        
+
         {teamPresets.length === 0 ? (
-          <p className="text-[10px] text-zinc-500 italic">No saved formations yet.</p>
+          <p className="text-xs text-zinc-500 italic sm:text-sm">No saved formations yet.</p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:gap-3">
             {teamPresets.map((preset) => (
-              <div 
+              <div
                 key={preset.id}
                 onClick={() => onSetTeam(preset.creatureIds)}
-                className="flex items-center gap-2 bg-black/40 hover:bg-black/60 cursor-pointer border border-white/5 hover:border-gold/30 rounded-lg px-3 py-2 transition-all whitespace-nowrap shrink-0 group"
+                className="flex items-center gap-2 bg-arcade-panel-light hover:bg-white cursor-pointer border-2 border-arcade-border hover:border-gold rounded-lg px-3 py-2.5 transition-all whitespace-nowrap shrink-0 group sm:gap-3 sm:rounded-xl sm:px-4 sm:py-3"
               >
                 <div className="flex -space-x-2">
                   {preset.creatureIds.map((cId) => {
                     const c = creatures.find(x => x.id === cId);
                     if (!c) return null;
                     return (
-                      <div key={c.id} className={cn("h-6 w-6 rounded-md flex items-center justify-center bg-gradient-to-b border border-arcade-border", ELEMENT_GRADIENT[c.element])}>
-                        <CreatureSprite creature={c} className="h-4 w-4" />
+                      <div key={c.id} className={cn("h-8 w-8 rounded-md flex items-center justify-center bg-gradient-to-b border border-arcade-border sm:h-10 sm:w-10", ELEMENT_GRADIENT[c.element])}>
+                        <CreatureSprite creature={c} className="h-6 w-6 sm:h-7 sm:w-7" />
                       </div>
                     );
                   })}
                 </div>
-                <span className="text-[10px] font-semibold text-zinc-300">{preset.name}</span>
-                <button 
+                <span className="text-sm font-bold text-foreground sm:text-base">{preset.name}</span>
+                <button
                   onClick={(e) => handleDeletePreset(preset.id, e)}
-                  className="ml-1 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="ml-1 text-zinc-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
             ))}
@@ -148,7 +150,7 @@ export function TeamSelectScreen({
       </GlowPanel>
 
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5 2xl:grid-cols-4">
-        {creatures.map((creature) => {
+        {sortedCreatures.map((creature) => {
           const isSelected = selectedIds.includes(creature.id);
           const isDisabled = !isSelected && selectedIds.length >= 2;
           return (
@@ -214,9 +216,13 @@ export function TeamSelectScreen({
 
 function MissionItem({ completed, label }: { completed: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-black/40 px-3 py-2 border border-white/5">
-      {completed ? <Check className="h-4 w-4 text-gold shrink-0" /> : <X className="h-4 w-4 text-zinc-600 shrink-0" />}
-      <span className={cn("text-[10px] lg:text-xs", completed ? "text-zinc-200" : "text-zinc-500")}>{label}</span>
+    <div className="flex items-center gap-2 rounded-md bg-black/70 px-3 py-2.5 border border-white/10 sm:gap-2.5 sm:rounded-lg sm:px-4 sm:py-3">
+      {completed ? (
+        <Check className="h-4 w-4 text-gold-bright shrink-0 sm:h-5 sm:w-5" />
+      ) : (
+        <X className="h-4 w-4 text-zinc-400 shrink-0 sm:h-5 sm:w-5" />
+      )}
+      <span className={cn("text-xs sm:text-sm lg:text-base", completed ? "text-white" : "text-zinc-300")}>{label}</span>
     </div>
   );
 }

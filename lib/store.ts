@@ -15,6 +15,8 @@ import type {
   Element,
 } from "@/types/game";
 import {
+  applyAwakenBump,
+  AWAKEN_COST,
   creatureSellValue,
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
@@ -132,21 +134,29 @@ function bundleToStateFields(bundle: AccountBundle) {
       const base = creatureCatalogById.get(owned.creatureId);
       if (!base) return null;
       const pot = getPotentialBonuses(owned.potentialNodes || []);
+      // Rarity/baseStats are never what's persisted for an Awaken — only the small awakenLevel
+      // counter is (see Creature.awakenLevel's doc comment) — so the bump is reapplied here, on
+      // top of the pristine template, every time a creature is rebuilt from a server hydrate.
+      const awakenLevel = owned.awakenLevel ?? 0;
+      const { rarity, baseStats: awakenedBase } =
+        awakenLevel >= 1 ? applyAwakenBump(base.rarity, base.baseStats) : base;
       return {
         ...base,
+        rarity,
         level: owned.level,
         exp: owned.exp,
         expToNextLevel: owned.expToNextLevel,
         baseStats: {
-          hp: base.baseStats.hp + 8 * (owned.level - 1) + pot.hp,
-          atk: base.baseStats.atk + 3 * (owned.level - 1) + pot.atk,
-          def: base.baseStats.def + 2 * (owned.level - 1) + pot.def,
-          spd: base.baseStats.spd + 1 * (owned.level - 1) + pot.spd,
+          hp: awakenedBase.hp + 8 * (owned.level - 1) + pot.hp,
+          atk: awakenedBase.atk + 3 * (owned.level - 1) + pot.atk,
+          def: awakenedBase.def + 2 * (owned.level - 1) + pot.def,
+          spd: awakenedBase.spd + 1 * (owned.level - 1) + pot.spd,
         },
         equipment: {},
         copies: owned.copies,
         superAttackLevel: owned.superAttackLevel,
         potentialNodes: owned.potentialNodes || [],
+        awakenLevel,
       };
     })
     .filter((c): c is Creature => c !== null);
@@ -363,6 +373,10 @@ interface GameState {
    * tracked via Creature.copies rather than being rejected; a future "overlock" system will spend
    * them). Returns null only if creatureId isn't a real catalog id. */
   grantCreature: (creatureId: string, quantity?: number) => { isNew: boolean; copies: number } | null;
+  /** Spends AWAKEN_COST it-awaken-coin to permanently bump an owned SSR creature to Mythic (see
+   * lib/gameData.ts's applyAwakenBump) — false if the creature isn't owned, isn't SSR, is already
+   * awakened, or there aren't enough coins. */
+  awakenCreature: (creatureId: string) => boolean;
   addGuildExp: (exp: number) => void;
   trainSuperAttack: (creatureId: string) => boolean;
   unlockPotentialNode: (creatureId: string, nodeId: string, orbCost: { small: number; medium: number; large: number; element: Element }, consumesDupe: boolean) => boolean;
@@ -446,7 +460,7 @@ export const useGameStore = create<GameState>()(
         gems: 0,
         sealCoins: 0,
         energy: 82,
-        energyMax: 120,
+        energyMax: 240,
         energyRegenMinutes: 1,
         lastEnergyTickAt: Date.now(),
       },
@@ -538,7 +552,7 @@ export const useGameStore = create<GameState>()(
             gems: 0,
             sealCoins: 0,
             energy: 0,
-            energyMax: 120,
+            energyMax: 240,
             energyRegenMinutes: 1,
             lastEnergyTickAt: Date.now(),
           },
@@ -762,6 +776,20 @@ export const useGameStore = create<GameState>()(
         if (!template) return null;
         set({ creatures: [...creatures, { ...template, copies: quantity, level: 1, exp: 0, expToNextLevel: 100, superAttackLevel: 1, potentialNodes: [] }] });
         return { isNew: true, copies: quantity };
+      },
+
+      awakenCreature: (creatureId) => {
+        const { creatures, ownedItems } = get();
+        const creature = creatures.find((c) => c.id === creatureId);
+        if (!creature || creature.rarity !== "SSR" || (creature.awakenLevel ?? 0) >= 1) return false;
+        const owned = ownedItems.find((o) => o.itemId === "it-awaken-coin")?.quantity ?? 0;
+        if (owned < AWAKEN_COST) return false;
+        if (!get().consumeItem("it-awaken-coin", AWAKEN_COST)) return false;
+        const { rarity, baseStats } = applyAwakenBump(creature.rarity, creature.baseStats);
+        set({
+          creatures: get().creatures.map((c) => (c.id === creatureId ? { ...c, rarity, baseStats, awakenLevel: 1 } : c)),
+        });
+        return true;
       },
 
       addGuildExp: (exp: number) => set((s) => {
@@ -1241,14 +1269,22 @@ export const useGameStore = create<GameState>()(
         // roster is whatever the player owns, not "everything we've ever designed").
         const catalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
         merged.creatures = (persisted.creatures ?? [])
-          .map((saved) => {
+          .map((saved): Creature | undefined => {
             const base = catalogById.get(saved.id);
             if (!base) return undefined;
+            // rarity is otherwise always refreshed from the pristine catalog (see the comment
+            // above) — Awaken is the one exception, reapplying its bump on top of that fresh
+            // rarity/baseStats each time, the same as the server-hydrate path in
+            // bundleToStateFields above. baseStats itself doesn't need the same treatment here:
+            // `saved.baseStats` below already IS the already-bumped value, since it's a straight
+            // read of whatever this account's own last-persisted state actually was.
+            const awakenLevel = saved.awakenLevel ?? 0;
+            const rarity = awakenLevel >= 1 ? applyAwakenBump(base.rarity, base.baseStats).rarity : base.rarity;
             const newCreature: Creature = {
               id: base.id,
               name: base.name,
               element: base.element,
-              rarity: base.rarity,
+              rarity,
               level: 1,
               exp: 0,
               expToNextLevel: nextLevelExpRequirement(0, 1),
@@ -1277,6 +1313,7 @@ export const useGameStore = create<GameState>()(
               copies: saved.copies,
               superAttackLevel: saved.superAttackLevel ?? 1,
               potentialNodes: saved.potentialNodes ?? [],
+              awakenLevel,
             };
           })
           .filter((c): c is Creature => c !== undefined);

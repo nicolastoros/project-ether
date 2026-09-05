@@ -13,6 +13,7 @@ import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, pickWei
 import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { parseTierStageId } from "@/lib/difficultyTiers";
+import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
 import { applyTamerBuffs } from "@/lib/tamerBuffs";
 import {
   grantCreatureOnServer,
@@ -353,6 +354,24 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           addSealCoins(1);
         }
 
+        // Exchange Coins: 2 per area, per difficulty tier, the first time that exact tier is
+        // cleared — a 4-tier area yields 8 one-time. Chapter-agnostic (keyed off stage.id, which
+        // already encodes both the area and the tier), so this covers every chapter automatically.
+        if (isFirstClearOfThisStage) {
+          grantItem("it-exchange-coin", 2);
+          grantItemOnServer("it-exchange-coin", 2);
+          setItemsDropped((prev) => [...prev, { itemId: "it-exchange-coin", quantity: 2 }]);
+        }
+
+        // Awaken Coins: 1-5 random, every time a chapter's boss area is beaten (not gated by
+        // first-clear — a boss re-run still pays out, same as a Raid win).
+        if (isFinalAreaOfChapter(stage.world, stage.worldStageNumber)) {
+          const awakenCoins = 1 + Math.floor(Math.random() * 5);
+          grantItem("it-awaken-coin", awakenCoins);
+          grantItemOnServer("it-awaken-coin", awakenCoins);
+          setItemsDropped((prev) => [...prev, { itemId: "it-awaken-coin", quantity: awakenCoins }]);
+        }
+
         if (isFirstClearOfThisStage) {
           const tamerPiece = TAMER_EQUIPMENT_CATALOG.find(
             (t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id
@@ -386,7 +405,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
             drop(pickWeightedTrainingItemId(), 100);
           }
 
-          if (isFirstClearOfThisStage && stage.world === 1 && stage.worldStageNumber === 8) {
+          if (isFirstClearOfThisStage && stage.world === 1 && isFinalAreaOfChapter(1, stage.worldStageNumber)) {
             grantItem("it-frontier-emblem", 1);
             grantItemOnServer("it-frontier-emblem", 1);
             setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);

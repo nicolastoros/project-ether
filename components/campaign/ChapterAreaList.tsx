@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { ArrowLeft, Lock, Star } from "lucide-react";
 import type { DifficultyTier, DungeonStage } from "@/types/game";
 import type { CampaignChapter } from "@/lib/campaignChapters";
@@ -29,7 +28,16 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
   const attemptedStageIds = useGameStore((s) => s.attemptedStageIds);
   const [selectedTier, setSelectedTier] = useState<DifficultyTier>("Easy");
 
-  const clearedCount = stages.filter((s) => s.isCleared).length;
+  // Deliberately NOT stage.isCleared (highestStageCleared) — that counter only tracks "how far
+  // the sequential unlock has advanced" and can outpace what's actually been fought/starred (e.g.
+  // stale progress carried over from before this area's content existed at its current id, or any
+  // future sync edge case). dungeon.stageStars is the same source each card's own NEW/COMPLETED
+  // badge already reads below, so the header count and the badges you're looking at can never
+  // visibly disagree with each other, whatever highestStageCleared's own value happens to be.
+  const clearedCount = stages.filter((s) => {
+    const stars = dungeon.stageStars[s.id];
+    return Boolean(stars && (stars.noDeaths || stars.noItems || stars.underFiveTurns));
+  }).length;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -94,36 +102,16 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
           // means "no longer unseen" but also isn't a win, so it shows neither badge.
           const hasAnyStar = earnedStars.noDeaths || earnedStars.noItems || earnedStars.underFiveTurns;
           const hasBeenAttempted = attemptedStageIds.includes(stage.id);
-          // Exactly one area is ever "next" at a time (the store's sequential-unlock rule means
-          // only the very next area is unlocked-but-not-cleared) — highlighted so it reads as
-          // "start here", same idea the old map's pulsing next-node glow gave.
-          const isNext = !stage.isLocked && !stage.isCleared;
 
           return (
-            <motion.div
-              key={stage.id}
-              className="relative aspect-[3/1] w-full rounded-xl"
-              animate={
-                isNext
-                  ? {
-                      boxShadow: [
-                        "0 0 0px 0px rgba(255,184,77,0)",
-                        "0 0 18px 6px rgba(255,184,77,0.65)",
-                        "0 0 0px 0px rgba(255,184,77,0)",
-                      ],
-                    }
-                  : undefined
-              }
-              transition={isNext ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : undefined}
-            >
+            <div key={stage.id} className="relative aspect-[3/1] w-full rounded-xl">
               <button
                 type="button"
                 disabled={stage.isLocked}
                 onClick={() => onSelectStage(stage)}
                 className={cn(
                   "relative h-full w-full overflow-hidden rounded-xl text-left transition-[filter]",
-                  stage.isLocked ? "cursor-not-allowed" : "hover:brightness-110",
-                  isNext && "ring-2 ring-gold-bright"
+                  stage.isLocked ? "cursor-not-allowed" : "hover:brightness-110"
                 )}
               >
                 <Image
@@ -218,7 +206,7 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
                   </div>
                 )}
               </button>
-            </motion.div>
+            </div>
           );
         })}
       </div>
