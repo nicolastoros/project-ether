@@ -1,0 +1,92 @@
+{
+  "group_id": "aa9d8435-322b-45ee-9c72-1fcdc8e179ae",
+  "states": [
+    {
+      "character": {
+        "id": "5dd53dbd-3e12-4588-8053-2476f27055f9",
+        "name": "Idle",
+        "prompt": "Pixel art character sprite of a supreme Mega-level Holy Knight warrior inspired by Dukemon / Gallantmon X-Antibody, dynamic battle-ready three-quarter stance.\n\nVisual Design:\n- Armor & Plating: Sleek white and polished silver Chrome Digizoid plate armor with crimson-red accents, gold rims, and glowing cyan energy crystal nodes embedded along the chest, gauntlets, and greaves.\n- Helmet & Plume: Aerodynamic silver dragon knight helm with sweeping red ear-fins/horns, a sharp dragon-crested visor with glowing cyan eyes, and a long flowing golden-blonde hair plume trailing from the top.\n- Right Arm Weapon (Energy Lance): Forearm-mounted mechanical gauntlet firing a massive, radiant cyan-white plasma energy lance blade extending diagonally forward.\n- Left Arm Shield (Aegis): Massive golden round holy shield with a large glowing blue central gem dome, inscribed digital holy runes, four projecting cyan crystal blades around the rim, and a tattered crimson-red cape billowing behind the back.\n- Legs & Boots: Slender robotic silver greaves with crimson-and-gold knee guards and pointed curved sabatons.\n\nStyle Specifications:\n- 32-bit crisp RPG pixel art sprite, 64x64 or 128x128 canvas resolution.\n- Sharp high-contrast metallic reflections, glowing cyan plasma effects, clean dark pixel contours.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T15:41:02.517126+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "stand_pose": {
+            "south": [
+              "Idle/animations/stand_pose/south/frame_000.png",
+              "Idle/animations/stand_pose/south/frame_001.png",
+              "Idle/animations/stand_pose/south/frame_002.png",
+              "Idle/animations/stand_pose/south/frame_003.png",
+              "Idle/animations/stand_pose/south/frame_004.png",
+              "Idle/animations/stand_pose/south/frame_005.png",
+              "Idle/animations/stand_pose/south/frame_006.png",
+              "Idle/animations/stand_pose/south/frame_007.png",
+              "Idle/animations/stand_pose/south/frame_008.png"
+            ]
+          },
+          "sword_attack": {
+            "south": [
+              "Idle/animations/sword_attack/south/frame_000.png",
+              "Idle/animations/sword_attack/south/frame_001.png",
+              "Idle/animations/sword_attack/south/frame_002.png",
+              "Idle/animations/sword_attack/south/frame_003.png",
+              "Idle/animations/sword_attack/south/frame_004.png",
+              "Idle/animations/sword_attack/south/frame_005.png",
+              "Idle/animations/sword_attack/south/frame_006.png",
+              "Idle/animations/sword_attack/south/frame_007.png",
+              "Idle/animations/sword_attack/south/frame_008.png",
+              "Idle/animations/sword_attack/south/frame_009.png",
+              "Idle/animations/sword_attack/south/frame_010.png",
+              "Idle/animations/sword_attack/south/frame_011.png",
+              "Idle/animations/sword_attack/south/frame_012.png"
+            ]
+          },
+          "Running": {
+            "south": [
+              "Idle/animations/Running/south/frame_000.png",
+              "Idle/animations/Running/south/frame_001.png",
+              "Idle/animations/Running/south/frame_002.png",
+              "Idle/animations/Running/south/frame_003.png",
+              "Idle/animations/Running/south/frame_004.png",
+              "Idle/animations/Running/south/frame_005.png",
+              "Idle/animations/Running/south/frame_006.png",
+              "Idle/animations/Running/south/frame_007.png"
+            ]
+          },
+          "final_elysium": {
+            "south": [
+              "Idle/animations/final_elysium/south/frame_000.png",
+              "Idle/animations/final_elysium/south/frame_001.png",
+              "Idle/animations/final_elysium/south/frame_002.png",
+              "Idle/animations/final_elysium/south/frame_003.png",
+              "Idle/animations/final_elysium/south/frame_004.png",
+              "Idle/animations/final_elysium/south/frame_005.png",
+              "Idle/animations/final_elysium/south/frame_006.png",
+              "Idle/animations/final_elysium/south/frame_007.png",
+              "Idle/animations/final_elysium/south/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-05T23:16:16.878810"
+}

@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { createUserFormation, deleteUserFormation } from "@/lib/db/bigquery";
 
-export async function saveFormationAction(name: string, creatureIds: string[]) {
+export async function saveFormationAction(name: string, creatureIds: string[], mode: "campaign" | "raid") {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
-  
-  const id = await createUserFormation(session.user.id, name, creatureIds);
+
+  const id = await createUserFormation(session.user.id, name, creatureIds, mode);
   revalidatePath("/");
   return id;
 }

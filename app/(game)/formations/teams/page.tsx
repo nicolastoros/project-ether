@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { UserX, Search, Plus, Save, Play, X, Trash2 } from "lucide-react";
+import { UserX, Plus, Save, Play, Flame, X, Trash2, SlidersHorizontal, Heart } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
+import { ELEMENT_GRADIENT, ELEMENT_ICON } from "@/lib/elementVisuals";
 import { BackButton } from "@/components/ui/BackButton";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
@@ -11,15 +11,38 @@ import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { CreatureName } from "@/components/ui/CreatureName";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { ElementFilterGroup, RarityLevelFilterGroup } from "@/components/monsters/MonsterFilters";
 import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat";
-import { syncProgressToServer } from "@/lib/syncProgress";
-import type { Creature, Element, Rarity } from "@/types/game";
+import type { Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
 import { sortCreaturesByRarity } from "@/lib/gameData";
 
 const MAX_NAME_LENGTH = 16;
-const CAMPAIGN_SLOTS = 2;
+
+type Mode = "campaign" | "raid";
+const MODE_SLOTS: Record<Mode, number> = { campaign: 2, raid: 4 };
+
+const ELEMENTS = Object.keys(ELEMENT_ICON) as Element[];
+const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic", "LR"];
+
+// Lets rarity read at a glance across the whole grid (the RarityCardAura shimmer alone is too
+// subtle in a static screenshot) without spending a corner badge on it — every other corner is
+// already claimed by favorite/selected/level/hidden-potential.
+const RARITY_BORDER: Record<Rarity, string> = {
+  Common: "border-rarity-common/70",
+  Rare: "border-rarity-rare/70",
+  SSR: "border-rarity-ssr/70",
+  Mythic: "border-rarity-mythic/70",
+  LR: "border-amber-400",
+};
+
+type SortKey = "rarity" | "atk" | "def" | "hp" | "obtention";
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "rarity", label: "Rarity" },
+  { key: "atk", label: "ATK" },
+  { key: "def", label: "DEF" },
+  { key: "hp", label: "HP" },
+  { key: "obtention", label: "Obtained" },
+];
 
 export default function FormationTeamsPage() {
   const creatures = useGameStore((s) => s.creatures);
@@ -28,55 +51,76 @@ export default function FormationTeamsPage() {
   const setPartySlot = useGameStore((s) => s.setPartySlot);
   const saveTeamPreset = useGameStore((s) => s.saveTeamPreset);
   const deleteTeamPresetStore = useGameStore((s) => s.deleteTeamPreset);
+  const favoriteCreatureIds = useGameStore((s) => s.favoriteCreatureIds);
+  const toggleFavorite = useGameStore((s) => s.toggleFavorite);
 
+  const [mode, setMode] = useState<Mode>("campaign");
   const [selectedPresetId, setSelectedPresetId] = useState<string | "new">("new");
-  const [draftName, setDraftName] = useState<string>("My Formation");
+  const [draftName, setDraftName] = useState<string>("New Formation");
   const [draftSlots, setDraftSlots] = useState<(string | null)[]>([null, null]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Filters state
+  // Filters + sort state
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedElements, setSelectedElements] = useState<Set<Element>>(new Set());
   const [selectedRarities, setSelectedRarities] = useState<Set<Rarity>>(new Set());
-  const [minLevel, setMinLevel] = useState("");
-  const [maxLevel, setMaxLevel] = useState("");
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("rarity");
+  const [sortDesc, setSortDesc] = useState(true);
 
-  // Derived filters
+  const modePresets = useMemo(() => teamPresets.filter((p) => p.mode === mode), [teamPresets, mode]);
+
+  const handleSelectMode = (nextMode: Mode) => {
+    setMode(nextMode);
+    setSelectedPresetId("new");
+    setDraftName("New Formation");
+    setDraftSlots(Array(MODE_SLOTS[nextMode]).fill(null));
+  };
+
   const filteredCreatures = useMemo(() => {
-    const min = minLevel === "" ? null : Number(minLevel);
-    const max = maxLevel === "" ? null : Number(maxLevel);
-    const filtered = creatures.filter((c) => {
+    let list = creatures.filter((c) => {
       if (selectedElements.size > 0 && !selectedElements.has(c.element)) return false;
       if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity)) return false;
-      if (min !== null && c.level < min) return false;
-      if (max !== null && c.level > max) return false;
+      if (favoritesOnly && !favoriteCreatureIds.includes(c.id)) return false;
       return true;
     });
-    return sortCreaturesByRarity(filtered);
-  }, [creatures, selectedElements, selectedRarities, minLevel, maxLevel]);
 
-  const activeFilterCount =
-    selectedElements.size + selectedRarities.size + (minLevel !== "" ? 1 : 0) + (maxLevel !== "" ? 1 : 0);
+    if (sortKey === "obtention") {
+      // No real "acquired at" timestamp exists yet — the roster's own array order (new grants
+      // are appended) is a reasonable stand-in, newest-first by default.
+      list = sortDesc ? [...list].reverse() : list;
+    } else if (sortKey === "rarity") {
+      list = sortCreaturesByRarity(list);
+      if (!sortDesc) list = [...list].reverse();
+    } else {
+      list = [...list].sort((a, b) =>
+        sortDesc ? b.baseStats[sortKey] - a.baseStats[sortKey] : a.baseStats[sortKey] - b.baseStats[sortKey]
+      );
+    }
+    return list;
+  }, [creatures, selectedElements, selectedRarities, favoritesOnly, favoriteCreatureIds, sortKey, sortDesc]);
+
+  const activeFilterCount = selectedElements.size + selectedRarities.size + (favoritesOnly ? 1 : 0);
 
   const clearFilters = () => {
     setSelectedElements(new Set());
     setSelectedRarities(new Set());
-    setMinLevel("");
-    setMaxLevel("");
+    setFavoritesOnly(false);
   };
 
   const handleSelectPreset = (id: string | "new") => {
     setSelectedPresetId(id);
+    const slotCount = MODE_SLOTS[mode];
     if (id === "new") {
       setDraftName("New Formation");
-      setDraftSlots([null, null]);
+      setDraftSlots(Array(slotCount).fill(null));
     } else {
       const preset = teamPresets.find((p) => p.id === id);
       if (preset) {
         setDraftName(preset.name);
-        const slots: (string | null)[] = [null, null];
-        for (let i = 0; i < CAMPAIGN_SLOTS; i++) {
+        const slots: (string | null)[] = Array(slotCount).fill(null);
+        for (let i = 0; i < slotCount; i++) {
           slots[i] = preset.creatureIds[i] || null;
         }
         setDraftSlots(slots);
@@ -87,13 +131,11 @@ export default function FormationTeamsPage() {
   const handleToggleSlot = (creatureId: string) => {
     setDraftSlots((prev) => {
       const next = [...prev];
-      // If already in slots, remove it
       const existingIdx = next.indexOf(creatureId);
       if (existingIdx !== -1) {
         next[existingIdx] = null;
         return next;
       }
-      // Otherwise, add to first empty slot
       const emptyIdx = next.indexOf(null);
       if (emptyIdx !== -1) {
         next[emptyIdx] = creatureId;
@@ -102,22 +144,22 @@ export default function FormationTeamsPage() {
     });
   };
 
+  const handleClearSlots = () => setDraftSlots(Array(MODE_SLOTS[mode]).fill(null));
+
   const handleSave = async () => {
     if (!draftName.trim()) return;
     setIsSaving(true);
     try {
       const creatureIds = draftSlots.filter(Boolean) as string[];
       // We always create a new DB record and delete the old one if editing,
-      // or we just save a new one. Wait, the server action `saveFormationAction` creates a new one.
-      // If editing an existing one, we should ideally delete the old one first, but since the server action
-      // just returns the new ID, let's treat saves as overwrites by deleting the old one.
+      // or we just save a new one.
       if (selectedPresetId !== "new") {
         await deleteFormationAction(selectedPresetId);
         deleteTeamPresetStore(selectedPresetId);
       }
 
-      const newId = await saveFormationAction(draftName.trim(), creatureIds);
-      saveTeamPreset(newId, draftName.trim(), creatureIds);
+      const newId = await saveFormationAction(draftName.trim(), creatureIds, mode);
+      saveTeamPreset(newId, draftName.trim(), creatureIds, mode);
       setSelectedPresetId(newId);
     } catch (err) {
       console.error("Failed to save formation:", err);
@@ -148,14 +190,16 @@ export default function FormationTeamsPage() {
 
   const creatureById = (id: string | null) => creatures.find((c) => c.id === id) ?? null;
   const draftIdsSet = new Set(draftSlots.filter(Boolean));
+  const filledCount = draftSlots.filter(Boolean).length;
 
   // Check if current draft is exactly the campaign active team
   const isCurrentlyCampaign =
+    mode === "campaign" &&
     partyCreatureIds.length === draftSlots.length &&
     partyCreatureIds.every((id, idx) => id === draftSlots[idx]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <div className="flex items-center gap-2 lg:gap-4">
         <BackButton href="/formations" label="Back to Formation Menu" />
         <div>
@@ -166,224 +210,347 @@ export default function FormationTeamsPage() {
         </div>
       </div>
 
-      {/* Mode & Preset Selection */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div className="flex-1">
-          <label className="font-arcade text-[10px] uppercase text-zinc-500">Game Mode</label>
-          <div className="mt-1">
-            <span className="inline-flex items-center rounded-lg border border-gold/50 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold-bright">
-              <Play className="mr-1.5 h-3.5 w-3.5" /> Campaign
-            </span>
-          </div>
+      {/* Mode tabs + Saved Presets */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() => handleSelectMode("campaign")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "campaign"
+                ? "border-gold bg-gold text-white"
+                : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
+            )}
+          >
+            <Play className="h-3.5 w-3.5" /> Campaign <span className="opacity-70">1-2</span>
+          </button>
+          <button
+            onClick={() => handleSelectMode("raid")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "raid"
+                ? "border-gold bg-gold text-white"
+                : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
+            )}
+          >
+            <Flame className="h-3.5 w-3.5" /> Raid <span className="opacity-70">1-4</span>
+          </button>
         </div>
 
-        <div className="flex-1 w-full sm:w-auto">
-          <label className="font-arcade text-[10px] uppercase text-zinc-500">Saved Presets</label>
-          <div className="mt-1 flex flex-wrap gap-2">
+        <div className="flex flex-1 flex-wrap gap-2">
+          <button
+            onClick={() => handleSelectPreset("new")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+              selectedPresetId === "new"
+                ? "border-arcade-border bg-arcade-panel text-white"
+                : "border-transparent bg-arcade-panel-light text-zinc-500 hover:text-white"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" /> New
+          </button>
+          {modePresets.map((preset) => (
             <button
-              onClick={() => handleSelectPreset("new")}
+              key={preset.id}
+              onClick={() => handleSelectPreset(preset.id)}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                selectedPresetId === "new"
-                  ? "border-arcade-border bg-arcade-panel text-white"
-                  : "border-transparent bg-arcade-panel-light text-zinc-500 hover:text-white"
+                "flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors max-w-[120px] truncate",
+                selectedPresetId === preset.id
+                  ? "border-gold bg-gold/10 text-gold-bright"
+                  : "border-transparent bg-arcade-panel-light text-zinc-400 hover:text-zinc-200"
               )}
             >
-              <Plus className="h-3.5 w-3.5" /> New
+              {preset.name}
             </button>
-            {teamPresets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handleSelectPreset(preset.id)}
-                className={cn(
-                  "flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors max-w-[120px] truncate",
-                  selectedPresetId === preset.id
-                    ? "border-gold bg-gold/10 text-gold-bright"
-                    : "border-transparent bg-arcade-panel-light text-zinc-400 hover:text-zinc-200"
-                )}
-              >
-                {preset.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        {/* Left Column: Editor */}
-        <div className="space-y-4">
-          <GlowPanel accent="gold" className="p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value.slice(0, MAX_NAME_LENGTH))}
-                placeholder="Formation Name"
-                className="flex-1 rounded-lg border border-arcade-border bg-arcade-panel-light px-3 py-2 text-sm text-foreground outline-none focus:border-gold font-semibold"
-              />
-              <span className="text-[10px] text-zinc-500 font-mono">
-                {draftName.length}/{MAX_NAME_LENGTH}
-              </span>
-            </div>
+      {/* Name + actions */}
+      <GlowPanel accent="gold" className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+        <div className="flex flex-1 items-center gap-3">
+          <input
+            type="text"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value.slice(0, MAX_NAME_LENGTH))}
+            placeholder="Formation Name"
+            className="flex-1 rounded-lg border border-arcade-border bg-arcade-panel-light px-3 py-2 text-sm text-foreground outline-none focus:border-gold font-semibold"
+          />
+          <span className="text-[10px] text-zinc-500 font-mono shrink-0">
+            {draftName.length}/{MAX_NAME_LENGTH}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          {mode === "campaign" && (
+            <PixelButton
+              onClick={handleSetCampaignActive}
+              disabled={isCurrentlyCampaign}
+              variant={isCurrentlyCampaign ? "ghost" : "gold"}
+              size="sm"
+            >
+              {isCurrentlyCampaign ? "Active" : "Set Active"}
+            </PixelButton>
+          )}
+          <PixelButton onClick={handleSave} disabled={isSaving || !draftName.trim()} variant="neon" size="sm">
+            <Save className="mr-1.5 h-3.5 w-3.5" /> {isSaving ? "Saving..." : "Save"}
+          </PixelButton>
+          {selectedPresetId !== "new" && (
+            <PixelButton
+              onClick={handleDelete}
+              disabled={isDeleting}
+              variant="ghost"
+              size="sm"
+              className="px-3 !text-red-400 hover:!bg-red-400/10"
+              aria-label="Delete preset"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </PixelButton>
+          )}
+        </div>
+      </GlowPanel>
 
-            <div className="grid max-w-xl grid-cols-2 gap-2.5 sm:gap-3 mx-auto">
-              {draftSlots.map((id, slotIndex) => {
-                const creature = creatureById(id);
-                if (!creature) {
+      {/* Filters */}
+      <div>
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+            activeFilterCount > 0
+              ? "border-gold bg-gold/10 text-gold-bright"
+              : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
+          )}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-gold px-1.5 py-0.5 text-[9px] text-white">{activeFilterCount}</span>
+          )}
+        </button>
+
+        {filtersOpen && (
+          <GlowPanel accent="none" className="mt-2 space-y-3 p-3">
+            <div className="space-y-1.5">
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Type</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ELEMENTS.map((el) => {
+                  const Icon = ELEMENT_ICON[el];
+                  const active = selectedElements.has(el);
                   return (
-                    <GlowPanel
-                      key={slotIndex}
-                      accent="none"
-                      className="flex aspect-square flex-col items-center justify-center gap-1.5 border-dashed text-zinc-600 cursor-pointer hover:border-gold/50 hover:text-gold/50 transition-colors"
-                      onClick={() => {
-                        // Could scroll to roster, but for now just clickable empty state
-                      }}
-                    >
-                      <UserX className="h-10 w-10 sm:h-12 sm:w-12 mb-2 opacity-50" />
-                      <span className="font-arcade text-xs uppercase tracking-widest opacity-60">Empty</span>
-                    </GlowPanel>
-                  );
-                }
-                return (
-                  <button key={slotIndex} onClick={() => handleToggleSlot(creature.id)} className="group text-left relative">
-                    <GlowPanel
+                    <button
+                      key={el}
+                      onClick={() =>
+                        setSelectedElements((p) => {
+                          const n = new Set(p);
+                          n.has(el) ? n.delete(el) : n.add(el);
+                          return n;
+                        })
+                      }
                       className={cn(
-                        "flex aspect-square flex-col items-center justify-center gap-1.5 bg-gradient-to-b p-2 text-center transition-transform group-hover:scale-[1.02]",
-                        ELEMENT_GRADIENT[creature.element]
+                        "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+                        active
+                          ? "border-gold bg-gold/10 text-gold-bright"
+                          : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:border-gold/60"
                       )}
                     >
-                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 rounded-xl">
-                        <X className="h-6 w-6 text-red-400" />
-                      </div>
-                      <CreatureSprite creature={creature} className="h-20 w-20 sm:h-28 sm:w-28 p-1 text-gold-bright drop-shadow-md" />
-                      <CreatureName creature={creature} className="truncate text-sm sm:text-base font-semibold mt-2" />
-                      <p className="text-xs text-zinc-500 font-medium">Lv.{creature.level}</p>
-                    </GlowPanel>
-                  </button>
-                );
-              })}
+                      <Icon className="h-3.5 w-3.5" /> {el}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-arcade-border/50">
-              <PixelButton
-                onClick={handleSetCampaignActive}
-                disabled={isCurrentlyCampaign}
-                className="flex-1"
-                variant={isCurrentlyCampaign ? "ghost" : "gold"}
-              >
-                {isCurrentlyCampaign ? "Campaign Active" : "Set Campaign Active"}
-              </PixelButton>
-              <PixelButton
-                onClick={handleSave}
-                disabled={isSaving || !draftName.trim()}
-                variant="neon"
-                className="flex-1"
-              >
-                <Save className="mr-2 h-4 w-4" /> {isSaving ? "Saving..." : "Save Preset"}
-              </PixelButton>
-              {selectedPresetId !== "new" && (
-                <PixelButton
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  variant="ghost"
-                  className="px-3 !text-red-400 hover:!bg-red-400/10"
-                  aria-label="Delete preset"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </PixelButton>
-              )}
+            <div className="space-y-1.5">
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Rarity</p>
+              <div className="flex flex-wrap gap-1.5">
+                {RARITIES.map((r) => {
+                  const active = selectedRarities.has(r);
+                  return (
+                    <button
+                      key={r}
+                      onClick={() =>
+                        setSelectedRarities((p) => {
+                          const n = new Set(p);
+                          n.has(r) ? n.delete(r) : n.add(r);
+                          return n;
+                        })
+                      }
+                    >
+                      <RarityBadge rarity={r} className={cn("transition-opacity", !active && "opacity-35 grayscale")} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <div className="space-y-1.5">
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Sort by</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SORT_OPTIONS.map(({ key, label }) => {
+                  const active = sortKey === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        if (sortKey === key) setSortDesc((d) => !d);
+                        else {
+                          setSortKey(key);
+                          setSortDesc(true);
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                        active
+                          ? "border-gold bg-gold/10 text-gold-bright"
+                          : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:border-gold/60"
+                      )}
+                    >
+                      {label} {active && (sortDesc ? "↓" : "↑")}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Other</p>
+              <button
+                onClick={() => setFavoritesOnly((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  favoritesOnly
+                    ? "border-gold bg-gold/10 text-gold-bright"
+                    : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:border-gold/60"
+                )}
+              >
+                <Heart className={cn("h-3.5 w-3.5", favoritesOnly && "fill-current")} /> Favorites Only
+              </button>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="w-full text-center font-arcade text-[9px] uppercase tracking-wide text-zinc-500 hover:text-gold-bright"
+              >
+                Clear filters
+              </button>
+            )}
           </GlowPanel>
-        </div>
+        )}
+      </div>
 
-        {/* Right Column: Roster & Filters */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-arcade text-xs glow-text-neon">Roster</h2>
-            <button
-              onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-              className="lg:hidden flex items-center gap-1 text-[10px] uppercase font-arcade text-zinc-400"
-            >
-              <Search className="h-3 w-3" /> Filters
-            </button>
-          </div>
+      {/* Roster — the main, dominant content area. 2xl adds a 7th column so wide desktops gain
+          density instead of just stretching the gaps between cards. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 lg:gap-4 2xl:grid-cols-7">
+        {filteredCreatures.map((creature) => {
+          const isAssigned = draftIdsSet.has(creature.id);
+          const isFavorite = favoriteCreatureIds.includes(creature.id);
 
-          <div className={cn("grid gap-3", mobileFiltersOpen ? "block" : "hidden lg:block")}>
-            <GlowPanel accent="none" className="p-3 space-y-4">
-               <ElementFilterGroup
-                selected={selectedElements}
-                onToggle={(el) => setSelectedElements((p) => {
-                  const n = new Set(p); n.has(el) ? n.delete(el) : n.add(el); return n;
-                })}
-              />
-              <RarityLevelFilterGroup
-                selectedRarities={selectedRarities}
-                onToggleRarity={(r) => setSelectedRarities((p) => {
-                  const n = new Set(p); n.has(r) ? n.delete(r) : n.add(r); return n;
-                })}
-                minLevel={minLevel}
-                maxLevel={maxLevel}
-                onMinLevelChange={setMinLevel}
-                onMaxLevelChange={setMaxLevel}
-              />
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="w-full text-center font-arcade text-[9px] uppercase tracking-wide text-zinc-500 hover:text-gold-bright mt-2"
+          return (
+            <div key={creature.id} className="relative">
+              <button onClick={() => handleToggleSlot(creature.id)} className="flex w-full flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    "relative flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 bg-gradient-to-b pixel-frame transition-colors sm:h-20 sm:w-20 lg:h-24 lg:w-24",
+                    ELEMENT_GRADIENT[creature.element],
+                    isAssigned
+                      ? "border-gold ring-2 ring-gold/70"
+                      : cn(RARITY_BORDER[creature.rarity], "hover:ring-2 hover:ring-gold/40")
+                  )}
                 >
-                  Clear filters
-                </button>
-              )}
-            </GlowPanel>
+                  <RarityCardAura rarity={creature.rarity} />
+                  <CreatureSprite creature={creature} className="h-11 w-11 p-0.5 text-gold-bright sm:h-14 sm:w-14 lg:h-16 lg:w-16" />
+
+                  {/* Level (+ dupe count, when >1) — bottom-left, opposite corner from the Hidden
+                      Potential star CreatureSprite draws bottom-right, so the two never collide. */}
+                  <span className="absolute bottom-1 left-1 z-20 flex items-center gap-0.5 rounded bg-black/70 px-1 font-mono text-[9px] font-bold leading-tight text-white sm:text-[10px]">
+                    Lv{creature.level}
+                    {creature.copies > 1 && <span className="text-amber-300">×{creature.copies}</span>}
+                  </span>
+
+                  {isAssigned && (
+                    <div className="absolute top-1 right-1 z-20 h-2.5 w-2.5 rounded-full bg-gold shadow-[0_0_6px_rgba(255,184,77,0.9)] sm:h-3 sm:w-3" />
+                  )}
+                </div>
+                <CreatureName creature={creature} className="w-full truncate text-center text-xs font-semibold sm:text-sm" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(creature.id);
+                }}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                className={cn(
+                  "absolute left-1 top-1 z-20 flex h-5 w-5 items-center justify-center transition-colors sm:h-6 sm:w-6",
+                  isFavorite ? "text-red-400" : "text-white/70 hover:text-red-300"
+                )}
+              >
+                <Heart className={cn("h-3.5 w-3.5 drop-shadow sm:h-4 sm:w-4", isFavorite && "fill-current")} />
+              </button>
+            </div>
+          );
+        })}
+
+        {filteredCreatures.length === 0 && (
+          <div className="col-span-full h-24 flex items-center justify-center text-xs text-zinc-500 border border-dashed border-arcade-border rounded-xl">
+            No creatures match filters.
           </div>
+        )}
+      </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2 h-[400px] overflow-y-auto pr-1 pb-4 custom-scrollbar">
-            {filteredCreatures.map((creature) => {
-              const isAssigned = draftIdsSet.has(creature.id);
-
+      {/* Sticky team strip — the current formation. Capped width + centered instead of stretching
+          full-page-wide, so a half-empty 2-slot Campaign team doesn't read as a barren bar. */}
+      <div className="sticky bottom-3 lg:bottom-5 z-20 mx-auto w-full max-w-2xl">
+        <GlowPanel accent="neon" className="flex items-center gap-3 p-2.5 lg:p-3.5">
+          {filledCount === 0 && (
+            <p className="shrink-0 text-[10px] text-zinc-500 sm:text-xs">Tap a character above to build your team →</p>
+          )}
+          <div className="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
+            {draftSlots.map((id, slotIndex) => {
+              const creature = creatureById(id);
+              if (!creature) {
+                return (
+                  <div
+                    key={slotIndex}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-arcade-border text-zinc-600 sm:h-14 sm:w-14"
+                  >
+                    <UserX className="h-5 w-5 opacity-50" />
+                  </div>
+                );
+              }
               return (
                 <button
-                  key={creature.id}
+                  key={slotIndex}
                   onClick={() => handleToggleSlot(creature.id)}
-                  className="text-left"
+                  className="group relative shrink-0"
+                  aria-label={`Remove ${creature.name}`}
                 >
-                  <GlowPanel
-                    accent={isAssigned ? "gold" : "none"}
+                  <div
                     className={cn(
-                      "flex flex-col items-center gap-1 p-2 transition-colors relative",
-                      !isAssigned && "hover:border-gold"
+                      "flex h-12 w-12 items-center justify-center rounded-lg border border-gold bg-gradient-to-b sm:h-14 sm:w-14",
+                      ELEMENT_GRADIENT[creature.element]
                     )}
                   >
-                    <RarityCardAura rarity={creature.rarity} />
-
-                    {isAssigned && (
-                      <div className="absolute top-1 right-1 h-3 w-3 rounded-full bg-gold shadow-[0_0_8px_rgba(255,184,77,0.8)]" />
-                    )}
-
-                    <div
-                      className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gold bg-gradient-to-b pixel-frame mb-1",
-                        ELEMENT_GRADIENT[creature.element]
-                      )}
-                    >
-                      <CreatureSprite creature={creature} className="h-8 w-8 p-0.5 text-gold-bright" />
-                    </div>
-                    <div className="w-full text-center">
-                      <CreatureName creature={creature} className="truncate text-xs font-semibold block" />
-                      <p className="text-[10px] text-zinc-600">Lv.{creature.level}</p>
-                    </div>
-                  </GlowPanel>
+                    <CreatureSprite creature={creature} className="h-8 w-8 sm:h-9 sm:w-9" />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                    <X className="h-4 w-4 text-red-400" />
+                  </div>
                 </button>
               );
             })}
-
-            {filteredCreatures.length === 0 && (
-               <div className="col-span-full h-24 flex items-center justify-center text-xs text-zinc-500 border border-dashed border-arcade-border rounded-xl">
-                 No creatures match filters.
-               </div>
-            )}
           </div>
-        </div>
+          <p className="shrink-0 font-arcade text-[10px] uppercase tracking-wide text-zinc-400">
+            {filledCount}/{MODE_SLOTS[mode]}
+          </p>
+          {filledCount > 0 && (
+            <button
+              onClick={handleClearSlots}
+              className="shrink-0 font-arcade text-[10px] uppercase tracking-wide text-zinc-500 hover:text-red-400"
+            >
+              Clear
+            </button>
+          )}
+        </GlowPanel>
       </div>
     </div>
   );

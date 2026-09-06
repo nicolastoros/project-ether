@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Flame, Zap } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { RAID_BOSSES, getRaidBossCreature, type RaidBoss } from "@/lib/raidBosses";
+import { RAID_BOSSES, RAID_EVENTS, getRaidBossCreature, type RaidBoss, type RaidEvent } from "@/lib/raidBosses";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import { RaidBattleScreen } from "@/components/combat/RaidBattleScreen";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -12,38 +12,6 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { formatNumber } from "@/lib/utils";
 
 const MAX_RAID_PARTY = 4;
-
-interface RaidEvent {
-  id: string;
-  name: string;
-  description: string;
-  bannerImage: string | null;
-  bossIds: string[];
-}
-
-const RAID_EVENTS: RaidEvent[] = [
-  {
-    id: "event-crimson",
-    name: "Crimson Divine Power",
-    description: "Challenge the Holy Knight to prove your worth and earn massive rewards!",
-    bannerImage: "/assets/events/crimsondivinepower.png",
-    bossIds: [
-      "raid-crimson-paladin-hard",
-      "raid-crimson-paladin-super",
-      "raid-crimson-paladin-super2",
-      "raid-crimson-paladin-super3",
-    ]
-  },
-  {
-    id: "event-silver-dragon",
-    name: "Elder Dragon's Awakening",
-    description: "An ancient Mythic dragon, far beyond anything Campaign has thrown at you yet.",
-    bannerImage: null,
-    bossIds: [
-      "raid-elder-silver-dragon"
-    ]
-  }
-];
 
 function getDifficultyImage(bossId: string) {
   if (bossId.includes("-super3")) return "/assets/events/super3.png";
@@ -214,7 +182,7 @@ export default function RaidPage() {
             className="group relative overflow-hidden rounded-xl border-2 border-arcade-border bg-arcade-panel-light text-left transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:border-gold hover:shadow-gold/30"
           >
             {evt.bannerImage ? (
-              <img src={evt.bannerImage} alt={evt.name} className="w-full h-auto max-h-[160px] object-cover" />
+              <img src={evt.bannerImage} alt={evt.name} className="w-full h-auto max-h-[190px] object-cover object-[center_75%]" />
             ) : (
               <div className="flex h-32 flex-col items-center justify-center p-4">
                  <p className="font-arcade text-base text-gold glow-text-gold">{evt.name}</p>

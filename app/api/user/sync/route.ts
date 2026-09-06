@@ -76,12 +76,14 @@ function isSyncItem(value: unknown): value is SyncItem {
 interface SyncDailyTasksState {
   date: string;
   tasks: Record<string, { progress: number; claimed: boolean }>;
+  bonusClaimed?: boolean;
 }
 
 function isSyncDailyTasksState(value: unknown): value is SyncDailyTasksState {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   if (typeof v.date !== "string" || !v.tasks || typeof v.tasks !== "object") return false;
+  if (v.bonusClaimed !== undefined && typeof v.bonusClaimed !== "boolean") return false;
   return Object.values(v.tasks as Record<string, unknown>).every(
     (t) =>
       !!t &&

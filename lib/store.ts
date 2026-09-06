@@ -59,14 +59,22 @@ function freshDailyTasks(): DailyTask[] {
   return DEFAULT_DAILY_TASKS.map((t) => ({ ...t }));
 }
 
-/** Shared by tickMissionProgress and claimTask: resets to a fresh day's tasks if the persisted
- * `dailyTasksDate` doesn't match today (a tab left open across midnight, or a stale persisted
- * cache), otherwise passes the current tasks through unchanged. */
-function ensureFreshDailyTasks(dailyTasks: DailyTask[], dailyTasksDate: string): { tasks: DailyTask[]; date: string } {
+/** Shared by tickMissionProgress, claimTask and claimDailyBonus: resets to a fresh day's tasks
+ * (and un-claims the all-tasks bonus) if the persisted `dailyTasksDate` doesn't match today (a
+ * tab left open across midnight, or a stale persisted cache), otherwise passes the current state
+ * through unchanged. */
+function ensureFreshDailyTasks(
+  dailyTasks: DailyTask[],
+  dailyTasksDate: string,
+  dailyBonusClaimed: boolean
+): { tasks: DailyTask[]; date: string; bonusClaimed: boolean } {
   const today = todayDateString();
-  if (dailyTasksDate === today) return { tasks: dailyTasks, date: today };
-  return { tasks: freshDailyTasks(), date: today };
+  if (dailyTasksDate === today) return { tasks: dailyTasks, date: today, bonusClaimed: dailyBonusClaimed };
+  return { tasks: freshDailyTasks(), date: today, bonusClaimed: false };
 }
+
+export const DAILY_BONUS_GOLD = 2000;
+export const DAILY_BONUS_GEMS = 20;
 
 function applyExpGain(creature: Creature, gained: number): Creature {
   if (creature.level >= MAX_LEVEL) return creature;
@@ -236,6 +244,7 @@ function bundleToStateFields(bundle: AccountBundle) {
         })
       : freshDailyTasks(),
     dailyTasksDate: bundle.dailyMissionsState?.date ?? todayDateString(),
+    dailyBonusClaimed: bundle.dailyMissionsState?.bonusClaimed ?? false,
     achievements: bundle.achievements || [],
   };
 }
@@ -297,7 +306,7 @@ interface GameState {
   hasUnseenCampaign: boolean;
   hasUnseenTamer: boolean;
   pendingGuildInvitesCount: number;
-  teamPresets: { id: string; name: string; creatureIds: string[] }[];
+  teamPresets: { id: string; name: string; creatureIds: string[]; mode: "campaign" | "raid" }[];
   /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
   equippedTamerId: string;
   ownedTamerIds: string[];
@@ -314,6 +323,9 @@ interface GameState {
    * see BattleScreen.tsx (task-dungeon), gacha/page.tsx (task-gacha), inventory/page.tsx
    * (task-enhance) — NOT from claimTask, which only pays out an already-completed task. */
   tickMissionProgress: (taskId: string, amount?: number) => void;
+  /** Grants DAILY_BONUS_GOLD/DAILY_BONUS_GEMS once every one of today's dailyTasks is claimed —
+   * false (no-op) if any task is still unclaimed or the bonus was already claimed today. */
+  claimDailyBonus: () => boolean;
   achievements: string[];
   /** Adds an achievement id to local state if not already present. Returns whether it was newly
    * added (false if already unlocked) — callers use that to decide whether to fire the server
@@ -340,6 +352,16 @@ interface GameState {
    * not yet "completed" either), COMPLETED once >=1 star is earned. Local-only, same rationale as
    * seenTutorialTips above — purely a "have I looked at this" UI cue, not real progress. */
   attemptedStageIds: string[];
+  /** True once the bonus for clearing all of today's Daily Tasks has been claimed — resets
+   * alongside dailyTasks/dailyTasksDate whenever the persisted date rolls over (see
+   * ensureFreshDailyTasks). Synced server-side inside the same daily_missions_state JSON blob
+   * as the tasks themselves, since it grants real currency and shouldn't be re-farmable by
+   * clearing local storage. */
+  dailyBonusClaimed: boolean;
+  /** Creature ids the player has starred in Formations > Teams — purely a personal sort/filter
+   * convenience (see the roster's "Favorites only" filter chip), same local-only rationale as
+   * seenTutorialTips above, not real progress worth cross-device durability. */
+  favoriteCreatureIds: string[];
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -380,8 +402,9 @@ interface GameState {
   addGuildExp: (exp: number) => void;
   trainSuperAttack: (creatureId: string) => boolean;
   unlockPotentialNode: (creatureId: string, nodeId: string, orbCost: { small: number; medium: number; large: number; element: Element }, consumesDupe: boolean) => boolean;
-  saveTeamPreset: (id: string, name: string, creatureIds: string[]) => void;
+  saveTeamPreset: (id: string, name: string, creatureIds: string[], mode: "campaign" | "raid") => void;
   deleteTeamPreset: (id: string) => void;
+  toggleFavorite: (creatureId: string) => void;
   addGold: (amount: number) => void;
   spendGold: (amount: number) => void;
   addGems: (amount: number) => void;
@@ -509,6 +532,8 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV10: false,
       seenTutorialTips: [],
       attemptedStageIds: [],
+      dailyBonusClaimed: false,
+      favoriteCreatureIds: [],
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -571,6 +596,7 @@ export const useGameStore = create<GameState>()(
           ownedTamerIds: ["tamer1"],
           activeExpeditions: [],
           teamPresets: [],
+          favoriteCreatureIds: [],
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -583,6 +609,7 @@ export const useGameStore = create<GameState>()(
           survivalHighestStageCleared: 0,
           dailyTasks: freshDailyTasks(),
           dailyTasksDate: todayDateString(),
+          dailyBonusClaimed: false,
           achievements: [],
         }),
 
@@ -797,12 +824,18 @@ export const useGameStore = create<GameState>()(
         return { guild: { ...s.guild, exp: s.guild.exp + exp } };
       }),
 
-      saveTeamPreset: (id, name, creatureIds) => set((s) => ({
-        teamPresets: [...s.teamPresets, { id, name, creatureIds }]
+      saveTeamPreset: (id, name, creatureIds, mode) => set((s) => ({
+        teamPresets: [...s.teamPresets, { id, name, creatureIds, mode }]
       })),
 
       deleteTeamPreset: (id) => set((s) => ({
         teamPresets: s.teamPresets.filter((p) => p.id !== id)
+      })),
+
+      toggleFavorite: (creatureId) => set((s) => ({
+        favoriteCreatureIds: s.favoriteCreatureIds.includes(creatureId)
+          ? s.favoriteCreatureIds.filter((id) => id !== creatureId)
+          : [...s.favoriteCreatureIds, creatureId]
       })),
 
       addGold: (amount) =>
@@ -1204,9 +1237,10 @@ export const useGameStore = create<GameState>()(
 
       tickMissionProgress: (taskId, amount = 1) =>
         set((state) => {
-          const { tasks, date } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate);
+          const { tasks, date, bonusClaimed } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate, state.dailyBonusClaimed);
           return {
             dailyTasksDate: date,
+            dailyBonusClaimed: bonusClaimed,
             dailyTasks: tasks.map((t) =>
               t.id === taskId && !t.claimed
                 ? { ...t, progress: Math.min(t.target, t.progress + amount) }
@@ -1223,11 +1257,14 @@ export const useGameStore = create<GameState>()(
 
       claimTask: (taskId) =>
         set((state) => {
-          const { tasks, date } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate);
+          const { tasks, date, bonusClaimed } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate, state.dailyBonusClaimed);
           const task = tasks.find((t) => t.id === taskId);
-          if (!task || task.claimed || task.progress < task.target) return { dailyTasks: tasks, dailyTasksDate: date };
+          if (!task || task.claimed || task.progress < task.target) {
+            return { dailyTasks: tasks, dailyTasksDate: date, dailyBonusClaimed: bonusClaimed };
+          }
           return {
             dailyTasksDate: date,
+            dailyBonusClaimed: bonusClaimed,
             dailyTasks: tasks.map((t) =>
               t.id === taskId ? { ...t, claimed: true } : t
             ),
@@ -1238,6 +1275,28 @@ export const useGameStore = create<GameState>()(
             },
           };
         }),
+
+      claimDailyBonus: () => {
+        let granted = false;
+        set((state) => {
+          const { tasks, date, bonusClaimed } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate, state.dailyBonusClaimed);
+          if (bonusClaimed || !tasks.every((t) => t.claimed)) {
+            return { dailyTasks: tasks, dailyTasksDate: date, dailyBonusClaimed: bonusClaimed };
+          }
+          granted = true;
+          return {
+            dailyTasksDate: date,
+            dailyTasks: tasks,
+            dailyBonusClaimed: true,
+            currencies: {
+              ...state.currencies,
+              gold: state.currencies.gold + DAILY_BONUS_GOLD,
+              gems: state.currencies.gems + DAILY_BONUS_GEMS,
+            },
+          };
+        });
+        return granted;
+      },
     }),
     {
       name: "monster-gacha-save",

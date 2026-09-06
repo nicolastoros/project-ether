@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { motion } from "framer-motion";
 import type { Creature } from "@/types/game";
 import { ELEMENT_ICON } from "@/lib/elementVisuals";
@@ -56,6 +56,36 @@ const LEGENDARY_AURA_PARTICLES: AuraParticle[] = [
   { color: "#fb7185", inset: "6%", duration: 4.7, reverse: false, delay: 0.48 },
 ];
 
+/** Hidden Potential progress badge — gold while any node is unlocked but the tree isn't
+ * finished, ruby once every node is. Hand-drawn as an inline SVG (not a raster asset) so it
+ * stays crisp at any size and can be scaled as a percentage of the sprite box it sits on,
+ * instead of a fixed pixel size that swallows small sprites. */
+function HiddenPotentialStar({ tier }: { tier: "gold" | "ruby" }) {
+  const gradientId = useId();
+  const colors =
+    tier === "ruby"
+      ? { light: "#fda4af", mid: "#e11d48", dark: "#881337", glow: "rgba(225,29,72,0.9)" }
+      : { light: "#fef08a", mid: "#f59e0b", dark: "#b45309", glow: "rgba(245,158,11,0.9)" };
+  return (
+    <svg viewBox="0 0 24 24" className="h-full w-full overflow-visible" style={{ filter: `drop-shadow(0 0 2px ${colors.glow})` }}>
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={colors.light} />
+          <stop offset="55%" stopColor={colors.mid} />
+          <stop offset="100%" stopColor={colors.dark} />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 1.5l2.99 6.4L22 9.02l-5.11 4.86L18.36 21 12 17.27 5.64 21l1.47-7.12L2 9.02l7.01-1.12L12 1.5z"
+        fill={`url(#${gradientId})`}
+        stroke="rgba(40,10,10,0.45)"
+        strokeWidth="0.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export type Direction = (typeof ROTATION_ORDER)[number];
 
 interface CreatureSpriteProps {
@@ -76,8 +106,16 @@ interface CreatureSpriteProps {
 export function CreatureSprite({ creature, className, spin = false, direction: fixedDirection = "south", activeAnimation, locked = false }: CreatureSpriteProps) {
   const [frameIndex, setFrameIndex] = useState(0);
 
-  const animName = activeAnimation 
-    ? activeAnimation.replace("Crimson Exterminion", "Crimson_Exterminion") 
+  // Raid boss skill names are player-facing flavor text, but the actual animation folders on
+  // disk keep their raw (often auto-captioned) names — each raid boss with more than a plain
+  // stand pose needs its skill name mapped to its real folder name here.
+  const animName = activeAnimation
+    ? activeAnimation
+        .replace("Crimson Exterminion", "Crimson_Exterminion")
+        .replace("Stormcore Discharge", "The_creature_stands_firm_its_feathers_bristling_as")
+        .replace("Tempest Wingstorm", "The_creature_plants_its_feet_firmly_and_spreads_it")
+        .replace("Radiant Blade Rush", "sword_attack")
+        .replace("Elysian Judgment", "final_elysium")
     : "stand_animation";
 
   const folder = creature.spriteFolder?.replace("stand_animation", animName);
@@ -162,26 +200,15 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
     return <span className={cn("relative inline-block", className)}>{content}</span>;
   }
 
-  const unlocked = creature.potentialNodes || [];
-  const unlockedNodesCount = unlocked.length;
-  const fullBranchesCount = ["tl-adv3", "tr-adv3", "bl-adv3", "br-adv3"].filter(id => unlocked.includes(id)).length;
-  const freeNodesComplete = ["tl-2", "tr-2", "bl-2", "br-2"].every(id => unlocked.includes(id));
+  const unlockedNodesCount = (creature.potentialNodes || []).length;
+  const isMaxPotential = unlockedNodesCount > 0 && unlockedNodesCount === POTENTIAL_TREE.length;
+  const starTier: "gold" | "ruby" | null = unlockedNodesCount === 0 ? null : isMaxPotential ? "ruby" : "gold";
 
-  let starImage = null;
-  if (unlockedNodesCount > 0 && unlockedNodesCount === POTENTIAL_TREE.length) {
-    starImage = "/assets/objects/rainbow_star_hidden.png";
-  } else if (fullBranchesCount === 2 || fullBranchesCount === 3) {
-    starImage = "/assets/objects/gold_star_hidden.png";
-  } else if (fullBranchesCount === 1 || (freeNodesComplete && unlockedNodesCount > 0)) {
-    starImage = "/assets/objects/silver_star_hidden.png";
-  } else if (unlockedNodesCount > 0) {
-    starImage = "/assets/objects/bronce_star_hidden.png";
-  }
-
-  const starOverlay = starImage ? (
-    <div className="absolute -bottom-1 -right-1 z-20 flex h-6 w-6 items-center justify-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={starImage} alt="Hidden Potential Star" className="h-full w-full object-contain drop-shadow-md" />
+  // Sized as a percentage of the sprite box itself (not a fixed pixel size) so it scales down
+  // cleanly on tiny roster cards instead of swallowing the sprite, and up on larger ones.
+  const starOverlay = starTier ? (
+    <div className="absolute -bottom-[4%] -right-[4%] z-20 h-[36%] w-[36%]">
+      <HiddenPotentialStar tier={starTier} />
     </div>
   ) : null;
 

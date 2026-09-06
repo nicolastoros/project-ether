@@ -84,14 +84,24 @@ export const RAID_BOSSES: RaidBoss[] = [
     itemDropChance: 100,
   },
   {
-    id: "raid-elder-silver-dragon",
-    name: "Elder Silver Dragon",
-    description: "An ancient Mythic dragon, far beyond anything Campaign has thrown at you yet.",
-    creatureId: "cr-silver-dragon",
+    id: "raid-storm-eagle",
+    name: "Storm Thunder Eagle",
+    description: "A majestic apex predator crackling with stormforged lightning.",
+    creatureId: "cr-storm-eagle",
     staminaCost: 0,
-    rewardGold: 5000,
-    rewardExp: 1500,
-    itemDropChance: 40,
+    rewardGold: 8000,
+    rewardExp: 3000,
+    itemDropChance: 55,
+  },
+  {
+    id: "raid-xpaladin",
+    name: "Factor X",
+    description: "An enigmatic royal knight wielding power that defies classification.",
+    creatureId: "cr-xpaladin",
+    staminaCost: 0,
+    rewardGold: 9000,
+    rewardExp: 3500,
+    itemDropChance: 60,
   },
 ];
 
@@ -99,7 +109,7 @@ export const RAID_BOSSES: RaidBoss[] = [
 export function getRaidBossCreature(boss: RaidBoss): Creature {
   const base = STARTER_CREATURES.find((c) => c.id === boss.creatureId);
   if (!base) throw new Error(`Unknown raid boss creature id: ${boss.creatureId}`);
-  
+
   let bossLevel = 40;
   if (boss.id.includes("-super3")) bossLevel = 100;
   else if (boss.id.includes("-super2")) bossLevel = 80;
@@ -107,3 +117,46 @@ export function getRaidBossCreature(boss: RaidBoss): Creature {
 
   return scaleRaidBoss(base, bossLevel, boss.id);
 }
+
+export interface RaidEvent {
+  id: string;
+  name: string;
+  description: string;
+  bannerImage: string | null;
+  bossIds: string[];
+}
+
+// Lives here (not app/(game)/raid/page.tsx) so the Hub's hero carousel can feature these
+// alongside GACHA_BANNERS without importing from a page file.
+export const RAID_EVENTS: RaidEvent[] = [
+  {
+    id: "event-crimson",
+    name: "Crimson Divine Power",
+    description: "Challenge the Holy Knight to prove your worth and earn massive rewards!",
+    bannerImage: "/assets/events/crimsondivinepower.png",
+    bossIds: [
+      "raid-crimson-paladin-hard",
+      "raid-crimson-paladin-super",
+      "raid-crimson-paladin-super2",
+      "raid-crimson-paladin-super3",
+    ]
+  },
+  {
+    id: "event-storm-eagle",
+    name: "Storm Thunder Eagle",
+    description: "A majestic thunderbird descends upon the Digital World — its wings alone can level mountains.",
+    bannerImage: "/assets/events/storm_thunder_eagle.png",
+    bossIds: [
+      "raid-storm-eagle"
+    ]
+  },
+  {
+    id: "event-factor-x",
+    name: "Factor X Unknown",
+    description: "An unidentified royal knight has appeared, radiating power that defies classification.",
+    bannerImage: "/assets/events/factor_x_unkwnown.png",
+    bossIds: [
+      "raid-xpaladin"
+    ]
+  }
+];

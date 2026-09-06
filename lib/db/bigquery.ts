@@ -229,13 +229,13 @@ export interface AccountBundle {
     avatarKey: string;
     role: string;
   };
-  teamPresets: { id: string; name: string; creatureIds: string[] }[];
+  teamPresets: { id: string; name: string; creatureIds: string[]; mode: "campaign" | "raid" }[];
   pendingGuildInvitesCount: number;
   /** Parsed users.daily_missions_state — null when the column is empty/unparseable OR its stored
    * date isn't today (server-side half of the daily reset; lib/store.ts's ensureFreshDailyTasks
    * does the equivalent check client-side for a tab that's been open since before the rollover).
    * A null here means "generate a fresh day's tasks", same as the client does. */
-  dailyMissionsState: { date: string; tasks: Record<string, { progress: number; claimed: boolean }> } | null;
+  dailyMissionsState: { date: string; tasks: Record<string, { progress: number; claimed: boolean }>; bonusClaimed?: boolean } | null;
   /** Unlocked achievement ids — see lib/gameData.ts's ACHIEVEMENTS for the catalog. */
   achievements: string[];
 }
@@ -254,7 +254,7 @@ function serverTodayDateString(): string {
  * same as an absent/corrupt blob) whenever the stored date isn't today. */
 function parseDailyMissionsState(
   raw: string | null | undefined
-): { date: string; tasks: Record<string, { progress: number; claimed: boolean }> } | null {
+): { date: string; tasks: Record<string, { progress: number; claimed: boolean }>; bonusClaimed?: boolean } | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -366,7 +366,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       }),
       bq().query({
         query: `
-        SELECT id, name, creature_ids
+        SELECT id, name, creature_ids, mode
         FROM ${table("user_formations")} WHERE user_id = @userId ORDER BY created_at ASC
       `,
         params: { userId },
@@ -537,6 +537,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       id: r.id,
       name: r.name,
       creatureIds: r.creature_ids ? r.creature_ids.split(",") : [],
+      mode: r.mode === "raid" ? "raid" : "campaign",
     })),
     pendingGuildInvitesCount,
     dailyMissionsState: parseDailyMissionsState(userRow.daily_missions_state),
@@ -564,7 +565,7 @@ export async function syncPlayerProgress(
     /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
      * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
      * blob-overwrite reasoning as dailyEventAttempts just above. */
-    dailyTasksState?: { date: string; tasks: Record<string, { progress: number; claimed: boolean }> };
+    dailyTasksState?: { date: string; tasks: Record<string, { progress: number; claimed: boolean }>; bonusClaimed?: boolean };
   }
 ) {
   // One UPDATE query *job* per creature — even fired concurrently via Promise.all — was the real
@@ -1492,11 +1493,11 @@ export async function searchUsernamesOnly(query: string): Promise<string[]> {
   return rows.map((r: any) => r.username);
 }
 
-export async function createUserFormation(userId: string, name: string, creatureIds: string[]) {
+export async function createUserFormation(userId: string, name: string, creatureIds: string[], mode: "campaign" | "raid") {
   const id = randomUUID();
   await bq().query({
-    query: `INSERT INTO ${table("user_formations")} (id, user_id, name, creature_ids) VALUES (@id, @userId, @name, @creatureIds)`,
-    params: { id, userId, name, creatureIds: creatureIds.join(",") }
+    query: `INSERT INTO ${table("user_formations")} (id, user_id, name, creature_ids, mode) VALUES (@id, @userId, @name, @creatureIds, @mode)`,
+    params: { id, userId, name, creatureIds: creatureIds.join(","), mode }
   });
   return id;
 }

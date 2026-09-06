@@ -34,7 +34,7 @@ export async function waitForPendingSync(): Promise<void> {
  * it immediately instead of waiting for the next interval tick. Never throws; local play
  * continues either way. */
 export function syncProgressToServer(): void {
-  const { profile, creatures, dungeon, currencies, dailyTasks, dailyTasksDate } = useGameStore.getState();
+  const { profile, creatures, dungeon, currencies, dailyTasks, dailyTasksDate, dailyBonusClaimed } = useGameStore.getState();
   trackPending(fetch("/api/user/sync", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -76,6 +76,7 @@ export function syncProgressToServer(): void {
       dailyTasksState: {
         date: dailyTasksDate,
         tasks: Object.fromEntries(dailyTasks.map((t) => [t.id, { progress: t.progress, claimed: t.claimed }])),
+        bonusClaimed: dailyBonusClaimed,
       },
     }),
   }).catch(() => {

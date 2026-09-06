@@ -1,0 +1,76 @@
+{
+  "group_id": "0d9d6acc-9473-48f2-bfc4-99fc9fe9a1ed",
+  "states": [
+    {
+      "character": {
+        "id": "56135ad7-1391-474f-8cbc-743d4ab66d45",
+        "name": "Idle",
+        "prompt": "Create an original Mega-level electric digital monster in high-quality pixel art.A gigantic legendary thunder bird combining an eagle, falcon and supernatural storm creature. It must look like a powerful living monster, not a humanoid or robot.Its body is athletic and aerodynamic, with a large chest, powerful talons and enormous wings. Its feathers are mainly dark navy and black, contrasted with bright electric-yellow and white feathers.The head resembles a fierce eagle with a sharp metallic beak, glowing cyan-blue eyes and three long lightning-shaped feather crests pointing backward like a crown.Its enormous wings are its most distinctive feature. The feathers form sharp angular shapes resembling lightning bolts. The outer feathers are yellow and white, while the inner wings are dark blue. Thin electric-blue energy lines run between some feathers.The chest has thick white plumage surrounding a small glowing cyan energy core.Its legs are strong and bird-like, ending in large silver metallic talons. Small golden armor plates protect the legs and shoulders, but keep the creature mostly organic.It has a long feathered tail divided into three sharp lightning-shaped sections.Blue and yellow electricity crackles subtly around the wings and talons. Small sparks float around the creature, but avoid excessive effects.Its expression should be noble, confident and intimidating rather than evil.This creature is an ancient guardian of digital storms, capable of absorbing lightning from the sky and releasing devastating electrical attacks through its wings.",
+        "size": {
+          "width": 128,
+          "height": 128
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T17:01:18.278646+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "The_creature_plants_its_feet_firmly_and_spreads_it": {
+            "south": [
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_000.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_001.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_002.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_003.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_004.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_005.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_006.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_007.png",
+              "Idle/animations/The_creature_plants_its_feet_firmly_and_spreads_it/south/frame_008.png"
+            ]
+          },
+          "The_creature_stands_firm_its_feathers_bristling_as": {
+            "south": [
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_000.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_001.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_002.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_003.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_004.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_005.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_006.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_007.png",
+              "Idle/animations/The_creature_stands_firm_its_feathers_bristling_as/south/frame_008.png"
+            ]
+          },
+          "idle_stand": {
+            "south": [
+              "Idle/animations/idle_stand/south/frame_000.png",
+              "Idle/animations/idle_stand/south/frame_001.png",
+              "Idle/animations/idle_stand/south/frame_002.png",
+              "Idle/animations/idle_stand/south/frame_003.png",
+              "Idle/animations/idle_stand/south/frame_004.png",
+              "Idle/animations/idle_stand/south/frame_005.png",
+              "Idle/animations/idle_stand/south/frame_006.png",
+              "Idle/animations/idle_stand/south/frame_007.png",
+              "Idle/animations/idle_stand/south/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-05T23:13:45.451178"
+}

@@ -48,8 +48,8 @@ export function TeamSelectScreen({
     
     try {
       setIsSaving(true);
-      const id = await saveFormationAction(name, selectedIds);
-      saveTeamPreset(id, name, selectedIds);
+      const id = await saveFormationAction(name, selectedIds, "campaign");
+      saveTeamPreset(id, name, selectedIds, "campaign");
     } catch (err) {
       alert("Failed to save preset.");
     } finally {
@@ -71,6 +71,9 @@ export function TeamSelectScreen({
   const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
   const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
   const sortedCreatures = sortCreaturesByRarity(creatures);
+  // Raid-mode presets can hold up to 4 creatures — too many for Campaign's 1-2 slot party, so
+  // only offer the ones actually sized for this picker.
+  const campaignPresets = teamPresets.filter((p) => p.mode === "campaign");
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -115,11 +118,11 @@ export function TeamSelectScreen({
           </PixelButton>
         </div>
 
-        {teamPresets.length === 0 ? (
+        {campaignPresets.length === 0 ? (
           <p className="text-xs text-zinc-500 italic sm:text-sm">No saved formations yet.</p>
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:gap-3">
-            {teamPresets.map((preset) => (
+            {campaignPresets.map((preset) => (
               <div
                 key={preset.id}
                 onClick={() => onSetTeam(preset.creatureIds)}

@@ -73,6 +73,67 @@ export const STARTER_CREATURES: Creature[] = [
     },
   },
   {
+    id: "cr-storm-eagle",
+    name: "StormEagle",
+    element: "Electric",
+    rarity: "Mythic",
+    level: 100,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "stormeagle",
+    spriteFolder: "/assets/creatures/raid_bosses/stormeagle/Idle/animations/stand_animation/south",
+    // Raid boss — only 2 attacks (no buff skill like Crimson Paladin's) since only 2 non-idle
+    // animations exist for it. See CreatureSprite.tsx's animName replace chain: each skill name
+    // here must map to its actual (auto-captioned) animation folder name under Idle/animations.
+    baseStats: { hp: 40000, atk: 1650, def: 650, spd: 480 },
+    skills: [
+      skill("sk-se-1", "Stormcore Discharge", "A concentrated bolt of storm energy blasts one enemy.", "Attack", 160, 0, 1),
+      skill("sk-se-2", "Tempest Wingstorm", "A thunderous wingbeat unleashes a storm shockwave on all enemies.", "Attack", 210, 4, 1),
+    ],
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    // Keyed by the actual on-disk animation folder name (post CreatureSprite.tsx replace
+    // chain), not the skill's display name — same convention as Crimson Paladin's
+    // "Crimson_Exterminion" key above.
+    animationFrames: {
+      "stand_animation": 9,
+      "The_creature_stands_firm_its_feathers_bristling_as": 9,
+      "The_creature_plants_its_feet_firmly_and_spreads_it": 9,
+    },
+  },
+  {
+    id: "cr-xpaladin",
+    name: "XPaladin",
+    element: "Light",
+    rarity: "Mythic",
+    level: 100,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "xpaladin",
+    spriteFolder: "/assets/creatures/raid_bosses/xpaladin/Idle/animations/stand_animation/south",
+    // Same 2-attack-only pattern as StormEagle above — the zip also had a "Running" animation
+    // that isn't used here (locomotion, not a combat move).
+    baseStats: { hp: 45000, atk: 1550, def: 850, spd: 380 },
+    skills: [
+      skill("sk-xp-1", "Radiant Blade Rush", "A blazing sword thrust pierces one enemy.", "Attack", 150, 0, 1),
+      skill("sk-xp-2", "Elysian Judgment", "A holy light erupts from the sacred shield, judging all enemies.", "Attack", 220, 4, 1),
+    ],
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    // Same "keyed by actual folder name" convention as StormEagle above.
+    animationFrames: {
+      "stand_animation": 9,
+      "sword_attack": 13,
+      "final_elysium": 9,
+    },
+  },
+  {
     id: "cr-emberling",
     name: "Emberling",
     element: "Fire",
@@ -214,24 +275,24 @@ export const STARTER_CREATURES: Creature[] = [
     id: "cr-crimson-guardian",
     name: "CrimsonGuardian",
     element: "Fire",
-    rarity: "Mythic",
-    level: 30,
-    exp: 800,
-    expToNextLevel: 2000,
-    stage: 3,
+    rarity: "SSR",
+    level: 14,
+    exp: 320,
+    expToNextLevel: 680,
+    stage: 2,
     spriteKey: "crimsonguardian",
     spriteFolder: "/assets/creatures/crimsonguardian/idle",
-    // Mythic sits below only LR (the top rarity) — every stat here clears the best SSR-or-lower
-    // value by a wide margin (previously SPD 92 was actually below several Rares/SSRs —
-    // Voltling's 140 is the highest SSR-or-lower SPD in the roster — letting lower-rarity
-    // creatures act first and undercutting "most powerful"). CrimsonGuardian leans tanky (HP/DEF)
+    // Demoted from Mythic to SSR — stats/skill power rescaled down using the exact inverse of
+    // AWAKEN_STAT_MULTIPLIER (the game's own SSR->Mythic conversion ratio further down this
+    // file), so the result lands naturally inside the existing SSR band (Emberfiend's
+    // 680/168/98/100 is the current ceiling) instead of an arbitrary guess. Leans tanky (HP/DEF)
     // next to SilverDragon's swift-striker profile below.
-    baseStats: { hp: 1150, atk: 215, def: 150, spd: 148 },
+    baseStats: { hp: 640, atk: 148, def: 94, spd: 130 },
     skills: [
-      skill("sk-cg-1", "Blazing Judgment", "A sword strike wreathed in crimson flame on one enemy.", "Attack", 172, 0),
+      skill("sk-cg-1", "Blazing Judgment", "A sword strike wreathed in crimson flame on one enemy.", "Attack", 158, 0),
       skill("sk-cg-2", "Aegis of Embers", "Raises own DEF sharply for 2 turns with the ceremonial shield.", "Defense", 0, 3, 5),
-      skill("sk-cg-3", "Crimson Cataclysm", "An overwhelming flame judgment on all enemies.", "Attack", 138, 5, 15),
-      skill("sk-cg-4", "Guardian's Resolve", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 20),
+      skill("sk-cg-3", "Crimson Cataclysm", "An overwhelming flame judgment on all enemies.", "Attack", 110, 4, 11),
+      skill("sk-cg-4", "Guardian's Resolve", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 16),
     ],
     equipment: {},
     copies: 1,
@@ -242,21 +303,21 @@ export const STARTER_CREATURES: Creature[] = [
     id: "cr-silver-dragon",
     name: "SilverDragon",
     element: "Light",
-    rarity: "Mythic",
-    level: 32,
-    exp: 950,
-    expToNextLevel: 2200,
-    stage: 3,
+    rarity: "SSR",
+    level: 15,
+    exp: 350,
+    expToNextLevel: 720,
+    stage: 2,
     spriteKey: "silverdragon",
     spriteFolder: "/assets/creatures/silverdragon/idle",
-    // Swift-striker Mythic profile (higher ATK/SPD, slightly less tanky than CrimsonGuardian
-    // above) — still clears every non-Mythic creature's HP/DEF too, just by a smaller margin.
-    baseStats: { hp: 1080, atk: 230, def: 135, spd: 150 },
+    // Demoted from Mythic to SSR — same inverse-AWAKEN_STAT_MULTIPLIER rescale as CrimsonGuardian
+    // above. Swift-striker profile (higher ATK/SPD, slightly less tanky than CrimsonGuardian).
+    baseStats: { hp: 600, atk: 160, def: 84, spd: 130 },
     skills: [
-      skill("sk-sd-1", "Radiant Fang", "A blessed bite crackling with electric light on one enemy.", "Attack", 168, 0),
+      skill("sk-sd-1", "Radiant Fang", "A blessed bite crackling with electric light on one enemy.", "Attack", 154, 0),
       skill("sk-sd-2", "Sacred Scales", "Raises own DEF and SPD for 2 turns.", "Defense", 0, 3, 5),
-      skill("sk-sd-3", "Astral Nova", "A burst of sacred light damages all enemies with a chance to blind.", "Attack", 132, 5, 15),
-      skill("sk-sd-4", "Celestial Ward", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 20),
+      skill("sk-sd-3", "Astral Nova", "A burst of sacred light damages all enemies with a chance to blind.", "Attack", 104, 4, 12),
+      skill("sk-sd-4", "Celestial Ward", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 17),
     ],
     equipment: {},
     copies: 1,
@@ -378,31 +439,25 @@ export const STARTER_CREATURES: Creature[] = [
     superAttackLevel: 1,
     potentialNodes: [],
   },
-
-  // --- Mythic tier ---
-  // Every stat here clears the SSR ceiling (Thundracoil's 780hp/168atk/98def/140spd band) by a
-  // wide margin, matching CrimsonGuardian/SilverDragon above — same "Mythic clearly beats SSR"
-  // rule the pre-existing pair already established. Each leans into its own combat profile
-  // (swift striker, tank, balanced, glass-cannon-aerial, heavy bruiser) rather than being flat
-  // stat clones of each other.
   {
     id: "cr-wargek",
     name: "Wargek",
     element: "Fire",
-    rarity: "Mythic",
-    level: 31,
-    exp: 820,
-    expToNextLevel: 2050,
-    stage: 3,
+    rarity: "SSR",
+    level: 14,
+    exp: 330,
+    expToNextLevel: 680,
+    stage: 2,
     spriteKey: "wargek",
     spriteFolder: "/assets/creatures/wargek/idle",
-    // Swift striker — highest ATK/SPD of the new Mythics, echoing SilverDragon's profile.
-    baseStats: { hp: 1100, atk: 235, def: 140, spd: 152 },
+    // Demoted from Mythic to SSR — same inverse-AWAKEN_STAT_MULTIPLIER rescale as
+    // CrimsonGuardian/SilverDragon above. Swift striker — highest ATK/SPD of this trio.
+    baseStats: { hp: 610, atk: 162, def: 88, spd: 132 },
     skills: [
-      skill("sk-wg-1", "Dramon Claw Rend", "Twin golden dragon-claw gauntlets tear into one enemy.", "Attack", 178, 0),
+      skill("sk-wg-1", "Dramon Claw Rend", "Twin golden dragon-claw gauntlets tear into one enemy.", "Attack", 168, 0),
       skill("sk-wg-2", "Brave Shield Guard", "Raises own DEF sharply for 2 turns behind the Brave Shield.", "Defense", 0, 3, 5),
-      skill("sk-wg-3", "Terra Force", "A devastating energy sphere scorches all enemies.", "Attack", 140, 5, 15),
-      skill("sk-wg-4", "Warrior's Instinct", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 20),
+      skill("sk-wg-3", "Terra Force", "A devastating energy sphere scorches all enemies.", "Attack", 112, 4, 11),
+      skill("sk-wg-4", "Warrior's Instinct", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 16),
     ],
     equipment: {},
     copies: 1,
@@ -413,44 +468,21 @@ export const STARTER_CREATURES: Creature[] = [
     id: "cr-goldak",
     name: "Goldak",
     element: "Water",
-    rarity: "Mythic",
-    level: 29,
-    exp: 760,
-    expToNextLevel: 1950,
-    stage: 3,
+    rarity: "SSR",
+    level: 13,
+    exp: 300,
+    expToNextLevel: 640,
+    stage: 2,
     spriteKey: "goldak",
     spriteFolder: "/assets/creatures/goldak/idle",
-    // Tank — highest HP/DEF of the new Mythics, trading off the lowest SPD.
-    baseStats: { hp: 1200, atk: 210, def: 155, spd: 140 },
+    // Demoted from Mythic to SSR — same rescale. Tank — highest HP/DEF of this trio, trading off
+    // the lowest SPD.
+    baseStats: { hp: 665, atk: 145, def: 97, spd: 120 },
     skills: [
-      skill("sk-gd-1", "Hydro Drill Impale", "The spinning hydro-drill gauntlet bores into one enemy.", "Attack", 165, 0),
+      skill("sk-gd-1", "Hydro Drill Impale", "The spinning hydro-drill gauntlet bores into one enemy.", "Attack", 150, 0),
       skill("sk-gd-2", "Tower Barrier", "Raises own DEF sharply for 2 turns behind a holographic barrier.", "Defense", 0, 3, 5),
-      skill("sk-gd-3", "Abyssal Tentacle Storm", "Four cybernetic tentacles lash all enemies with a chance to slow.", "Attack", 128, 4, 14),
-      skill("sk-gd-4", "Pressure Hide", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 19),
-    ],
-    equipment: {},
-    copies: 1,
-    superAttackLevel: 1,
-    potentialNodes: [],
-  },
-  {
-    id: "cr-gallantknight",
-    name: "GallantKnight",
-    element: "Light",
-    rarity: "Mythic",
-    level: 30,
-    exp: 800,
-    expToNextLevel: 2000,
-    stage: 3,
-    spriteKey: "gallantknight",
-    spriteFolder: "/assets/creatures/gallantknight/idle",
-    // Balanced all-rounder, splitting the difference between Wargek's speed and Goldak's bulk.
-    baseStats: { hp: 1130, atk: 222, def: 148, spd: 146 },
-    skills: [
-      skill("sk-gk-1", "Lightning Joust", "A holy lance thrust crackling with judgment light on one enemy.", "Attack", 170, 0),
-      skill("sk-gk-2", "Aegis Cape", "Raises own DEF for 2 turns behind the flowing cape-shield.", "Defense", 0, 3, 5),
-      skill("sk-gk-3", "Final Elysion", "A holy energy blast judges all enemies.", "Attack", 134, 5, 15),
-      skill("sk-gk-4", "Knight's Vow", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 20),
+      skill("sk-gd-3", "Abyssal Tentacle Storm", "Four cybernetic tentacles lash all enemies with a chance to slow.", "Attack", 100, 4, 11),
+      skill("sk-gd-4", "Pressure Hide", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 16),
     ],
     equipment: {},
     copies: 1,
@@ -461,26 +493,33 @@ export const STARTER_CREATURES: Creature[] = [
     id: "cr-firefex",
     name: "Firefex",
     element: "Fire",
-    rarity: "Mythic",
-    level: 28,
-    exp: 700,
-    expToNextLevel: 1900,
-    stage: 3,
+    rarity: "SSR",
+    level: 12,
+    exp: 270,
+    expToNextLevel: 600,
+    stage: 2,
     spriteKey: "firefex",
     spriteFolder: "/assets/creatures/firefex/idle",
-    // Aerial glass-cannon — highest SPD of any Mythic (player or enemy) in the roster, lowest DEF.
-    baseStats: { hp: 1070, atk: 228, def: 132, spd: 155 },
+    // Demoted from Mythic to SSR — same rescale. Aerial glass-cannon — highest SPD of this trio,
+    // lowest DEF.
+    baseStats: { hp: 595, atk: 157, def: 83, spd: 135 },
     skills: [
-      skill("sk-fx-1", "Solar Talon Rake", "Golden talons wreathed in radiant plasma strike one enemy.", "Attack", 174, 0),
+      skill("sk-fx-1", "Solar Talon Rake", "Golden talons wreathed in radiant plasma strike one enemy.", "Attack", 162, 0),
       skill("sk-fx-2", "Radiant Wingspan", "Raises own SPD and DEF for 2 turns.", "Defense", 0, 3, 5),
-      skill("sk-fx-3", "Phoenix Flare", "A cascade of solar embers burns all enemies with a chance to burn.", "Attack", 136, 4, 14),
-      skill("sk-fx-4", "Solar Rebirth", "Passively regenerates HP each turn, fueled by the reactor core.", "Passive", 0, 0, 18),
+      skill("sk-fx-3", "Phoenix Flare", "A cascade of solar embers burns all enemies with a chance to burn.", "Attack", 108, 4, 11),
+      skill("sk-fx-4", "Solar Rebirth", "Passively regenerates HP each turn, fueled by the reactor core.", "Passive", 0, 0, 16),
     ],
     equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
   },
+
+  // --- Mythic tier ---
+  // Every stat here clears the SSR ceiling (Emberfiend's 680hp/168atk/98def/100spd band, now the
+  // highest since Wargek/Goldak/Firefex/CrimsonGuardian/SilverDragon were demoted to SSR above)
+  // by a wide margin. Each leans into its own combat profile (balanced, tank, heavy bruiser)
+  // rather than being flat stat clones of each other.
   {
     id: "cr-blitzfire",
     name: "Blitzfire",
@@ -657,6 +696,32 @@ export const STARTER_CREATURES: Creature[] = [
       resonanceCost: 85,
       inflicts: { status: "confusion", turns: 2, chance: 100 },
     },
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+  },
+  {
+    id: "cr-gallantknight",
+    name: "GallantKnight",
+    element: "Light",
+    rarity: "LR",
+    level: 41,
+    exp: 1400,
+    expToNextLevel: 3200,
+    stage: 3,
+    spriteKey: "gallantknight",
+    spriteFolder: "/assets/creatures/gallantknight/idle",
+    // Promoted from Mythic to LR — the balanced all-rounder of the tier, no dump stat (unlike
+    // Omega's raw power lean, Poseidon's bulk, or Abaddo's glass-cannon ATK). Skill power/unlock
+    // levels bumped to match the LR band alongside baseStats, so it hits as hard as its peers.
+    baseStats: { hp: 1450, atk: 280, def: 180, spd: 168 },
+    skills: [
+      skill("sk-gk-1", "Lightning Joust", "A holy lance thrust crackling with judgment light on one enemy.", "Attack", 206, 0),
+      skill("sk-gk-2", "Aegis Cape", "Raises own DEF for 2 turns behind the flowing cape-shield.", "Defense", 0, 3, 6),
+      skill("sk-gk-3", "Final Elysion", "A holy energy blast judges all enemies.", "Attack", 176, 5, 22),
+      skill("sk-gk-4", "Knight's Vow", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 25),
+    ],
     equipment: {},
     copies: 1,
     superAttackLevel: 1,
@@ -1417,7 +1482,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     tagline: "Summon the greatest champions.",
     type: "Creature",
     bannerImage: "/assets/banners/banner_carnival_mythic.jpg",
-    featuredIds: ["cr-firefex", "cr-blitzfire", "cr-gallantknight", "cr-emperortoise"],
+    featuredIds: ["cr-blitzfire", "cr-emperortoise"],
     singlePullCost: 1,
     multiPullCost: 10,
     multiPullCount: 10,

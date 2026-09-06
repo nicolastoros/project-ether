@@ -12,13 +12,13 @@ export const ELEMENT_ICON: Record<Element, typeof Flame> = {
 };
 
 export const ELEMENT_GRADIENT: Record<Element, string> = {
-  Fire: "from-orange-300/80 via-orange-200/50 to-transparent",
-  Water: "from-sky-300/80 via-sky-200/50 to-transparent",
-  Nature: "from-emerald-300/80 via-emerald-200/50 to-transparent",
-  Light: "from-yellow-200/80 via-yellow-100/50 to-transparent",
-  Dark: "from-purple-300/70 via-purple-200/45 to-transparent",
-  Electric: "from-yellow-300/80 via-sky-200/40 to-transparent",
-  Neutral: "from-slate-300/70 via-slate-200/45 to-transparent",
+  Fire: "from-orange-400/90 via-orange-300/60 to-transparent",
+  Water: "from-sky-400/90 via-sky-300/60 to-transparent",
+  Nature: "from-emerald-400/90 via-emerald-300/60 to-transparent",
+  Light: "from-amber-300/90 via-yellow-200/60 to-transparent",
+  Dark: "from-purple-400/85 via-purple-300/55 to-transparent",
+  Electric: "from-yellow-400/90 via-sky-300/55 to-transparent",
+  Neutral: "from-slate-400/80 via-slate-300/55 to-transparent",
 };
 
 /** Bolder, full-bleed version of ELEMENT_GRADIENT for hero/banner surfaces. */

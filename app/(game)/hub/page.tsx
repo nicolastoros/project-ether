@@ -1,9 +1,9 @@
-import Image from "next/image";
 import { DungeonProgressCard } from "@/components/hub/DungeonProgressCard";
 import { CreatureShowcase } from "@/components/hub/CreatureShowcase";
 import { QuickActions } from "@/components/hub/QuickActions";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
 import { MobileHeroHub } from "@/components/hub/MobileHeroHub";
+import { HubHeroCarousel } from "@/components/hub/HubHeroCarousel";
 
 export default function HubPage() {
   return (
@@ -18,24 +18,7 @@ export default function HubPage() {
       </div>
 
       <div className="hidden lg:block">
-        <div className="relative h-56 overflow-hidden rounded-3xl border border-arcade-border shadow-sm">
-          <Image
-            src="/assets/ui/portada.png"
-            alt=""
-            fill
-            priority
-            className="object-cover object-[center_80%]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-5">
-            <h1 className="font-arcade text-lg text-white drop-shadow-md">
-              Welcome back, Summoner
-            </h1>
-            <p className="mt-1 text-xs text-white/80 drop-shadow">
-              Your creatures await orders in the city hub.
-            </p>
-          </div>
-        </div>
+        <HubHeroCarousel />
 
         <div className="mt-4 grid grid-cols-3 items-start gap-4">
           <div className="col-span-2 space-y-4">
