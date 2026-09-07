@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { GACHA_BANNERS, GACHA_CREATURE_POOL } from "@/lib/gameData";
+import { GACHA_BANNERS, GACHA_CREATURE_POOL, ITEM_CATALOG } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { grantCreaturesOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { MenuBannerButton } from "@/components/ui/MenuBannerButton";
 import { CrownIcon } from "@/components/icons/CrownIcon";
-import { TicketIcon } from "lucide-react";
-import type { Creature, GachaBanner } from "@/types/game";
+import type { Creature, GachaBanner, Rarity } from "@/types/game";
 
-function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner): Creature[] {
-  const result: Creature[] = [];
+/** Pity: guarantees a rarity within N pulls on a given banner currency, so a run of bad luck has
+ * a hard ceiling instead of the raw odds letting a player go arbitrarily long empty-handed.
+ * Mythic ticket's 20 sits at ~3x its expected-pulls-to-hit (~6.7 pulls at its 15% rate) — a
+ * generous safety net without making the base rate feel pointless. LR's 100 is intentionally a
+ * much longer grind (~14x its ~7 pull expectation) since LR is the top tier and shouldn't be
+ * trivial to guarantee. */
+const PITY_CONFIG: Record<string, { threshold: number; targetRarity: Rarity }> = {
+  "it-mythic-ticket": { threshold: 20, targetRarity: "Mythic" },
+  "it-legendary-ticket": { threshold: 100, targetRarity: "LR" },
+};
+
+/** One roll's worth of the original odds table, factored out so rollCreatures can force a
+ * specific rarity (the pity guarantee) without duplicating the odds themselves. */
+function rollOnePull(creatures: Creature[], banner: GachaBanner, forceRarity: Rarity | null): Creature {
   const allLRs = creatures.filter(c => c.rarity === "LR");
   const allMythics = creatures.filter(c => c.rarity === "Mythic");
   const allSSRs = creatures.filter(c => c.rarity === "SSR");
@@ -21,34 +32,62 @@ function rollCreatures(creatures: Creature[], count: number, banner: GachaBanner
   const featuredLRs = allLRs.filter(c => banner.featuredIds.includes(c.id));
   const featuredMythics = allMythics.filter(c => banner.featuredIds.includes(c.id));
 
-  for (let i = 0; i < count; i++) {
-    const roll = Math.random() * 100;
-    let picked;
-
-    if (banner.currencyItemId === "it-legendary-ticket") {
-      if (roll < 5 && featuredLRs.length > 0) picked = featuredLRs[Math.floor(Math.random() * featuredLRs.length)];
-      else if (roll < 7 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
-      else if (roll < 17 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
-      else if (roll < 47 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
-      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
-    } else if (banner.currencyItemId === "it-mythic-ticket") {
-      // Mythic-ticket banner caps out at Mythic — LR (Omega, Abaddo, etc.) never drops here,
-      // only from the dedicated LR banners.
-      if (roll < 7 && featuredMythics.length > 0) picked = featuredMythics[Math.floor(Math.random() * featuredMythics.length)];
-      else if (roll < 15 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
-      else if (roll < 45 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
-      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
-    } else {
-      if (roll < 3 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
-      else if (roll < 15 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
-      else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
-    }
-
-    if (!picked) picked = creatures[0];
-    
-    result.push(picked);
+  if (forceRarity === "LR" && allLRs.length > 0) {
+    const pool = featuredLRs.length > 0 ? featuredLRs : allLRs;
+    return pool[Math.floor(Math.random() * pool.length)];
   }
-  return result;
+  if (forceRarity === "Mythic" && allMythics.length > 0) {
+    const pool = featuredMythics.length > 0 ? featuredMythics : allMythics;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const roll = Math.random() * 100;
+  let picked;
+
+  if (banner.currencyItemId === "it-legendary-ticket") {
+    if (roll < 5 && featuredLRs.length > 0) picked = featuredLRs[Math.floor(Math.random() * featuredLRs.length)];
+    else if (roll < 7 && allLRs.length > 0) picked = allLRs[Math.floor(Math.random() * allLRs.length)];
+    else if (roll < 17 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+    else if (roll < 47 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+    else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
+  } else if (banner.currencyItemId === "it-mythic-ticket") {
+    if (roll < 7 && featuredMythics.length > 0) picked = featuredMythics[Math.floor(Math.random() * featuredMythics.length)];
+    else if (roll < 15 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+    else if (roll < 45 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+    else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
+  } else {
+    if (roll < 3 && allMythics.length > 0) picked = allMythics[Math.floor(Math.random() * allMythics.length)];
+    else if (roll < 15 && allSSRs.length > 0) picked = allSSRs[Math.floor(Math.random() * allSSRs.length)];
+    else if (allRares.length > 0) picked = allRares[Math.floor(Math.random() * allRares.length)];
+  }
+
+  if (!picked) picked = creatures[0];
+  return picked;
+}
+
+/** Rolls `count` pulls, advancing (and satisfying) the banner currency's pity counter one pull
+ * at a time — a x10 multi-pull is 10 individual chances to trip the guarantee, not one. */
+function rollCreatures(
+  creatures: Creature[],
+  count: number,
+  banner: GachaBanner,
+  startingPity: number
+): { results: Creature[]; endingPity: number } {
+  const config = banner.currencyItemId ? PITY_CONFIG[banner.currencyItemId] : undefined;
+  const results: Creature[] = [];
+  let pity = startingPity;
+
+  for (let i = 0; i < count; i++) {
+    pity += 1;
+    const forceRarity = config && pity >= config.threshold ? config.targetRarity : null;
+    const picked = rollOnePull(creatures, banner, forceRarity);
+    results.push(picked);
+    if (config && picked.rarity === config.targetRarity) {
+      pity = 0;
+    }
+  }
+
+  return { results, endingPity: pity };
 }
 
 export default function GachaPage() {
@@ -59,9 +98,14 @@ export default function GachaPage() {
   const consumeItem = useGameStore((s) => s.consumeItem);
   const grantCreature = useGameStore((s) => s.grantCreature);
   const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
+  const gachaPityCounters = useGameStore((s) => s.gachaPityCounters);
+  const setGachaPityCount = useGameStore((s) => s.setGachaPityCount);
   const [results, setResults] = useState<Creature[] | null>(null);
 
   const banner = GACHA_BANNERS[activeIndex];
+  const pityInfo = banner.currencyItemId ? PITY_CONFIG[banner.currencyItemId] : undefined;
+  const pityCount = (banner.currencyItemId && gachaPityCounters[banner.currencyItemId]) || 0;
+  const currencyItem = banner.currencyItemId ? ITEM_CATALOG.find((i) => i.id === banner.currencyItemId) : undefined;
 
   const handleSummon = (count: number, cost: number) => {
     if (banner.currencyType === "item" && banner.currencyItemId) {
@@ -69,7 +113,9 @@ export default function GachaPage() {
     } else {
       if (!spendGems(cost)) return;
     }
-    const rolled = rollCreatures(GACHA_CREATURE_POOL, count, banner);
+    const startingPity = (banner.currencyItemId && gachaPityCounters[banner.currencyItemId]) || 0;
+    const { results: rolled, endingPity } = rollCreatures(GACHA_CREATURE_POOL, count, banner, startingPity);
+    if (banner.currencyItemId) setGachaPityCount(banner.currencyItemId, endingPity);
     rolled.forEach(c => grantCreature(c.id));
     // Persisting the pull itself was missing entirely — rolled creatures only ever lived in local
     // state, silently vanishing on the next refresh (same class of bug as the gift-claim issue
@@ -103,6 +149,29 @@ export default function GachaPage() {
           <p className="text-xs text-zinc-500 lg:text-sm">{banner.tagline}</p>
         </div>
 
+        {currencyItem && (
+          <div className="mx-auto mt-2 flex w-fit items-center gap-2 rounded-full border border-arcade-border bg-arcade-panel-light px-3 py-1 lg:px-4 lg:py-1.5">
+            <img src={currencyItem.icon} alt={currencyItem.name} className="h-6 w-6 lg:h-7 lg:w-7" />
+            <span className="text-sm font-bold text-foreground lg:text-base">{getCurrencyAmount(banner)}</span>
+            <span className="text-xs text-zinc-500 lg:text-sm">owned</span>
+          </div>
+        )}
+
+        {pityInfo && (
+          <div className="mx-auto mt-3 max-w-xs lg:max-w-sm">
+            <div className="flex items-center justify-between text-xs font-mono text-zinc-500 lg:text-sm">
+              <span>Pity to guaranteed {pityInfo.targetRarity}</span>
+              <span className="font-bold text-gold-bright">{pityCount}/{pityInfo.threshold}</span>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full border border-arcade-border bg-arcade-panel-light">
+              <div
+                className="h-full bg-gradient-to-r from-gold to-gold-bright transition-all duration-500"
+                style={{ width: `${Math.min(100, (pityCount / pityInfo.threshold) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-2 gap-3 lg:mt-6 lg:gap-4">
           <MenuBannerButton
             image="/assets/events/summon_button.png"
@@ -111,8 +180,8 @@ export default function GachaPage() {
             disabled={getCurrencyAmount(banner) < banner.singlePullCost}
             onClick={() => handleSummon(1, banner.singlePullCost)}
             caption={
-              <span className="flex items-center justify-center gap-1 text-[10px] font-normal text-zinc-500 lg:text-xs">
-                {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.singlePullCost}
+              <span className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-600 lg:text-base">
+                {currencyItem ? <img src={currencyItem.icon} alt="" className="h-4 w-4 lg:h-8 lg:w-8" /> : <CrownIcon className="h-4 w-4 lg:h-8 lg:w-8" />} {banner.singlePullCost}
               </span>
             }
           />
@@ -123,8 +192,8 @@ export default function GachaPage() {
             disabled={getCurrencyAmount(banner) < banner.multiPullCost}
             onClick={() => handleSummon(banner.multiPullCount, banner.multiPullCost)}
             caption={
-              <span className="flex items-center justify-center gap-1 text-[10px] font-normal text-zinc-500 lg:text-xs">
-                {banner.currencyType === "item" ? <TicketIcon className="h-3 w-3" /> : <CrownIcon className="h-3 w-3" />} {banner.multiPullCost}
+              <span className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-600 lg:text-base">
+                {currencyItem ? <img src={currencyItem.icon} alt="" className="h-4 w-4 lg:h-8 lg:w-8" /> : <CrownIcon className="h-4 w-4 lg:h-8 lg:w-8" />} {banner.multiPullCost}
               </span>
             }
           />

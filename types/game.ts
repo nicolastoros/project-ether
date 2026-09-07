@@ -244,6 +244,9 @@ export interface UserProfile {
   avatarKey: string;
   isAdmin: boolean;
   dailyEventAttempts?: Record<string, number>;
+  /** "YYYY-MM-DD" this account's dailyEventAttempts counts were last reset for — see
+   * lib/store.ts's ensureFreshEventAttempts. */
+  dailyEventAttemptsDate?: string;
 }
 
 export type GachaBannerType = "Creature" | "Equipment";

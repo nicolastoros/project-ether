@@ -113,6 +113,7 @@ export async function POST(request: Request) {
     dungeonPerfectStages,
     currencies,
     dailyEventAttempts,
+    dailyEventAttemptsDate,
     items,
     dailyTasksState,
   } = body as Record<string, unknown>;
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
       (!Array.isArray(dungeonPerfectStages) || !dungeonPerfectStages.every((s) => typeof s === "string"))) ||
     (currencies !== undefined && !isSyncCurrencies(currencies)) ||
     (items !== undefined && !Array.isArray(items)) ||
+    (dailyEventAttemptsDate !== undefined && typeof dailyEventAttemptsDate !== "string") ||
     (dailyTasksState !== undefined && !isSyncDailyTasksState(dailyTasksState))
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -141,6 +143,7 @@ export async function POST(request: Request) {
       dungeonPerfectStages: dungeonPerfectStages as string[] | undefined,
       currencies: currencies as SyncCurrencies | undefined,
       dailyEventAttempts: dailyEventAttempts as Record<string, number> | undefined,
+      dailyEventAttemptsDate: dailyEventAttemptsDate as string | undefined,
       items: items !== undefined ? (items as unknown[]).filter(isSyncItem) : undefined,
       dailyTasksState: dailyTasksState as SyncDailyTasksState | undefined,
     });

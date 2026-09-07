@@ -29,7 +29,7 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
   "/events": {
     id: "events",
     title: "Events",
-    body: "Limited-time content — right now, Hidden Training stages that reward extra items and EXP.",
+    body: "Hidden Training — battle elementals for Orbs to awaken your Digimon's hidden potential. Attempts reset every day, so check back daily.",
   },
   "/raid": {
     id: "raid",

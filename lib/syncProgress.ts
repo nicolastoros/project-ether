@@ -73,6 +73,7 @@ export function syncProgressToServer(): void {
         lastEnergyTickAt: currencies.lastEnergyTickAt 
       },
       dailyEventAttempts: profile.dailyEventAttempts,
+      dailyEventAttemptsDate: profile.dailyEventAttemptsDate,
       dailyTasksState: {
         date: dailyTasksDate,
         tasks: Object.fromEntries(dailyTasks.map((t) => [t.id, { progress: t.progress, claimed: t.claimed }])),

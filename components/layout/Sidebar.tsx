@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Settings, UserCircle2, LogOut } from "lucide-react";
 import { MAX_LEVEL } from "@/lib/gameData";
+import { ORB_EVENTS } from "@/lib/eventData";
 import { useGameStore } from "@/lib/store";
 import { getNavGroups } from "@/lib/navigation";
-import { cn, xpPercent } from "@/lib/utils";
+import { cn, todayDateString, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { NewBadge } from "@/components/ui/NewBadge";
 
@@ -54,8 +55,17 @@ export function Sidebar() {
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
+  const dailyEventAttempts = useGameStore((s) => s.profile.dailyEventAttempts);
+  const dailyEventAttemptsDate = useGameStore((s) => s.profile.dailyEventAttemptsDate);
   const router = useRouter();
   const navGroups = getNavGroups(profile.isAdmin);
+
+  // True whenever at least one Hidden Training element still has an unused attempt today — a
+  // fresh (or stale, i.e. not-yet-reset-locally) date counts every attempt as available, same
+  // "reset on stale date" logic as lib/store.ts's ensureFreshEventAttempts.
+  const hasAvailableEventAttempts =
+    dailyEventAttemptsDate !== todayDateString() ||
+    ORB_EVENTS.some((ev) => (dailyEventAttempts?.[ev.id] || 0) < ev.maxDailyAttempts);
 
   return (
     <aside className="sidebar-surface sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex xl:w-72 2xl:w-80">
@@ -102,7 +112,7 @@ export function Sidebar() {
                         {href === "/inventory" && hasUnseenInventory && (
                           <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-white" />
                         )}
-                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0)) && (
+                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0) || (href === "/events" && hasAvailableEventAttempts)) && (
                           <NewBadge className="-right-2 -top-2" />
                         )}
                       </span>

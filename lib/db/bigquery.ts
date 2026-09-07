@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { BigQuery } from "@google-cloud/bigquery";
-import { STARTER_CREATURES, applyAwakenBump } from "@/lib/gameData";
+import { GACHA_CREATURE_POOL, STARTER_CREATURES, applyAwakenBump } from "@/lib/gameData";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 
 const PROJECT_ID = process.env.BIGQUERY_PROJECT_ID ?? "project-scrappy-intelic";
@@ -173,6 +173,7 @@ export interface AccountBundle {
     expToNextLevel: number;
     isAdmin: boolean;
     dailyEventAttempts?: Record<string, number>;
+    dailyEventAttemptsDate?: string;
   };
   currencies: {
     gold: number;
@@ -282,7 +283,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_missions_state, achievements
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_missions_state, achievements
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -389,7 +390,10 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
 
   if (userRow.is_admin) {
     const ownedIds = new Set(creatureRows.map((row: any) => row.creature_id));
-    const missing = STARTER_CREATURES.filter((c) => !ownedIds.has(c.id));
+    // GACHA_CREATURE_POOL, not STARTER_CREATURES — raid bosses (anything under
+    // assets/creatures/raid_bosses) are raid-exclusive encounters, not player-collectible
+    // monsters, so admins shouldn't get them auto-granted into their roster either.
+    const missing = GACHA_CREATURE_POOL.filter((c) => !ownedIds.has(c.id));
     if (missing.length > 0) {
       try {
         const rowsToInsert = missing.map((c) => ({
@@ -467,6 +471,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       expToNextLevel: userRow.exp_to_next_level,
       isAdmin: Boolean(userRow.is_admin),
       dailyEventAttempts: userRow.daily_event_attempts ? JSON.parse(userRow.daily_event_attempts) : {},
+      dailyEventAttemptsDate: userRow.daily_event_attempts_date || "",
     },
     currencies: currencyRow
       ? {
@@ -561,6 +566,7 @@ export async function syncPlayerProgress(
      * the next fresh hydrate. */
     currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
     dailyEventAttempts?: Record<string, number>;
+    dailyEventAttemptsDate?: string;
     items?: { itemId: string; quantity: number }[];
     /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
      * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
@@ -584,6 +590,7 @@ export async function syncPlayerProgress(
         UPDATE ${table("users")}
         SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
         ${opts.dailyEventAttempts ? ', daily_event_attempts = @dailyEventAttempts' : ''}
+        ${opts.dailyEventAttemptsDate ? ', daily_event_attempts_date = @dailyEventAttemptsDate' : ''}
         ${opts.dailyTasksState ? ', daily_missions_state = @dailyTasksState' : ''}
         WHERE id = @userId
       `,
@@ -593,6 +600,7 @@ export async function syncPlayerProgress(
         exp: opts.exp,
         expToNextLevel: opts.expToNextLevel,
         ...(opts.dailyEventAttempts && { dailyEventAttempts: JSON.stringify(opts.dailyEventAttempts) }),
+        ...(opts.dailyEventAttemptsDate && { dailyEventAttemptsDate: opts.dailyEventAttemptsDate }),
         ...(opts.dailyTasksState && { dailyTasksState: JSON.stringify(opts.dailyTasksState) }),
       },
     }),

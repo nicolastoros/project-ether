@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, SlidersHorizontal, Star, X, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gauge, Search, SlidersHorizontal, Star, X, Zap } from "lucide-react";
 import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
 import { ELEMENT_GRADIENT, ELEMENT_ICON } from "@/lib/elementVisuals";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -15,10 +15,28 @@ import { ElementFilterGroup, RarityLevelFilterGroup } from "@/components/monster
 import { CreatureDetailModal } from "@/components/monsters/CreatureDetailModal";
 import type { Creature, Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
-import { sortCreaturesByRarity } from "@/lib/gameData";
+import { RARITY_BORDER_CLASS, sortCreaturesByRarity } from "@/lib/gameData";
+import { creaturePower, partyPower } from "@/lib/power";
 
 const ELEMENTS = Object.keys(ELEMENT_ICON) as Element[];
 const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic", "LR"];
+
+type SortKey = "rarity" | "power" | "level" | "name";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "rarity", label: "Rarity" },
+  { value: "power", label: "Power" },
+  { value: "level", label: "Level" },
+  { value: "name", label: "Name" },
+];
+
+function sortCreatures(creatures: Creature[], sortBy: SortKey): Creature[] {
+  if (sortBy === "power") return [...creatures].sort((a, b) => creaturePower(b) - creaturePower(a));
+  if (sortBy === "level")
+    return [...creatures].sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
+  if (sortBy === "name") return [...creatures].sort((a, b) => a.name.localeCompare(b.name));
+  return sortCreaturesByRarity(creatures);
+}
 
 interface MonsterCardProps {
   creature: Creature;
@@ -50,7 +68,7 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
         accent={isActive ? "gold" : "none"}
         className={cn(
           "relative flex flex-col gap-2 p-2.5 transition-all duration-200 sm:p-3",
-          !isActive && "hover:border-gold",
+          !isActive && ["border-2", RARITY_BORDER_CLASS[creature.rarity], "hover:border-gold"],
           "hover:-translate-y-1 hover:shadow-lg"
         )}
       >
@@ -78,7 +96,7 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
 
         <div
           className={cn(
-            "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-gold bg-gradient-to-b pixel-frame transition-transform duration-300",
+            "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-b shadow-inner transition-transform duration-300",
             ELEMENT_GRADIENT[creature.element],
             hovered && "scale-[1.04]"
           )}
@@ -94,6 +112,10 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
           <p className="text-[10px] text-zinc-600">
             {creature.element} · Stage {creature.stage} · Lv.{creature.level}
           </p>
+          <p className="mt-0.5 flex items-center justify-center gap-1 font-mono text-[11px] font-bold text-gold-bright sm:text-xs">
+            <Gauge className="h-3 w-3" />
+            {creaturePower(creature).toLocaleString()}
+          </p>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
             <RarityBadge rarity={creature.rarity} />
             {creature.copies > 1 && (
@@ -108,22 +130,6 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
               </span>
             )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-1 text-center sm:gap-1.5">
-          {(
-            [
-              ["HP", creature.baseStats.hp],
-              ["ATK", creature.baseStats.atk],
-              ["DEF", creature.baseStats.def],
-              ["SPD", creature.baseStats.spd],
-            ] as const
-          ).map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-lg border border-arcade-border bg-arcade-panel-light px-0.5 py-1">
-              <p className="truncate text-[7px] uppercase tracking-wide text-zinc-600 sm:text-[8px]">{label}</p>
-              <p className="truncate font-mono text-[9px] font-semibold text-foreground sm:text-xs">{value}</p>
-            </div>
-          ))}
         </div>
       </GlowPanel>
     </div>
@@ -186,8 +192,12 @@ export default function MonstersPage() {
   const [selectedRarities, setSelectedRarities] = useState<Set<Rarity>>(new Set());
   const [minLevel, setMinLevel] = useState("");
   const [maxLevel, setMaxLevel] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("rarity");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(0);
+
+  const totalPower = useMemo(() => partyPower(creatures), [creatures]);
 
   const toggleElement = (el: Element) =>
     setSelectedElements((prev) => {
@@ -215,15 +225,17 @@ export default function MonstersPage() {
   const filteredCreatures = useMemo(() => {
     const min = minLevel === "" ? null : Number(minLevel);
     const max = maxLevel === "" ? null : Number(maxLevel);
+    const query = search.trim().toLowerCase();
     const filtered = creatures.filter((c) => {
+      if (query && !c.name.toLowerCase().includes(query)) return false;
       if (selectedElements.size > 0 && !selectedElements.has(c.element)) return false;
       if (selectedRarities.size > 0 && !selectedRarities.has(c.rarity)) return false;
       if (min !== null && c.level < min) return false;
       if (max !== null && c.level > max) return false;
       return true;
     });
-    return sortCreaturesByRarity(filtered);
-  }, [creatures, selectedElements, selectedRarities, minLevel, maxLevel]);
+    return sortCreatures(filtered, sortBy);
+  }, [creatures, selectedElements, selectedRarities, minLevel, maxLevel, search, sortBy]);
 
   const activeFilterCount =
     selectedElements.size + selectedRarities.size + (minLevel !== "" ? 1 : 0) + (maxLevel !== "" ? 1 : 0);
@@ -232,7 +244,7 @@ export default function MonstersPage() {
   // adjusting state during render, per React's guidance, instead of a setState-in-effect.
   const filterSignature = `${[...selectedElements].sort().join(",")}|${[...selectedRarities]
     .sort()
-    .join(",")}|${minLevel}|${maxLevel}`;
+    .join(",")}|${minLevel}|${maxLevel}|${search}|${sortBy}`;
   const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature);
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature);
@@ -273,6 +285,38 @@ export default function MonstersPage() {
           <Star className="mr-1 inline h-3 w-3 text-gold-bright" />
           Hub team {hubTeamIds.length}/{HUB_TEAM_SIZE} — the rest keep farming EXP in the box.
         </p>
+        <p className="mt-1.5 flex items-center gap-1.5 font-arcade text-sm glow-text-gold">
+          <Gauge className="h-4 w-4" />
+          {totalPower.toLocaleString()}
+          <span className="font-sans text-[10px] font-normal normal-case text-zinc-500">Total Power</span>
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search creatures by name..."
+            className="w-full rounded-xl border border-arcade-border bg-arcade-panel-light py-2 pl-9 pr-3 text-xs text-foreground outline-none focus:border-gold"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">Sort</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            className="rounded-xl border border-arcade-border bg-arcade-panel-light px-2.5 py-2 text-xs text-foreground outline-none focus:border-gold"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Desktop: filters live in the side gutters that opened up once AppShell's max-w grew

@@ -1,0 +1,36 @@
+{
+  "group_id": "2ee93f93-83c0-448e-9cf8-72151fd07cda",
+  "states": [
+    {
+      "character": {
+        "id": "04a7bb21-b0a9-4e3d-8e53-fa3784de2a37",
+        "name": "Idle",
+        "prompt": "Head and Crest: A refined avian head crowned with sharp, metallic silver antennae and swept-back feathered crests. It features a sharp, curved silver beak and piercing glowing cyan eyes, with long ceremonial ribbons draping downward from the crown.\n\nTorso and Robes: The core body is clothed in an ornate, priestly Shinto-inspired tunic made of pristine white fabric with geometric, faceted edges. Instead of red solar patterns, the chest features deep cosmic blue streaks that resemble nebulas and starlight. At the center of its abdomen is a spinning astrolabe and clockwork mechanism orbiting an active, swirling miniature black hole core framed in antique brass gears.\n\nMassive Tarot-Card Wings: Dominating the silhouette is an enormous pair of multi-tiered wings spread wide. Rather than plain white talismans, each row of layered feathers is composed of floating, elongated tarot-like cards with intricate gold-trimmed borders, clockwork gears, and deep space cosmos patterns. The outer edges feature embedded rectangular crystalline prisms and mirrors that reflect distant galaxies, drifting with loose celestial parchment tags.\n\nHakama and Talons: Its lower body is clad in wide, structured hakama pants adorned with deep cosmic gradients, brass filigree dials, and hanging pocket-watch pendulums. It rests on massive, four-toed avian talons forged from white ceramic armor, each toe tipped with multi-faceted diamond-like crystal claws and small bronze gear hinges.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-04T03:14:59.628334+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-06T23:41:58.247092"
+}

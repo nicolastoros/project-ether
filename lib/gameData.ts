@@ -1020,6 +1020,56 @@ export const STARTER_CREATURES: Creature[] = [
     superAttackLevel: 1,
     potentialNodes: [],
   },
+  {
+    id: "cr-chronos",
+    name: "Chronos",
+    element: "Light",
+    rarity: "Mythic",
+    level: 30,
+    exp: 790,
+    expToNextLevel: 1980,
+    stage: 3,
+    spriteKey: "chronos",
+    spriteFolder: "/assets/creatures/chronos/Idle/rotations",
+    // Celestial timekeeper — a clockwork astrolabe core orbits a miniature black hole at its
+    // chest, tarot-card feathers fanned into massive wings. Balanced ATK/bulk, leans support.
+    baseStats: { hp: 1180, atk: 226, def: 158, spd: 142 },
+    skills: [
+      skill("sk-cr-1", "Astrolabe Lance", "The orbiting clockwork core fires a focused beam at one enemy.", "Attack", 182, 0),
+      skill("sk-cr-2", "Temporal Ward", "Winds back the clock on incoming damage, raising own DEF sharply for 2 turns.", "Defense", 0, 3, 5),
+      skill("sk-cr-3", "Event Horizon", "The core's gravity well collapses, dealing heavy damage to all enemies.", "Attack", 136, 4, 15),
+      skill("sk-cr-4", "Chronal Shift", "Passively raises SPD and grants a chance to act again.", "Passive", 0, 0, 19),
+    ],
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+  },
+  {
+    id: "cr-astarion",
+    name: "Astarion",
+    element: "Electric",
+    rarity: "Mythic",
+    level: 29,
+    exp: 770,
+    expToNextLevel: 1960,
+    stage: 3,
+    spriteKey: "astarion",
+    spriteFolder: "/assets/creatures/astarion/Idle/rotations",
+    // Armored wolf beast wreathed in a mantle of cyan spiritual fire, energy plumes venting from
+    // its joints — highest ATK lean of the new batch, glass-cannon speedster.
+    baseStats: { hp: 1080, atk: 252, def: 128, spd: 162 },
+    skills: [
+      skill("sk-as-1", "Voltfang Lunge", "A lightning-charged pounce rakes one enemy with claws.", "Attack", 192, 0),
+      skill("sk-as-2", "Static Mantle", "The spiritual fire mantle flares, raising own ATK and SPD for 2 turns.", "Defense", 0, 3, 5),
+      skill("sk-as-3", "Thunderclap Howl", "A deafening electrified howl shocks all enemies.", "Attack", 140, 4, 14),
+      skill("sk-as-4", "Overcurrent Fangs", "Passively boosts ATK further whenever it lands a critical hit.", "Passive", 0, 0, 18),
+    ],
+    equipment: {},
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+  },
 ];
 
 // Creatures that live under assets/creatures/raid_bosses — these are raid-exclusive encounters
@@ -1164,6 +1214,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   avatarKey: "avatar-default",
   isAdmin: false,
   dailyEventAttempts: {},
+  dailyEventAttemptsDate: "",
 };
 
 // Generic collectible items — Consumable/Quest/Evolution/Skin/Crafting. Equipment (creature gear)
@@ -1481,8 +1532,8 @@ export const GACHA_BANNERS: GachaBanner[] = [
     name: "Legendary Carnival",
     tagline: "Summon the greatest champions.",
     type: "Creature",
-    bannerImage: "/assets/banners/banner_carnival_mythic.jpg",
-    featuredIds: ["cr-blitzfire", "cr-emperortoise"],
+    bannerImage: "/assets/banners/first_mythic_banner.png",
+    featuredIds: ["cr-blazefire", "cr-wolfang", "cr-astarion", "cr-chronos", "cr-emperortoise"],
     singlePullCost: 1,
     multiPullCost: 10,
     multiPullCount: 10,
@@ -1494,7 +1545,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     name: "Omega Awakening",
     tagline: "The absolute pinnacle of power.",
     type: "Creature",
-    bannerImage: "/assets/banners/banner_carnival_omega.jpg",
+    bannerImage: "/assets/banners/omega_banner_legendary.png",
     featuredIds: ["cr-omega"],
     singlePullCost: 1,
     multiPullCost: 10,
@@ -1507,7 +1558,7 @@ export const GACHA_BANNERS: GachaBanner[] = [
     name: "Abyssal Void",
     tagline: "Embrace the inevitable entropy.",
     type: "Creature",
-    bannerImage: "/assets/banners/banner_carnival_abaddo.jpg",
+    bannerImage: "/assets/banners/banner_abaddo_legendary.png",
     featuredIds: ["cr-abaddo"],
     singlePullCost: 1,
     multiPullCost: 10,
@@ -1596,6 +1647,17 @@ export function sortCreaturesByRarity<T extends { rarity: Rarity; level: number;
     return a.name.localeCompare(b.name);
   });
 }
+
+/** Same palette SummonRevealModal uses per rarity, shared here so a creature's rarity reads at a
+ * glance everywhere it's shown persistently (Monsters grid + detail modal), not just in the
+ * one-off pull reveal. */
+export const RARITY_BORDER_CLASS: Record<Rarity, string> = {
+  Common: "border-rarity-common/70",
+  Rare: "border-rarity-rare/70",
+  SSR: "border-rarity-ssr/70",
+  Mythic: "border-rarity-mythic",
+  LR: "border-amber-400",
+};
 
 // Rarity-tiered base + a per-level scalar — mirrors how ITEM_CATALOG.sellPriceGold works for
 // items, just on a scale that reflects a creature actually being the bigger investment.

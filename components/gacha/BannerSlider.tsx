@@ -71,6 +71,19 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
                 animate={{ scale: i === activeIndex ? 1 : 1.07 }}
                 transition={{ duration: 1.4, ease: "easeOut" }}
               >
+                {/* Blurred cover-fill backdrop of the same art, for banners whose native aspect
+                    ratio is narrower than this slider's fixed aspect-video box — fills what would
+                    otherwise be flat black letterbox bars instead of cropping the foreground
+                    image (object-contain below never crops, so nothing is ever cut off). */}
+                <Image
+                  src={banner.bannerImage}
+                  alt=""
+                  aria-hidden
+                  fill
+                  draggable={false}
+                  sizes="(max-width: 1024px) 100vw, 768px"
+                  className="scale-110 object-cover opacity-70 blur-2xl"
+                />
                 <Image
                   src={banner.bannerImage}
                   alt={banner.name}
@@ -78,7 +91,7 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
                   draggable={false}
                   priority={i === 0}
                   sizes="(max-width: 1024px) 100vw, 768px"
-                  className="object-contain"
+                  className="relative object-contain"
                 />
               </motion.div>
             </div>

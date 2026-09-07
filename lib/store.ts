@@ -33,6 +33,7 @@ import {
 } from "@/lib/gameData";
 import { partyPower } from "@/lib/power";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
+import { todayDateString } from "@/lib/utils";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -40,20 +41,6 @@ import type { AccountBundle } from "@/lib/db/bigquery";
 export { HUB_TEAM_SIZE };
 const BOX_EXP_PER_SECOND = 1.5;
 const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
-
-/** "YYYY-MM-DD" in the browser's local timezone — the daily-missions reset boundary. Purely
- * client-local; the server does its own equivalent computation when it generates a fresh day's
- * blob (see lib/db/bigquery.ts's getAccountBundle) rather than trusting a client-sent date, so a
- * little client/server clock skew at most shifts the reset moment by a similar margin, never
- * fabricates progress. */
-function todayDateString(): string {
-  // Built from local getters (not toISOString, which is UTC) so the reset actually lands at local
-  // midnight rather than UTC midnight.
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
 
 function freshDailyTasks(): DailyTask[] {
   return DEFAULT_DAILY_TASKS.map((t) => ({ ...t }));
@@ -75,6 +62,19 @@ function ensureFreshDailyTasks(
 
 export const DAILY_BONUS_GOLD = 2000;
 export const DAILY_BONUS_GEMS = 20;
+
+/** Same reset-on-stale-date pattern as ensureFreshDailyTasks above, for Hidden Training's
+ * per-element daily attempts (lib/eventData.ts's ORB_EVENTS) — these previously never reset at
+ * all (no date was ever stored alongside the counts), so "2 attempts a day" was actually "2
+ * attempts ever" once used. */
+function ensureFreshEventAttempts(
+  attempts: Record<string, number>,
+  attemptsDate: string
+): { attempts: Record<string, number>; date: string } {
+  const today = todayDateString();
+  if (attemptsDate === today) return { attempts, date: today };
+  return { attempts: {}, date: today };
+}
 
 function applyExpGain(creature: Creature, gained: number): Creature {
   if (creature.level >= MAX_LEVEL) return creature;
@@ -205,6 +205,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       avatarKey: bundle.profile.avatarKey,
       isAdmin: bundle.profile.isAdmin,
       dailyEventAttempts: bundle.profile.dailyEventAttempts || {},
+      dailyEventAttemptsDate: bundle.profile.dailyEventAttemptsDate || "",
     },
     currencies: {
       ...bundle.currencies,
@@ -362,6 +363,13 @@ interface GameState {
    * convenience (see the roster's "Favorites only" filter chip), same local-only rationale as
    * seenTutorialTips above, not real progress worth cross-device durability. */
   favoriteCreatureIds: string[];
+  /** Gacha pity: pulls made on each banner currency (keyed by ITEM_CATALOG id, e.g.
+   * "it-mythic-ticket") since that currency's last guaranteed-rarity hit — see
+   * app/(game)/gacha/page.tsx's PITY_CONFIG. Client-only: losing this on a fresh device just
+   * resets a player back to base odds (worse for them, not an exploit), so it doesn't need the
+   * server round-trip favoriteCreatureIds' neighbors above also skip. */
+  gachaPityCounters: Record<string, number>;
+  setGachaPityCount: (currencyItemId: string, count: number) => void;
 
   /** Replaces local profile/currencies/creatures/dungeon with what the server (BigQuery) has on file, right after sign-in or registration. */
   hydrateFromServer: (bundle: AccountBundle) => void;
@@ -471,7 +479,10 @@ interface GameState {
   clearDungeonStage: (stageNumber: number) => void;
 
   claimTask: (taskId: string) => void;
-  consumeEventAttempt: (eventId: string) => boolean;
+  /** Spends one of today's attempts for a Hidden Training event (lib/eventData.ts's
+   * ORB_EVENTS) — false (no-op) if this event has already used all `maxAttempts` today.
+   * Resets automatically the first time it's called after local midnight. */
+  consumeEventAttempt: (eventId: string, maxAttempts: number) => boolean;
 }
 
 export const useGameStore = create<GameState>()(
@@ -534,6 +545,7 @@ export const useGameStore = create<GameState>()(
       attemptedStageIds: [],
       dailyBonusClaimed: false,
       favoriteCreatureIds: [],
+      gachaPityCounters: {},
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
@@ -597,6 +609,7 @@ export const useGameStore = create<GameState>()(
           activeExpeditions: [],
           teamPresets: [],
           favoriteCreatureIds: [],
+          gachaPityCounters: {},
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
@@ -836,6 +849,10 @@ export const useGameStore = create<GameState>()(
         favoriteCreatureIds: s.favoriteCreatureIds.includes(creatureId)
           ? s.favoriteCreatureIds.filter((id) => id !== creatureId)
           : [...s.favoriteCreatureIds, creatureId]
+      })),
+
+      setGachaPityCount: (currencyItemId, count) => set((s) => ({
+        gachaPityCounters: { ...s.gachaPityCounters, [currencyItemId]: count },
       })),
 
       addGold: (amount) =>
@@ -1218,16 +1235,24 @@ export const useGameStore = create<GameState>()(
           };
         }),
 
-      consumeEventAttempt: (eventId) => {
+      consumeEventAttempt: (eventId, maxAttempts) => {
         const state = get();
-        const currentAttempts = state.profile.dailyEventAttempts?.[eventId] || 0;
-        if (currentAttempts >= 2) return false;
-        
-        set((state) => ({
+        const { attempts, date } = ensureFreshEventAttempts(
+          state.profile.dailyEventAttempts ?? {},
+          state.profile.dailyEventAttemptsDate ?? ""
+        );
+        const currentAttempts = attempts[eventId] || 0;
+        if (currentAttempts >= maxAttempts) {
+          set((s) => ({ profile: { ...s.profile, dailyEventAttempts: attempts, dailyEventAttemptsDate: date } }));
+          return false;
+        }
+
+        set((s) => ({
           profile: {
-            ...state.profile,
+            ...s.profile,
+            dailyEventAttemptsDate: date,
             dailyEventAttempts: {
-              ...state.profile.dailyEventAttempts,
+              ...attempts,
               [eventId]: currentAttempts + 1,
             },
           },

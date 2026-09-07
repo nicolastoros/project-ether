@@ -1,0 +1,55 @@
+{
+  "group_id": "faa0eecb-4541-45b3-9374-882517855245",
+  "states": [
+    {
+      "character": {
+        "id": "269c4fec-a2f5-4d1d-b53c-2f9b19aa3732",
+        "name": "Idle",
+        "prompt": "A massive, armored quadrupedal wolf beast lunging forward in dynamic mid-air combat against a clean white background. It features vibrant cyan and royal-blue fur paired with segmented, polished silver-white plate armor adorned with flowing blue flame engravings. Its lupine head is protected by a sharp silver helmet with pointed wolf ears, piercing red optical eyes, a snarling fanged maw, and braided black cords trailing from its nape. Across its back rests a dark mantle consumed by an immense, billowing blaze of luminous cyan spiritual fire tied with golden rope cords. Its forelimbs are disproportionately massive, encased in heavy armored gauntlets that end in enormous, curved black metal claws. Bright blue energy exhaust plumes flare backward from its mechanical arm and leg joints. A thick, bushy blue wolf tail extends behind, completing a high-speed, cybernetic divine-beast silhouette.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "dog",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-09-05T00:12:58.044218+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "Run": {
+            "south": [
+              "Idle/animations/Run/south/frame_000.png",
+              "Idle/animations/Run/south/frame_001.png",
+              "Idle/animations/Run/south/frame_002.png",
+              "Idle/animations/Run/south/frame_003.png",
+              "Idle/animations/Run/south/frame_004.png",
+              "Idle/animations/Run/south/frame_005.png"
+            ],
+            "south-east": [
+              "Idle/animations/Run/south-east/frame_000.png",
+              "Idle/animations/Run/south-east/frame_001.png",
+              "Idle/animations/Run/south-east/frame_002.png",
+              "Idle/animations/Run/south-east/frame_003.png",
+              "Idle/animations/Run/south-east/frame_004.png",
+              "Idle/animations/Run/south-east/frame_005.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-06T23:52:23.111401"
+}

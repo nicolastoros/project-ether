@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Check, Gift } from "lucide-react";
 import { DAILY_BONUS_GEMS, DAILY_BONUS_GOLD, useGameStore } from "@/lib/store";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -9,26 +8,7 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { syncProgressToServer } from "@/lib/syncProgress";
 import { cn } from "@/lib/utils";
-
-/** "Xh Ym" until local midnight — matches lib/store.ts's todayDateString, which is what actually
- * drives the reset, so this stays accurate to the second it happens rather than an approximation. */
-function useResetCountdown(): string {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const msLeft = midnight.getTime() - now.getTime();
-      const h = Math.floor(msLeft / 3_600_000);
-      const m = Math.floor((msLeft % 3_600_000) / 60_000);
-      setLabel(`${h}h ${m}m`);
-    };
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
-  }, []);
-  return label;
-}
+import { useResetCountdown } from "@/lib/useResetCountdown";
 
 export function DailyTaskList() {
   const dailyTasks = useGameStore((s) => s.dailyTasks);

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Star, X, Zap } from "lucide-react";
+import { ArrowUp, ChevronDown, Gauge, Star, X, Zap } from "lucide-react";
 import type { Creature, Skill } from "@/types/game";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
@@ -11,6 +11,9 @@ import { CreatureName } from "@/components/ui/CreatureName";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { RARITY_BORDER_CLASS } from "@/lib/gameData";
+import { creaturePower } from "@/lib/power";
+import { getPotentialBonuses } from "@/lib/hiddenPotential";
 import { cn, xpPercent } from "@/lib/utils";
 import { useState } from "react";
 import { HiddenPotentialScreen } from "./HiddenPotentialScreen";
@@ -23,6 +26,17 @@ export const SKILL_TYPE_STYLES: Record<Skill["type"], string> = {
   Support: "bg-emerald-500",
   Passive: "bg-violet-500",
 };
+
+// Big Dokkan-style stat tiles instead of a cramped 4-cell number grid — each stat gets its own
+// color identity so a glance tells ATK from DEF from SPD, and `boostKey` maps to
+// getPotentialBonuses' output so a stat raised by Hidden Potential nodes gets a small up-arrow
+// badge (the same "this got buffed" cue Dokkan shows on its own stat panel).
+const STAT_TILES: { label: string; key: "hp" | "atk" | "def" | "spd"; boostKey: "hp" | "atk" | "def" | "spd"; classes: string }[] = [
+  { label: "HP", key: "hp", boostKey: "hp", classes: "border-red-300 bg-red-50 text-red-700" },
+  { label: "ATK", key: "atk", boostKey: "atk", classes: "border-orange-300 bg-orange-50 text-orange-700" },
+  { label: "DEF", key: "def", boostKey: "def", classes: "border-sky-300 bg-sky-50 text-sky-700" },
+  { label: "SPD", key: "spd", boostKey: "spd", classes: "border-emerald-300 bg-emerald-50 text-emerald-700" },
+];
 
 interface CreatureDetailModalProps {
   creature: Creature | null;
@@ -48,6 +62,9 @@ export function CreatureDetailModal({
   const [showPotential, setShowPotential] = useState(false);
   const [showSA, setShowSA] = useState(false);
   const [showAwaken, setShowAwaken] = useState(false);
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+
+  const potentialBonuses = creature ? getPotentialBonuses(creature.potentialNodes) : null;
 
   if (showPotential && creature) {
     return <HiddenPotentialScreen creature={creature} onClose={() => setShowPotential(false)} />;
@@ -78,7 +95,10 @@ export function CreatureDetailModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-arcade-border bg-arcade-panel shadow-xl sm:rounded-3xl"
+            className={cn(
+              "relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border-2 bg-arcade-panel shadow-xl sm:rounded-3xl",
+              RARITY_BORDER_CLASS[creature.rarity]
+            )}
           >
             <RarityCardAura rarity={creature.rarity} />
 
@@ -112,6 +132,10 @@ export function CreatureDetailModal({
                       <span className="ml-1.5 font-arcade text-gold-bright">×{creature.copies} owned</span>
                     )}
                   </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 font-arcade text-sm glow-text-gold">
+                    <Gauge className="h-4 w-4" />
+                    {creaturePower(creature).toLocaleString()}
+                  </p>
                   {!isHubMember && (
                     <span className="mt-1 inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600">
                       <Zap className="h-3 w-3 animate-pulse" />
@@ -122,8 +146,29 @@ export function CreatureDetailModal({
                 <RarityBadge rarity={creature.rarity} />
               </div>
 
-              <div className="mt-3 space-y-2">
-                <ProgressBar percent={100} color="hp" label={`HP ${creature.baseStats.hp}`} />
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                {STAT_TILES.map((tile) => {
+                  const boosted = (potentialBonuses?.[tile.boostKey] ?? 0) > 0;
+                  return (
+                    <div
+                      key={tile.key}
+                      className={cn("relative min-w-0 rounded-2xl border-2 px-1 py-2", tile.classes)}
+                    >
+                      {boosted && (
+                        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm">
+                          <ArrowUp className="h-2.5 w-2.5" strokeWidth={3} />
+                        </span>
+                      )}
+                      <p className="truncate text-[9px] font-bold uppercase tracking-wide opacity-70">{tile.label}</p>
+                      <p className="truncate font-mono text-lg font-bold leading-tight sm:text-xl">
+                        {creature.baseStats[tile.key]}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3">
                 <ProgressBar
                   percent={xpPercent(creature.exp, creature.expToNextLevel)}
                   color="exp"
@@ -132,24 +177,17 @@ export function CreatureDetailModal({
                 />
               </div>
 
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                {(
-                  [
-                    ["ATK", creature.baseStats.atk],
-                    ["DEF", creature.baseStats.def],
-                    ["SPD", creature.baseStats.spd],
-                    ["HP", creature.baseStats.hp],
-                  ] as const
-                ).map(([label, value]) => (
-                  <div key={label} className="min-w-0 rounded-xl border border-arcade-border bg-arcade-panel-light px-1 py-1.5">
-                    <p className="truncate text-[9px] uppercase tracking-wide text-zinc-600">{label}</p>
-                    <p className="truncate font-mono text-[11px] font-semibold text-foreground sm:text-sm">{value}</p>
-                  </div>
-                ))}
-              </div>
-
               <div className="mt-4">
-                <h3 className="font-arcade text-xs glow-text-neon">Skills</h3>
+                <button
+                  onClick={() => setSkillsExpanded((v) => !v)}
+                  className="flex w-full items-center justify-between"
+                >
+                  <h3 className="font-arcade text-xs glow-text-neon">Skills</h3>
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-zinc-500">
+                    {skillsExpanded ? "Hide Details" : "View Details"}
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", skillsExpanded && "rotate-180")} />
+                  </span>
+                </button>
                 <ul className="mt-2 space-y-2">
                   {creature.skills.map((skill) => (
                     <li
@@ -167,12 +205,16 @@ export function CreatureDetailModal({
                           {skill.type}
                         </span>
                       </div>
-                      <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
-                      <p className="mt-1 text-[9px] text-zinc-500">
-                        {skill.power > 0 && `Power ${skill.power} · `}
-                        {skill.cooldown > 0 && `Cooldown ${skill.cooldown}t · `}
-                        Unlocks at Lv.{skill.unlockLevel}
-                      </p>
+                      {skillsExpanded && (
+                        <>
+                          <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
+                          <p className="mt-1 text-[9px] text-zinc-500">
+                            {skill.power > 0 && `Power ${skill.power} · `}
+                            {skill.cooldown > 0 && `Cooldown ${skill.cooldown}t · `}
+                            Unlocks at Lv.{skill.unlockLevel}
+                          </p>
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>

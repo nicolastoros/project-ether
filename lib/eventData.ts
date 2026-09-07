@@ -24,7 +24,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Blazing Fire Orbs",
     description: "Defeat Fire enemies to earn Fire Orbs for Potential Training.",
     element: "Fire",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -37,7 +37,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Crashing Water Orbs",
     description: "Defeat Water enemies to earn Water Orbs for Potential Training.",
     element: "Water",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -50,7 +50,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Blooming Nature Orbs",
     description: "Defeat Nature enemies to earn Nature Orbs for Potential Training.",
     element: "Nature",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -63,7 +63,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Radiant Light Orbs",
     description: "Defeat Light enemies to earn Light Orbs for Potential Training.",
     element: "Light",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -76,7 +76,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Abyssal Dark Orbs",
     description: "Defeat Dark enemies to earn Dark Orbs for Potential Training.",
     element: "Dark",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -89,7 +89,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Sparking Electric Orbs",
     description: "Defeat Electric enemies to earn Electric Orbs for Potential Training.",
     element: "Electric",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
@@ -102,7 +102,7 @@ export const ORB_EVENTS: GameEvent[] = [
     name: "Basic Neutral Orbs",
     description: "Defeat Neutral enemies to earn Neutral Orbs for Potential Training.",
     element: "Neutral",
-    maxDailyAttempts: 2,
+    maxDailyAttempts: 4,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 20, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 30, medium: 10, large: 0 } },
