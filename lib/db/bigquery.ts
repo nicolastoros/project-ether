@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { BigQuery } from "@google-cloud/bigquery";
 import { GACHA_CREATURE_POOL, STARTER_CREATURES, applyAwakenBump } from "@/lib/gameData";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
+import { creaturePower } from "@/lib/power";
 
 const PROJECT_ID = process.env.BIGQUERY_PROJECT_ID ?? "project-scrappy-intelic";
 const DATASET = process.env.BIGQUERY_DATASET ?? "project_ether";
@@ -1618,6 +1619,97 @@ export async function searchUsersForAdmin(query: string, limit = 20): Promise<Ad
     isBanned: Boolean(r.is_banned),
     createdAt: r.created_at?.value ?? r.created_at ?? null,
   }));
+}
+
+export interface GlobalRankingEntry {
+  userId: string;
+  username: string;
+  displayName: string;
+  tamerLevel: number;
+  totalPower: number;
+  creaturesUnlocked: number;
+  /** This account's 3 strongest creatures by power, strongest first — only rendered for the top 3
+   * ranked accounts (app/(game)/ranking/page.tsx), but computed for everyone here since it falls
+   * out of the same per-creature loop that already builds totalPower. */
+  topCreatures: { creatureId: string; level: number; awakenLevel: number; power: number }[];
+}
+
+/** Global Ranking (app/(game)/ranking/page.tsx) — every real account ranked by total power (sum
+ * of creaturePower, lib/power.ts, across every creature they own), with Tamer level and creatures-
+ * unlocked count alongside for a fuller picture. Admin accounts are excluded on purpose: they get
+ * every creature auto-granted (see getAccountBundle's admin backfill above) and would otherwise
+ * always sit at #1, defeating the point of a ranking meant to promote competition between real
+ * players — banned accounts are excluded for the same "this isn't a real competitor" reason.
+ * Computed fresh on every call (no caching/precomputation) — cheap at the current account count;
+ * revisit if the player base ever grows enough for this to matter. */
+export async function getGlobalRanking(): Promise<GlobalRankingEntry[]> {
+  const [userResult, creatureResult] = await Promise.all([
+    bq().query({
+      query: `
+        SELECT id, username, display_name, level
+        FROM ${table("users")}
+        WHERE is_admin = false AND is_banned = false
+      `,
+    }),
+    bq().query({
+      query: `
+        SELECT uc.user_id, uc.creature_id, uc.level, uc.potential_nodes, uc.awaken_level
+        FROM ${table("user_creatures")} uc
+        JOIN ${table("users")} u ON u.id = uc.user_id
+        WHERE u.is_admin = false AND u.is_banned = false
+      `,
+    }),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const creaturesByUser = new Map<string, any[]>();
+  for (const row of creatureResult[0]) {
+    const list = creaturesByUser.get(row.user_id) ?? [];
+    list.push(row);
+    creaturesByUser.set(row.user_id, list);
+  }
+
+  const catalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries: GlobalRankingEntry[] = userResult[0].map((u: any) => {
+    const rows = creaturesByUser.get(u.id) ?? [];
+    let totalPower = 0;
+    const creaturePowers: { creatureId: string; level: number; awakenLevel: number; power: number }[] = [];
+    for (const row of rows) {
+      const base = catalogById.get(row.creature_id);
+      if (!base) continue;
+      const potentialNodes: string[] = row.potential_nodes ? row.potential_nodes.split(",") : [];
+      const pot = getPotentialBonuses(potentialNodes);
+      const awakenLevel = row.awaken_level ?? 0;
+      const awakenedBase =
+        awakenLevel >= 1 ? applyAwakenBump(base.rarity, base.baseStats).baseStats : base.baseStats;
+      const power = creaturePower({
+        level: row.level,
+        baseStats: {
+          hp: awakenedBase.hp + 8 * (row.level - 1) + pot.hp,
+          atk: awakenedBase.atk + 3 * (row.level - 1) + pot.atk,
+          def: awakenedBase.def + 2 * (row.level - 1) + pot.def,
+          spd: awakenedBase.spd + 1 * (row.level - 1) + pot.spd,
+        },
+      });
+      totalPower += power;
+      creaturePowers.push({ creatureId: row.creature_id, level: row.level, awakenLevel, power });
+    }
+    creaturePowers.sort((a, b) => b.power - a.power);
+    return {
+      userId: u.id,
+      username: u.username,
+      displayName: u.display_name || u.username,
+      tamerLevel: u.level,
+      totalPower,
+      creaturesUnlocked: rows.length,
+      topCreatures: creaturePowers.slice(0, 3),
+    };
+  });
+
+  entries.sort((a, b) => b.totalPower - a.totalPower);
+  return entries;
 }
 
 export interface AdminUserDetail extends AdminUserSummary {

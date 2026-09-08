@@ -10,7 +10,7 @@ const ACTIONS = [
   // in as a fourth identical white box.
   { href: "/gacha", label: "Summon", icon: Sparkles, accent: "text-gold-bright", featured: true },
   { href: "/inventory", label: "Blacksmith", icon: ShieldHalf, accent: "text-gold-bright", featured: false },
-  { href: "/pvp", label: "Arena", icon: Trophy, accent: "text-violet-500", featured: false },
+  { href: "/ranking", label: "Ranking", icon: Trophy, accent: "text-violet-500", featured: false },
 ] as const;
 
 export function QuickActions() {

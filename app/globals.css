@@ -139,6 +139,35 @@ body {
   display: none;
 }
 
+/* Global Ranking's top-3 treatment (app/(game)/ranking/page.tsx) — same shimmering-gradient
+   technique as .badge-lr-shimmer above, just swept across the full rainbow spectrum since only
+   the top 3 rows on the whole board ever get it. Used as a thin animated "border": a wrapper div
+   gets this as its background plus a couple px of padding, and the real (opaque) row content sits
+   inside — the gradient only ever shows through that padding gap, reading as a glowing ring. */
+@keyframes rainbow-border-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+.rainbow-border {
+  background-image: linear-gradient(
+    115deg,
+    #ff3b3b,
+    #ff9a3b,
+    #ffe23b,
+    #3bff6a,
+    #3bcaff,
+    #7a5cff,
+    #ff3bd6,
+    #ff3b3b
+  );
+  background-size: 200% 100%;
+  animation: rainbow-border-shimmer 3s linear infinite;
+}
+
 /* Sync-gate loading disc (see components/ui/LoadingOverlay.tsx) — spins counter-clockwise, as
    requested, unlike Tailwind's built-in animate-spin (clockwise). */
 @keyframes loading-disc-spin {

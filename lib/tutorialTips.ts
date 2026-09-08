@@ -46,10 +46,10 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
     title: "Summon",
     body: "Spend Gems or tickets to summon new creatures and equipment — Multi-Summon pulls several at once for a better rate on rarer ones.",
   },
-  "/pvp": {
-    id: "pvp",
-    title: "PvP Arena",
-    body: "Battle other players' defense teams to climb the rankings and earn rank-up rewards.",
+  "/ranking": {
+    id: "ranking",
+    title: "Global Ranking",
+    body: "Every Tamer ranked by total power — level up, awaken creatures, and grow your collection to climb the board.",
   },
   "/monsters": {
     id: "monsters",

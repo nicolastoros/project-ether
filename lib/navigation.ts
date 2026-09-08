@@ -41,7 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // Hidden from the menu for now (per the user's request) — the /expeditions route and page
       // are untouched, so re-adding this entry later is a one-line change.
       { href: "/gacha", label: "Summon", icon: Sparkles },
-      { href: "/pvp", label: "PvP Arena", icon: Trophy },
+      { href: "/ranking", label: "Global Ranking", icon: Trophy },
     ],
   },
   {
