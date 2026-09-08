@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { UserCircle2, LogOut, Mail, BookOpen } from "lucide-react";
-import { useState } from "react";
+import { UserCircle2, LogOut, Mail, BookOpen, CalendarDays } from "lucide-react";
+import { useEffect, useState } from "react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
@@ -13,6 +13,7 @@ import { CrownIcon } from "@/components/icons/CrownIcon";
 import { MonsterGuideModal } from "@/components/ui/MonsterGuideModal";
 import { xpPercent } from "@/lib/utils";
 import { GiftsModal } from "./GiftsModal";
+import { DailyLoginModal } from "./DailyLoginModal";
 
 export function TopStatusBar() {
   const profile = useGameStore((s) => s.profile);
@@ -22,6 +23,17 @@ export function TopStatusBar() {
   const router = useRouter();
   const [showGifts, setShowGifts] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showDailyLogin, setShowDailyLogin] = useState(false);
+  const [dailyLoginAvailable, setDailyLoginAvailable] = useState(false);
+
+  // Cheap status-only check so the nav dot only lights up when today's reward is actually still
+  // unclaimed — a plain GET, no claim attempted (see DailyLoginModal for the actual claim flow).
+  useEffect(() => {
+    fetch("/api/user/daily-login")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setDailyLoginAvailable(Boolean(data && !data.claimedToday)))
+      .catch(() => {});
+  }, []);
 
   return (
     <header className="sticky top-0 z-20 border-b border-arcade-border bg-arcade-panel/95 backdrop-blur-sm">
@@ -62,6 +74,19 @@ export function TopStatusBar() {
             )}
           </button>
           <button
+            onClick={() => {
+              setShowDailyLogin(true);
+              setDailyLoginAvailable(false);
+            }}
+            aria-label="Daily Login Rewards"
+            className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright"
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+            {dailyLoginAvailable && (
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+            )}
+          </button>
+          <button
             onClick={() => setShowGuide(true)}
             aria-label="Monster Guide"
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-[#38bdf8] hover:text-[#0e7490]"
@@ -92,6 +117,7 @@ export function TopStatusBar() {
       </div>
 
       <GiftsModal isOpen={showGifts} onClose={() => setShowGifts(false)} />
+      <DailyLoginModal isOpen={showDailyLogin} onClose={() => setShowDailyLogin(false)} />
       <MonsterGuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </header>
   );

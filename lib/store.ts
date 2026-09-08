@@ -39,8 +39,6 @@ import { todayDateString } from "@/lib/utils";
 import type { AccountBundle } from "@/lib/db/bigquery";
 
 export { HUB_TEAM_SIZE };
-const BOX_EXP_PER_SECOND = 1.5;
-const MAX_TICK_SECONDS = 6 * 60 * 60; // cap catch-up so a long-idle tab can't grant absurd EXP
 
 function freshDailyTasks(): DailyTask[] {
   return DEFAULT_DAILY_TASKS.map((t) => ({ ...t }));
@@ -132,6 +130,42 @@ function applyProfileExpGain(profile: UserProfile, gained: number): UserProfile 
   return { ...profile, level, exp: Math.round(exp), expToNextLevel };
 }
 
+/** A single comparable "how far along is this creature" score — level dominates, then exp within
+ * that level, then Hidden Potential nodes and Super Attack training as tie-breakers. Used by
+ * reconcileCreatureProgress below; never persisted or sent anywhere, just a local ranking. */
+function creatureProgressScore(c: Creature): number {
+  return c.level * 1_000_000 + c.exp + c.potentialNodes.length * 1_000 + c.superAttackLevel * 100;
+}
+
+/** Whichever side — the server bundle just fetched, or whatever's already sitting in the store —
+ * represents strictly more progress for this creature wins ALL of its progress fields together
+ * (never mixed field-by-field, which could pair a level with the wrong potential-derived
+ * baseStats). This guards against a real, confirmed bug: syncProgressToServer (see
+ * lib/syncProgress.ts) is fire-and-forget and only reliably lands a few hundred ms to a couple
+ * seconds later (BigQuery's own DML job latency), while a page reload's refreshAccountInStore
+ * re-fetches the server bundle right away — its waitForPendingSync guard only tracks requests
+ * still in flight *within the same page load*, so it can't know about one orphaned by a reload
+ * that happened moments after a battle ended. Without this, leveling up (or unlocking a Hidden
+ * Potential node) and then reloading shortly after — closing and reopening the tab, a hard
+ * refresh, anything that re-mounts the app — silently rolled that progress back to whatever the
+ * server had a moment before. Identity fields (name/sprite/rarity/skills/...) and ownership
+ * fields (copies/awakenLevel, both already synced through their own dedicated grant endpoints)
+ * always come from the server regardless — only the fields a battle/potential-unlock actually
+ * touches are contested here. */
+function reconcileCreatureProgress(serverCreature: Creature, localCreature: Creature | undefined): Creature {
+  if (!localCreature) return serverCreature;
+  const winner = creatureProgressScore(localCreature) > creatureProgressScore(serverCreature) ? localCreature : serverCreature;
+  return {
+    ...serverCreature,
+    level: winner.level,
+    exp: winner.exp,
+    expToNextLevel: winner.expToNextLevel,
+    baseStats: winner.baseStats,
+    potentialNodes: winner.potentialNodes,
+    superAttackLevel: winner.superAttackLevel,
+  };
+}
+
 /** Shared server-bundle → store-fields mapping used by both hydrateFromServer (fresh sign-in,
  * full reset) and refreshFromServer (an already-open session picking up server-side changes) —
  * see their respective doc comments on GameState for how the two differ. */
@@ -206,6 +240,7 @@ function bundleToStateFields(bundle: AccountBundle) {
       isAdmin: bundle.profile.isAdmin,
       dailyEventAttempts: bundle.profile.dailyEventAttempts || {},
       dailyEventAttemptsDate: bundle.profile.dailyEventAttemptsDate || "",
+      hasReceivedStarterGifts: bundle.profile.hasReceivedStarterGifts || false,
     },
     currencies: {
       ...bundle.currencies,
@@ -291,7 +326,6 @@ interface GameState {
   activeCreatureId: string;
   partyCreatureIds: (string | null)[];
   hubTeamIds: string[];
-  lastExpTickAt: number;
   inventory: Equipment[];
   /** Tamer gear owned by the player — unlike creature Equipment, there's no separate "equipped"
    * step yet: each slot has at most one obtainable item so far, so owning a piece means wearing
@@ -395,7 +429,6 @@ interface GameState {
   setActiveCreature: (creatureId: string) => void;
   setPartySlot: (slotIndex: number, creatureId: string | null) => void;
   toggleHubTeamMember: (creatureId: string) => void;
-  tickBoxExp: () => void;
   gainCreatureExp: (creatureId: string, amount: number) => void;
   gainProfileExp: (amount: number) => void;
   /** Adds a catalog creature to the collection at its default level, or — if already owned —
@@ -502,7 +535,6 @@ export const useGameStore = create<GameState>()(
       activeCreatureId: STARTER_CREATURES[0].id,
       partyCreatureIds: STARTER_CREATURES.slice(0, 2).map((c) => c.id),
       hubTeamIds: STARTER_CREATURES.slice(0, HUB_TEAM_SIZE).map((c) => c.id),
-      lastExpTickAt: Date.now(),
       inventory: STARTER_EQUIPMENT,
       tamerInventory: [],
       equippedTamerGear: {},
@@ -549,36 +581,52 @@ export const useGameStore = create<GameState>()(
 
       hydrateFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
-        set({
-          ...fields,
-          activeCreatureId: fields.creatures[0]?.id ?? "",
-          lastExpTickAt: Date.now(),
-          hasUnseenInventory: false,
-          // No "switch avatar" UI exists yet (only tamer1, the free default) — only ownership
-          // is server-persisted for now; which one is equipped stays client-side.
-          equippedTamerId: "tamer1",
-          // Auto-equip all gear on fresh login since it's client-side only
-          equippedTamerGear: fields.tamerInventory.reduce((acc, gear) => {
-            acc[gear.slot] = gear.id;
-            return acc;
-          }, {} as Partial<Record<TamerSlotType, string>>),
-          // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
-          // account signing in on this browser doesn't inherit the previous one's local progress.
-          survivalHighestStageCleared: 0,
+        set((state) => {
+          // The persisted local cache (this browser's last-known state, from before this login)
+          // can be ahead of what just came back from the server — see reconcileCreatureProgress's
+          // comment. Whatever's already in `state.creatures` at this point is exactly that cache,
+          // since zustand's persist rehydration runs before this fires.
+          const localById = new Map(state.creatures.map((c) => [c.id, c]));
+          const creatures = fields.creatures.map((c) => reconcileCreatureProgress(c, localById.get(c.id)));
+          return {
+            ...fields,
+            creatures,
+            activeCreatureId: creatures[0]?.id ?? "",
+            hasUnseenInventory: false,
+            // No "switch avatar" UI exists yet (only tamer1, the free default) — only ownership
+            // is server-persisted for now; which one is equipped stays client-side.
+            equippedTamerId: "tamer1",
+            // Auto-equip all gear on fresh login since it's client-side only
+            equippedTamerGear: fields.tamerInventory.reduce((acc, gear) => {
+              acc[gear.slot] = gear.id;
+              return acc;
+            }, {} as Partial<Record<TamerSlotType, string>>),
+            // Not synced server-side yet (see docs/gcp-database-schema.md) — reset so a different
+            // account signing in on this browser doesn't inherit the previous one's local progress.
+            survivalHighestStageCleared: 0,
+          };
         });
       },
 
       refreshFromServer: (bundle) => {
         const fields = bundleToStateFields(bundle);
-        set((state) => ({
-          ...fields,
-          // Only fall back to the bundle's first creature if the previously active one is no
-          // longer owned (shouldn't normally happen mid-session) — otherwise keep whatever the
-          // player currently has selected instead of yanking it back to creatures[0].
-          activeCreatureId: fields.creatures.some((c) => c.id === state.activeCreatureId)
-            ? state.activeCreatureId
-            : (fields.creatures[0]?.id ?? ""),
-        }));
+        set((state) => {
+          // See reconcileCreatureProgress's comment — this is the exact race it exists for: an
+          // already-open session's own periodic/one-time reconcile racing a battle/potential-
+          // unlock sync that hasn't landed server-side yet.
+          const localById = new Map(state.creatures.map((c) => [c.id, c]));
+          const creatures = fields.creatures.map((c) => reconcileCreatureProgress(c, localById.get(c.id)));
+          return {
+            ...fields,
+            creatures,
+            // Only fall back to the bundle's first creature if the previously active one is no
+            // longer owned (shouldn't normally happen mid-session) — otherwise keep whatever the
+            // player currently has selected instead of yanking it back to creatures[0].
+            activeCreatureId: creatures.some((c) => c.id === state.activeCreatureId)
+              ? state.activeCreatureId
+              : (creatures[0]?.id ?? ""),
+          };
+        });
       },
 
       logout: () =>
@@ -700,24 +748,6 @@ export const useGameStore = create<GameState>()(
           return { hubTeamIds: [...state.hubTeamIds, creatureId] };
         }),
 
-      tickBoxExp: () =>
-        set((state) => {
-          const now = Date.now();
-          const elapsedSeconds = Math.min(
-            MAX_TICK_SECONDS,
-            Math.max(0, (now - state.lastExpTickAt) / 1000)
-          );
-          if (elapsedSeconds < 1) return state;
-
-          const gained = elapsedSeconds * BOX_EXP_PER_SECOND;
-          const hubSet = new Set(state.hubTeamIds);
-          return {
-            lastExpTickAt: now,
-            creatures: state.creatures.map((c) =>
-              hubSet.has(c.id) ? c : applyExpGain(c, gained)
-            ),
-          };
-        }),
 
       gainCreatureExp: (creatureId, amount) => {
         set((state) => ({

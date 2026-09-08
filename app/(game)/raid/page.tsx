@@ -8,8 +8,10 @@ import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import { RaidBattleScreen } from "@/components/combat/RaidBattleScreen";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { formatNumber } from "@/lib/utils";
+import { useSyncGate } from "@/lib/useSyncGate";
 
 const MAX_RAID_PARTY = 4;
 
@@ -32,6 +34,7 @@ export default function RaidPage() {
   const [playerIds, setPlayerIds] = useState<string[]>([]);
   const [fightingBoss, setFightingBoss] = useState<RaidBoss | null>(null);
   const [battleKey, setBattleKey] = useState(0);
+  const { gating, runGated } = useSyncGate();
 
   const excludedIds = useMemo(() => {
     const set = new Set<string>();
@@ -84,11 +87,14 @@ export default function RaidPage() {
           }
           confirmLabel="Start Raid"
           confirmDisabled={playerIds.length === 0 || energy < pickingBoss.staminaCost}
-          onConfirm={() => {
-            if (!spendEnergy(pickingBoss.staminaCost)) return;
-            setFightingBoss(pickingBoss);
-          }}
+          onConfirm={() =>
+            runGated(() => {
+              if (!spendEnergy(pickingBoss.staminaCost)) return;
+              setFightingBoss(pickingBoss);
+            })
+          }
         />
+        <LoadingOverlay show={gating} />
       </div>
     );
   }

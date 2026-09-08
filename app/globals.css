@@ -139,6 +139,20 @@ body {
   display: none;
 }
 
+/* Sync-gate loading disc (see components/ui/LoadingOverlay.tsx) — spins counter-clockwise, as
+   requested, unlike Tailwind's built-in animate-spin (clockwise). */
+@keyframes loading-disc-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+.animate-loading-disc {
+  animation: loading-disc-spin 1.3s linear infinite;
+}
+
 /* App-wide "Digital World" backdrop — a soft, low-contrast glowing-gate/floating-islands
    illustration (public/assets/background5.png, 1672x941 — picked over the first pass at
    background.jpg's 1024x572 because that lower resolution visibly blurred once `cover` upscaled

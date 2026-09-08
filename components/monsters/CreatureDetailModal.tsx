@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, ChevronDown, Gauge, Star, X, Zap } from "lucide-react";
+import { ArrowUp, ChevronDown, Gauge, Star, X } from "lucide-react";
 import type { Creature, Skill } from "@/types/game";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
@@ -16,6 +16,8 @@ import { creaturePower } from "@/lib/power";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 import { cn, xpPercent } from "@/lib/utils";
 import { useState } from "react";
+import { useSyncGate } from "@/lib/useSyncGate";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { HiddenPotentialScreen } from "./HiddenPotentialScreen";
 import { SuperAttackTrainingModal } from "./SuperAttackTrainingModal";
 import { AwakenScreen } from "./AwakenScreen";
@@ -63,6 +65,11 @@ export function CreatureDetailModal({
   const [showSA, setShowSA] = useState(false);
   const [showAwaken, setShowAwaken] = useState(false);
   const [skillsExpanded, setSkillsExpanded] = useState(false);
+  // Hidden Potential, Super Attack training, and Awaken all spend a scarce, hard-to-reverse
+  // resource against this creature's current state — gate opening any of them behind a quick
+  // re-sync against server truth first (see useSyncGate), the same race class that caused the
+  // level/Hidden-Potential reset bug earlier.
+  const { gating, runGated } = useSyncGate();
 
   const potentialBonuses = creature ? getPotentialBonuses(creature.potentialNodes) : null;
 
@@ -136,12 +143,6 @@ export function CreatureDetailModal({
                     <Gauge className="h-4 w-4" />
                     {creaturePower(creature).toLocaleString()}
                   </p>
-                  {!isHubMember && (
-                    <span className="mt-1 inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600">
-                      <Zap className="h-3 w-3 animate-pulse" />
-                      Farming EXP in the box
-                    </span>
-                  )}
                 </div>
                 <RarityBadge rarity={creature.rarity} />
               </div>
@@ -244,14 +245,14 @@ export function CreatureDetailModal({
                 <PixelButton
                   variant="gold"
                   className="flex-1 bg-violet-600 hover:bg-violet-500 border-violet-800"
-                  onClick={() => setShowSA(true)}
+                  onClick={() => runGated(() => setShowSA(true))}
                 >
                   Train Super Attack
                 </PixelButton>
                 <PixelButton
                   variant="gold"
                   className="flex-1 bg-amber-500 hover:bg-amber-400 border-amber-700"
-                  onClick={() => setShowPotential(true)}
+                  onClick={() => runGated(() => setShowPotential(true))}
                 >
                   Hidden Potential
                 </PixelButton>
@@ -261,7 +262,7 @@ export function CreatureDetailModal({
                 <PixelButton
                   variant="gold"
                   className="mt-2 w-full bg-gradient-to-r from-amber-500 to-gold-bright"
-                  onClick={() => setShowAwaken(true)}
+                  onClick={() => runGated(() => setShowAwaken(true))}
                 >
                   Awaken
                 </PixelButton>
@@ -271,6 +272,7 @@ export function CreatureDetailModal({
           </motion.div>
         </div>
       )}
+      <LoadingOverlay show={gating} />
     </AnimatePresence>
   );
 }

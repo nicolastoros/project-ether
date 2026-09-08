@@ -68,6 +68,11 @@ export function TeamSelectScreen({
     }
   };
 
+  // Orb Events reuse this screen via a synthetic mockStage (see app/(game)/combat/page.tsx) that
+  // isn't a real Campaign stage — "World 1-8" and a "Back to Campaign" link were leaking through
+  // regardless of which event/difficulty was actually picked, since mockStage always fakes
+  // world:1/worldStageNumber:8 to reuse Campaign's enemy-lookup shape.
+  const isEventBattle = Boolean(stage.eventRewards);
   const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
   const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
   const sortedCreatures = sortCreaturesByRarity(creatures);
@@ -79,28 +84,32 @@ export function TeamSelectScreen({
     <div className="space-y-4 lg:space-y-6">
       <div className="flex items-center gap-2 lg:gap-4">
         <Link
-          href="/campaign"
-          aria-label="Back to Campaign"
+          href={isEventBattle ? "/events" : "/campaign"}
+          aria-label={isEventBattle ? "Back to Events" : "Back to Campaign"}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:h-11 lg:w-11"
         >
           <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5" />
         </Link>
         <div>
           <h1 className="font-arcade text-lg glow-text-gold lg:text-2xl xl:text-3xl">
-            World {stage.world}-{stage.worldStageNumber}
+            {isEventBattle ? stage.name : `World ${stage.world}-${stage.worldStageNumber}`}
           </h1>
-          <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">{stage.name} — choose 1 or 2 creatures for this battle.</p>
+          <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">
+            {isEventBattle ? "Choose 1 or 2 creatures for this battle." : `${stage.name} — choose 1 or 2 creatures for this battle.`}
+          </p>
         </div>
       </div>
 
-      <GlowPanel accent="none" className="p-3 lg:p-4">
-        <h2 className="font-arcade text-sm text-foreground mb-2 sm:text-base lg:text-lg">Stage Missions</h2>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <MissionItem completed={stars.noDeaths} label="Win without losing any monster" />
-          <MissionItem completed={stars.noItems} label="Win without using support items" />
-          <MissionItem completed={stars.underFiveTurns} label="Win in less than 5 turns" />
-        </div>
-      </GlowPanel>
+      {!isEventBattle && (
+        <GlowPanel accent="none" className="p-3 lg:p-4">
+          <h2 className="font-arcade text-sm text-foreground mb-2 sm:text-base lg:text-lg">Stage Missions</h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <MissionItem completed={stars.noDeaths} label="Win without losing any monster" />
+            <MissionItem completed={stars.noItems} label="Win without using support items" />
+            <MissionItem completed={stars.underFiveTurns} label="Win in less than 5 turns" />
+          </div>
+        </GlowPanel>
+      )}
 
       <GlowPanel accent="none" className="p-3 lg:p-4">
         <div className="flex items-center justify-between mb-3">

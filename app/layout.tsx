@@ -21,8 +21,13 @@ const baloo2 = Baloo_2({
 });
 
 export const metadata: Metadata = {
-  title: "Monster Gacha",
+  title: "Digital Resonance",
   description: "Idle pixel-art creature gacha prototype.",
+  icons: {
+    icon: "/assets/loading_icon.png",
+    shortcut: "/assets/loading_icon.png",
+    apple: "/assets/loading_icon.png",
+  },
 };
 
 export default function RootLayout({

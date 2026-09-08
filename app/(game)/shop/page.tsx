@@ -85,6 +85,30 @@ export default function ShopPage() {
     });
   };
 
+  // Typing a quantity directly (e.g. "1000" for a bulk buy) instead of clicking +/- a thousand
+  // times — clamped the same way the +/- buttons already are, just applied all at once. Kept
+  // permissive while the field is mid-edit (an empty string, or "0" while backspacing toward a
+  // new number) so the input doesn't fight the player's keystrokes; final clamping happens once
+  // they actually settle on a value (the Buy/Sell buttons and price math already read the clamped
+  // getBuyQuantity/getSellQuantity, not this raw field).
+  const setBuyQuantityInput = (id: string, raw: string) => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits === "") {
+      setBuyQuantities((prev) => ({ ...prev, [id]: 1 }));
+      return;
+    }
+    setBuyQuantities((prev) => ({ ...prev, [id]: Math.max(1, Number(digits)) }));
+  };
+
+  const setSellQuantityInput = (id: string, raw: string, max: number) => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits === "") {
+      setSellQuantities((prev) => ({ ...prev, [id]: 1 }));
+      return;
+    }
+    setSellQuantities((prev) => ({ ...prev, [id]: Math.min(Math.max(1, Number(digits)), Math.max(1, max)) }));
+  };
+
   function handleBuy(listing: ShopListing) {
     const quantity = listing.grants.kind === "tamer" ? 1 : getBuyQuantity(listing.id);
     setBusyId(listing.id);
@@ -209,7 +233,13 @@ export default function ShopPage() {
                     >
                       <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
-                    <span className="w-6 text-center font-mono text-sm text-zinc-300 sm:text-base">{quantity}</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={quantity}
+                      onChange={(e) => setBuyQuantityInput(listing.id, e.target.value)}
+                      className="w-12 border-0 bg-transparent text-center font-mono text-sm text-zinc-300 outline-none sm:text-base"
+                    />
                     <button
                       onClick={() => updateBuyQuantity(listing.id, 1)}
                       className="px-2.5 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white sm:px-3 sm:py-2"
@@ -264,7 +294,13 @@ export default function ShopPage() {
                   >
                     <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
-                  <span className="w-6 text-center font-mono text-sm text-zinc-300 sm:text-base">{quantity}</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={quantity}
+                    onChange={(e) => setSellQuantityInput(item.id, e.target.value, maxQuantity)}
+                    className="w-12 border-0 bg-transparent text-center font-mono text-sm text-zinc-300 outline-none sm:text-base"
+                  />
                   <button
                     onClick={() => updateSellQuantity(item.id, 1, maxQuantity)}
                     className="px-2.5 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50 sm:px-3 sm:py-2"

@@ -24,21 +24,30 @@ export interface BattleCombatant {
 
 // Resonance regenerates on the actor's own turn, before status effects or their action resolve.
 const RESONANCE_MAX = 100;
-// Battles were ending before anyone ever banked enough to fire an Ultimate — start every
-// combatant fully charged instead (every ultimateSkill.resonanceCost is <= 85, well under 100),
-// so an Ultimate is available from turn one. Spending it still drains Resonance normally and it
-// regenerates back at the usual pace — this only changes the opening amount, not the economy.
+// Start every combatant fully charged — an Ultimate is available from turn one. Spending it still
+// drains Resonance normally and it regenerates back at the usual pace — this only changes the
+// opening amount, not the economy.
 const RESONANCE_START = RESONANCE_MAX;
-const RESONANCE_REGEN_PER_TURN = 25;
+// Lowered from 25 — against a Raid boss or a long stage, players were draining Resonance faster
+// than the old regen could keep up and ending up stuck with no affordable move. The costs below
+// were cut at the same time (basic attack is now free) specifically so that can't happen again:
+// the one skill that's always castable costs nothing, and regen alone refills a buff or the AOE
+// nuke in a turn or two even at this slower rate.
+const RESONANCE_REGEN_PER_TURN = 10;
+// Flat, not per-creature (unlike the rest of an UltimateSkill's stats) — same "derived, not
+// authored on every creature" philosophy as resonanceCostForSkill below.
+export const ULTIMATE_RESONANCE_COST = 15;
 
 /** Regular skills always follow the same 4-slot shape across the whole roster (slot 1 = basic
  * single-target attack, cooldown 0; slot 2 = Defense/Support self-buff, cooldown 3; slot 3 = AOE
  * nuke, cooldown 4-5; slot 4 = Passive, unused in battle) — so cost is derived from cooldown
- * instead of needing a new field on every one of the ~30 existing creatures' skills. */
+ * instead of needing a new field on every one of the ~30 existing creatures' skills. Costs: the
+ * basic attack is free (so a drained combatant can always still act — see the regen comment
+ * above), the buff costs more than the AOE nuke on purpose (per game-design direction). */
 export function resonanceCostForSkill(skill: Skill): number {
-  if (skill.cooldown === 0) return 20;
-  if (skill.cooldown <= 3) return 25;
-  return 45;
+  if (skill.cooldown === 0) return 0;
+  if (skill.cooldown <= 3) return 4;
+  return 2;
 }
 
 /** Projects a creature's UltimateSkill into a normal Skill shape so it flows through the
@@ -329,7 +338,7 @@ export function applyAction(
   });
   if (skill.cooldown > 0) actor.cooldowns[skill.id] = skill.cooldown;
 
-  const resonanceCost = isUltimate ? actor.creature.ultimateSkill!.resonanceCost : resonanceCostForSkill(skill);
+  const resonanceCost = isUltimate ? ULTIMATE_RESONANCE_COST : resonanceCostForSkill(skill);
   actor.resonance = Math.max(0, actor.resonance - resonanceCost);
 
   if (actor.statBuffs) {
@@ -355,7 +364,7 @@ export function pickEnemyAction(
   // Dramatic rather than automatic — only reaches for the Ultimate about half the time it's
   // actually affordable, so it doesn't fire every single turn once resonance is banked.
   const ultimate = getUltimateSkill(actor.creature);
-  if (ultimate && actor.creature.ultimateSkill && actor.resonance >= actor.creature.ultimateSkill.resonanceCost && Math.random() < 0.5) {
+  if (ultimate && actor.creature.ultimateSkill && actor.resonance >= ULTIMATE_RESONANCE_COST && Math.random() < 0.5) {
     const mode = getSkillTargetMode(ultimate);
     if (mode === "choose-enemy") {
       const target = opponents.reduce<BattleCombatant | null>((lowest, c) => {

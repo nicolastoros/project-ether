@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { useResetCountdown } from "@/lib/useResetCountdown";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { syncProgressToServer } from "@/lib/syncProgress";
+import { useSyncGate } from "@/lib/useSyncGate";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 
 const orbColorMap: Record<string, string> = {
   Fire: "red",
@@ -29,30 +31,36 @@ export function EventsClient() {
   const spendEnergy = useGameStore((s) => s.spendEnergy);
   const [selectedEvent, setSelectedEvent] = useState<GameEvent | null>(null);
   const resetLabel = useResetCountdown();
+  const { gating, runGated } = useSyncGate();
 
   function handleStart(event: GameEvent, diff: EventDifficulty) {
-    // Check energy *before* spending the attempt — otherwise a player who's simply out of
-    // Energy silently loses one of today's limited attempts for nothing.
-    if (useGameStore.getState().currencies.energy < diff.staminaCost) {
-      alert("Not enough Energy!");
-      return;
-    }
-    if (!consumeEventAttempt(event.id, event.maxDailyAttempts)) {
-      alert("No daily attempts left for this event!");
-      return;
-    }
-    spendEnergy(diff.staminaCost);
-    // consumeEventAttempt only mutates local state — without this, a spent attempt (and the
-    // date it reset against) reverts on the next server refresh if the player navigates away
-    // before GameGate's own ~60s poll happens to catch it.
-    syncProgressToServer();
+    // Re-syncs against server truth first (see useSyncGate) before this reads/spends Energy and
+    // today's attempt count — both are limited, easy-to-lose-track-of resources, exactly the kind
+    // a stale local snapshot could mis-charge.
+    runGated(() => {
+      // Check energy *before* spending the attempt — otherwise a player who's simply out of
+      // Energy silently loses one of today's limited attempts for nothing.
+      if (useGameStore.getState().currencies.energy < diff.staminaCost) {
+        alert("Not enough Energy!");
+        return;
+      }
+      if (!consumeEventAttempt(event.id, event.maxDailyAttempts)) {
+        alert("No daily attempts left for this event!");
+        return;
+      }
+      spendEnergy(diff.staminaCost);
+      // consumeEventAttempt only mutates local state — without this, a spent attempt (and the
+      // date it reset against) reverts on the next server refresh if the player navigates away
+      // before GameGate's own ~60s poll happens to catch it.
+      syncProgressToServer();
 
-    // 3. Route to combat page
-    const params = new URLSearchParams({
-      eventId: event.id,
-      difficultyId: diff.id,
+      // 3. Route to combat page
+      const params = new URLSearchParams({
+        eventId: event.id,
+        difficultyId: diff.id,
+      });
+      router.push(`/combat?${params.toString()}`);
     });
-    router.push(`/combat?${params.toString()}`);
   }
 
   if (selectedEvent) {
@@ -61,6 +69,7 @@ export function EventsClient() {
 
     return (
       <div className="space-y-4">
+        <LoadingOverlay show={gating} />
         <button
           onClick={() => setSelectedEvent(null)}
           className="text-xs text-zinc-500 hover:text-foreground underline decoration-zinc-500/50 underline-offset-4"
@@ -140,6 +149,7 @@ export function EventsClient() {
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
+      <LoadingOverlay show={gating} />
       <div className="w-full overflow-hidden rounded-xl border border-white/10 flex items-center justify-center bg-black">
         <img src="/assets/events/hidden_training.png" alt="Hidden Training" className="w-full h-auto block object-contain" />
       </div>

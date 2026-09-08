@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Gauge, Search, SlidersHorizontal, Star, X, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gauge, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
 import { ELEMENT_GRADIENT, ELEMENT_ICON } from "@/lib/elementVisuals";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -121,12 +121,6 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
             {creature.copies > 1 && (
               <span className="rounded-full border border-gold/60 bg-gold/10 px-1.5 py-0.5 font-arcade text-[8px] font-semibold text-gold-bright">
                 ×{creature.copies}
-              </span>
-            )}
-            {!isHubMember && (
-              <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
-                <Zap className="h-2.5 w-2.5 animate-pulse" />
-                Farming EXP
               </span>
             )}
           </div>
@@ -283,7 +277,7 @@ export default function MonstersPage() {
         </p>
         <p className="mt-1 text-[10px] text-zinc-600">
           <Star className="mr-1 inline h-3 w-3 text-gold-bright" />
-          Hub team {hubTeamIds.length}/{HUB_TEAM_SIZE} — the rest keep farming EXP in the box.
+          Hub team {hubTeamIds.length}/{HUB_TEAM_SIZE} — your showcase lineup on the Hub screen.
         </p>
         <p className="mt-1.5 flex items-center gap-1.5 font-arcade text-sm glow-text-gold">
           <Gauge className="h-4 w-4" />

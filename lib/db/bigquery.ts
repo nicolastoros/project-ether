@@ -139,7 +139,13 @@ export async function createAccount(opts: {
       },
     }),
     bq().query({
-      query: `INSERT INTO ${table("user_currencies")} (user_id) VALUES (@userId)`,
+      // Explicit rather than relying on the table's own column defaults for energy — those
+      // defaults are wrong (energy DEFAULT 0, while energy_max correctly defaults to 240), which
+      // meant literally every new registration started at 0/240 Energy with no way to act until
+      // enough real time passed for the 5-minutes-per-point passive regen to catch up. Confirmed
+      // via INFORMATION_SCHEMA.COLUMNS. Spelling it out here means a new account is correct even
+      // if that column default is never fixed (or drifts again later).
+      query: `INSERT INTO ${table("user_currencies")} (user_id, energy, energy_max) VALUES (@userId, 240, 240)`,
       params: { userId },
     }),
     bq().query({
@@ -174,6 +180,7 @@ export interface AccountBundle {
     isAdmin: boolean;
     dailyEventAttempts?: Record<string, number>;
     dailyEventAttemptsDate?: string;
+    hasReceivedStarterGifts?: boolean;
   };
   currencies: {
     gold: number;
@@ -283,7 +290,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_missions_state, achievements
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_missions_state, achievements, has_received_starter_gifts
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -472,6 +479,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       isAdmin: Boolean(userRow.is_admin),
       dailyEventAttempts: userRow.daily_event_attempts ? JSON.parse(userRow.daily_event_attempts) : {},
       dailyEventAttemptsDate: userRow.daily_event_attempts_date || "",
+      hasReceivedStarterGifts: Boolean(userRow.has_received_starter_gifts),
     },
     currencies: currencyRow
       ? {
@@ -1867,4 +1875,106 @@ export async function unlockAchievement(userId: string, achievementId: string): 
     params: { userId, achievements: JSON.stringify([...current, achievementId]) },
   });
   return { isNew: true };
+}
+
+/** Server-truth gate for the one-time starter gift wave (see GameGate.tsx) — replaces the old
+ * hasReceivedGiftsV9/V10 client-only flags, which lived only in localStorage and reset (re-
+ * granting the wave) on things like a logout/login cycle or React StrictMode's dev-mode double
+ * effect invocation, since neither has any way to know the grant already happened elsewhere.
+ *
+ * A first version of this used unlockAchievement's plain "SELECT then UPDATE" shape, but that
+ * left a real race here specifically: BigQuery query jobs take long enough (tens to hundreds of
+ * ms) that GameGate's effect firing twice in near-quick succession — exactly what React
+ * StrictMode's dev-mode double effect invocation does — could get both SELECTs to see "not yet
+ * granted" before either UPDATE lands, granting the wave twice. claimAdminGift's MERGE-into-a-
+ * dedicated-table pattern doesn't have that gap (BigQuery guarantees a single DML statement is
+ * atomic even though it doesn't support general multi-statement transactions), so this uses that
+ * instead: only the caller whose MERGE actually inserts the claims-table row gets true back. */
+export async function claimStarterGiftsForUser(userId: string): Promise<boolean> {
+  const [job] = await bq().createQueryJob({
+    query: `
+      MERGE ${table("starter_gift_claims")} AS target
+      USING (SELECT @userId AS user_id) AS source
+      ON target.user_id = source.user_id
+      WHEN NOT MATCHED THEN
+        INSERT (user_id, claimed_at) VALUES (@userId, CURRENT_TIMESTAMP())
+    `,
+    params: { userId },
+  });
+  await job.getQueryResults();
+  const [metadata] = await job.getMetadata();
+  const granted = Number(metadata.statistics?.query?.numDmlAffectedRows ?? 0) > 0;
+
+  if (granted) {
+    // Best-effort convenience column so a normal login can see "already granted" from the regular
+    // account-bundle read instead of always needing this extra round trip — not the source of
+    // truth itself, so no race here matters (the claims-table MERGE above already decided).
+    await bq().query({
+      query: `UPDATE ${table("users")} SET has_received_starter_gifts = true WHERE id = @userId`,
+      params: { userId },
+    });
+  }
+  return granted;
+}
+
+const ORB_ELEMENTS = ["fire", "water", "nature", "light", "dark", "electric", "neutral"] as const;
+
+/** One calendar day's Daily Login reward — every day grants a full spread of Orbs (every element,
+ * every tier) plus 5 Mythic Tickets; every 5th day of the month additionally grants 20 Legendary
+ * Tickets. Exported so the API route can hand the actual granted list back to the client without
+ * duplicating this table. */
+export function getDailyLoginRewardItems(dayOfMonth: number): { itemId: string; quantity: number }[] {
+  const items: { itemId: string; quantity: number }[] = [];
+  for (const el of ORB_ELEMENTS) {
+    items.push({ itemId: `it-orb-small-${el}`, quantity: 300 });
+    items.push({ itemId: `it-orb-medium-${el}`, quantity: 150 });
+    items.push({ itemId: `it-orb-large-${el}`, quantity: 50 });
+  }
+  items.push({ itemId: "it-mythic-ticket", quantity: 5 });
+  if (dayOfMonth % 5 === 0) {
+    items.push({ itemId: "it-legendary-ticket", quantity: 20 });
+  }
+  return items;
+}
+
+/** Every calendar date (this month) this user has already claimed the Daily Login reward for —
+ * powers the calendar grid's claimed/missed/available cell states. */
+export async function getDailyLoginClaimedDates(userId: string, monthPrefix: string): Promise<string[]> {
+  const [rows] = await bq().query({
+    query: `SELECT claim_date FROM ${table("daily_login_claims")} WHERE user_id = @userId AND STARTS_WITH(claim_date, @monthPrefix)`,
+    params: { userId, monthPrefix },
+  });
+  return rows.map((r: { claim_date: string }) => r.claim_date);
+}
+
+/** Claims today's Daily Login reward — atomic via the same MERGE-into-a-dedicated-table pattern
+ * as claimStarterGiftsForUser (see its comment for exactly why a plain "SELECT then UPDATE"
+ * isn't safe here: BigQuery DML jobs are slow enough that two near-simultaneous claims could both
+ * see "not yet claimed"). `dateStr` and `dayOfMonth` are always computed server-side by the
+ * caller (the API route) from the server's own clock — trusting a client-supplied date would let
+ * a player claim every day's reward at once by spoofing their system clock. Returns the granted
+ * item list on success, or null if today was already claimed. */
+export async function claimDailyLoginForUser(
+  userId: string,
+  dateStr: string,
+  dayOfMonth: number
+): Promise<{ itemId: string; quantity: number }[] | null> {
+  const [job] = await bq().createQueryJob({
+    query: `
+      MERGE ${table("daily_login_claims")} AS target
+      USING (SELECT @userId AS user_id, @dateStr AS claim_date) AS source
+      ON target.user_id = source.user_id AND target.claim_date = source.claim_date
+      WHEN NOT MATCHED THEN
+        INSERT (user_id, claim_date, claimed_at) VALUES (@userId, @dateStr, CURRENT_TIMESTAMP())
+    `,
+    params: { userId, dateStr },
+  });
+  await job.getQueryResults();
+  const [metadata] = await job.getMetadata();
+  const granted = Number(metadata.statistics?.query?.numDmlAffectedRows ?? 0) > 0;
+  if (!granted) return null;
+
+  const items = getDailyLoginRewardItems(dayOfMonth);
+  await grantItemsToUser(userId, items);
+  return items;
 }

@@ -247,6 +247,7 @@ export interface UserProfile {
   /** "YYYY-MM-DD" this account's dailyEventAttempts counts were last reset for — see
    * lib/store.ts's ensureFreshEventAttempts. */
   dailyEventAttemptsDate?: string;
+  hasReceivedStarterGifts?: boolean;
 }
 
 export type GachaBannerType = "Creature" | "Equipment";

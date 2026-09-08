@@ -3,9 +3,11 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Map } from "lucide-react";
+import type { DungeonStage } from "@/types/game";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { getTierStage, parseTierStageId } from "@/lib/difficultyTiers";
+import { ORB_EVENTS, getEventEnemyTeam } from "@/lib/eventData";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
 import { BattlePage } from "@/components/combat/BattlePage";
 
@@ -16,20 +18,22 @@ function CombatPageContent() {
   const difficultyId = searchParams.get("difficultyId");
 
   if (eventId && difficultyId) {
-    const { ORB_EVENTS } = require("@/lib/eventData");
-    const ev = ORB_EVENTS.find((e: any) => e.id === eventId);
-    const diff = ev?.difficulties.find((d: any) => d.id === difficultyId);
+    const ev = ORB_EVENTS.find((e) => e.id === eventId);
+    const diff = ev?.difficulties.find((d) => d.id === difficultyId);
     if (ev && diff) {
       const eventRewards = [];
       if (diff.rewardAmount.small > 0) eventRewards.push({ itemId: `it-orb-small-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.small });
       if (diff.rewardAmount.medium > 0) eventRewards.push({ itemId: `it-orb-medium-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.medium });
       if (diff.rewardAmount.large > 0) eventRewards.push({ itemId: `it-orb-large-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.large });
 
-      const mockStage: any = {
+      // Purely a display/background/reward-shape vehicle now — world/worldStageNumber no longer
+      // drive the enemy team (see eventEnemies below), so this event stops silently reusing
+      // Campaign World 1's boss line-up and its "Easy"-only scaling.
+      const mockStage: DungeonStage = {
         id: `${ev.id}-${diff.id}`,
         name: `${ev.name} [${diff.name}]`,
-        world: 1, // Use W1 for background (ARENA_BACKGROUNDS[1]) and enemy scaling
-        worldStageNumber: 8, // Use W1 Boss for enemy team
+        world: 1, // Only used to pick ARENA_BACKGROUNDS[1] — no Campaign meaning beyond that here.
+        worldStageNumber: 8,
         stageNumber: 1,
         difficulty: "Normal",
         recommendedPower: diff.recommendedLevel * 100,
@@ -43,8 +47,14 @@ function CombatPageContent() {
         eventId: ev.id,
         eventRewards,
       };
-      
-      return <BattlePage stage={mockStage} />;
+
+      return (
+        <BattlePage
+          stage={mockStage}
+          eventEnemies={getEventEnemyTeam(ev, diff)}
+          eventMaxDailyAttempts={ev.maxDailyAttempts}
+        />
+      );
     }
   }
 

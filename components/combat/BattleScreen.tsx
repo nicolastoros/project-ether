@@ -31,6 +31,7 @@ import {
   nextLogId,
   pickEnemyAction,
   resonanceCostForSkill,
+  ULTIMATE_RESONANCE_COST,
   type BattleCombatant,
   type BattleLogEntry,
 } from "@/lib/combat";
@@ -145,6 +146,11 @@ function buildInitialCombatants(playerCreatures: Creature[], enemyCreatures: [Cr
 }
 
 export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch, onExit }: BattleScreenProps) {
+  // Orb Events reuse this screen via a synthetic mockStage (see app/(game)/combat/page.tsx) that
+  // isn't a real Campaign stage — eventRewards is only ever set there, so it doubles as the
+  // "this isn't really Campaign" flag everywhere below (rewards, stage-progress writes, exit/next
+  // navigation).
+  const isEventBattle = Boolean(stage.eventRewards);
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -164,9 +170,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   // The next area in the same chapter, Easy tier (if one exists) — powers the results screen's
   // "Next Area" shortcut. Same-world guard means this naturally stays undefined past a chapter's
   // last area (the next global stageNumber belongs to a different, not-yet-available chapter).
-  const nextAreaStage = DUNGEON_STAGES.find(
-    (s) => s.stageNumber === stage.stageNumber + 1 && s.world === stage.world
-  );
+  const nextAreaStage = isEventBattle
+    ? undefined
+    : DUNGEON_STAGES.find((s) => s.stageNumber === stage.stageNumber + 1 && s.world === stage.world);
 
   // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
@@ -262,15 +268,17 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       if (!enemiesAlive) {
       setPhase("victory");
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Victory! All enemies defeated." }]);
-      
+
       const isPerfectClear = playersAlive && next.filter(c => c.side === "player").every(c => c.isAlive);
-      if (isPerfectClear) {
+      if (isPerfectClear && !isEventBattle) {
         useGameStore.getState().markStagePerfect(stage.id);
       }
 
       // Captured before recordStageStars writes below — that call itself would make this exact
       // id "already present", so the first-clear check has to run first.
-      const wasStageAlreadyCleared = Boolean(useGameStore.getState().dungeon.stageStars[stage.id]);
+      const wasStageAlreadyCleared = isEventBattle
+        ? false
+        : Boolean(useGameStore.getState().dungeon.stageStars[stage.id]);
 
       const stars = {
         noDeaths: !(hasDeaths || anyDeaths),
@@ -279,19 +287,22 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       };
       setStarsEarned(stars);
       setElapsedSeconds(Math.max(0, Math.round((Date.now() - (battleStartRef.current ?? Date.now())) / 1000)));
-      recordStageStars(stage.id, stars);
+      if (!isEventBattle) {
+        recordStageStars(stage.id, stars);
+      }
 
       if (!rewardGranted) {
         setRewardGranted(true);
         const highestBefore = useGameStore.getState().dungeon.highestStageCleared;
         // Keyed off this exact stage id (so it's correct per difficulty tier, not just per base
         // stage number) rather than highestStageCleared, which only ever tracks Easy-tier
-        // progress.
-        const isFirstClearOfThisStage = !wasStageAlreadyCleared;
+        // progress. Always false for event battles — that "first clear" bonus track (2x
+        // gold/exp, Exchange Coins, Tamer gear) is Campaign-only.
+        const isFirstClearOfThisStage = !isEventBattle && !wasStageAlreadyCleared;
         const multiplier = isFirstClearOfThisStage ? 2 : 1;
         setRewardMultiplier(multiplier);
 
-        const expEventActive = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
+        const expEventActive = !isEventBattle && stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
         setIsExpEventStage(expEventActive);
         const expMultiplier = multiplier * (expEventActive ? 2 : 1);
 
@@ -327,13 +338,13 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         // CampaignHome.tsx's stage-lock logic depends on — a Hard/Super run of an already-unlocked
         // stage must never touch it.
         const isEasyTier = !stage.tier || stage.tier === "Easy";
-        const isFirstStage1Clear = isEasyTier && stage.stageNumber === 1 && highestBefore === 0;
-        if (isEasyTier) clearDungeonStage(stage.stageNumber);
+        const isFirstStage1Clear = !isEventBattle && isEasyTier && stage.stageNumber === 1 && highestBefore === 0;
+        if (isEasyTier && !isEventBattle) clearDungeonStage(stage.stageNumber);
         tickMissionProgress("task-dungeon");
         // "Explorer of the Digital World" — cleared every stage through World 5. Checked against
         // this stage's own number rather than the post-clear highestStageCleared so a lower-stage
         // replay after already clearing World 5 doesn't matter either way.
-        if (stage.stageNumber >= cumulativeStageCountThroughWorld(5)) {
+        if (!isEventBattle && stage.stageNumber >= cumulativeStageCountThroughWorld(5)) {
           const achievementId = "ach-explorer-digital-world";
           if (unlockAchievement(achievementId)) {
             unlockAchievementOnServer(achievementId);
@@ -364,8 +375,8 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         }
 
         // Awaken Coins: 1-5 random, every time a chapter's boss area is beaten (not gated by
-        // first-clear — a boss re-run still pays out, same as a Raid win).
-        if (isFinalAreaOfChapter(stage.world, stage.worldStageNumber)) {
+        // first-clear — a boss re-run still pays out, same as a Raid win). Campaign-only.
+        if (!isEventBattle && isFinalAreaOfChapter(stage.world, stage.worldStageNumber)) {
           const awakenCoins = 1 + Math.floor(Math.random() * 5);
           grantItem("it-awaken-coin", awakenCoins);
           grantItemOnServer("it-awaken-coin", awakenCoins);
@@ -425,8 +436,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Defeat... your team was wiped out." }]);
       // Tier-agnostic — losing on any difficulty still means "we went in and saw this area", so
       // the Chapter/Area list's NEW badge shouldn't keep claiming it's unseen (see
-      // ChapterAreaList.tsx: NEW -> attempted-but-not-won (no badge) -> COMPLETED).
-      useGameStore.getState().markStageAttempted(parseTierStageId(stage.id).baseId);
+      // ChapterAreaList.tsx: NEW -> attempted-but-not-won (no badge) -> COMPLETED). Campaign-only —
+      // an Orb Event's synthetic id ("event-orb-fire-hard") isn't a real stage and would otherwise
+      // get misparsed by parseTierStageId (which only knows Campaign's tier suffixes).
+      if (!stage.eventRewards) {
+        useGameStore.getState().markStageAttempted(parseTierStageId(stage.id).baseId);
+      }
       return;
     }
 
@@ -649,7 +664,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                           {(() => {
                             const ultimate = getUltimateSkill(actor.creature);
                             if (!ultimate || !actor.creature.ultimateSkill) return null;
-                            const cost = actor.creature.ultimateSkill.resonanceCost;
+                            const cost = ULTIMATE_RESONANCE_COST;
                             const isReady = actor.resonance >= cost;
                             return (
                               <button
@@ -787,7 +802,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           ].filter((line): line is NonNullable<typeof line> => Boolean(line))}
           defeatMessage="Your team was defeated. Give it another shot!"
           onRematch={onRematch}
-          exitHref={`/campaign?chapter=${stage.world}`}
+          exitHref={isEventBattle ? "/events" : `/campaign?chapter=${stage.world}`}
           onExitClick={onExit}
           exitLabel="Exit"
         />

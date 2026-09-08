@@ -14,7 +14,6 @@ const PROGRESS_SYNC_INTERVAL_MS = 60_000;
 export function GameGate({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const hasHydrated = useGameStore((s) => s.hasHydrated);
-  const tickBoxExp = useGameStore((s) => s.tickBoxExp);
   const tickEnergy = useGameStore((s) => s.tickEnergy);
   const isAdmin = useGameStore((s) => s.profile.isAdmin);
   const router = useRouter();
@@ -35,15 +34,6 @@ export function GameGate({ children }: { children: ReactNode }) {
     refreshAccountInStore();
   }, [hasHydrated, status]);
 
-  // Creatures benched outside the hub team keep farming EXP in the box, both while
-  // this tab is open and (via the persisted timestamp) across time away from the game.
-  useEffect(() => {
-    if (!hasHydrated || status !== "authenticated") return;
-    tickBoxExp();
-    const id = setInterval(tickBoxExp, 5000);
-    return () => clearInterval(id);
-  }, [hasHydrated, status, tickBoxExp]);
-
   // Passive energy regeneration ticks.
   useEffect(() => {
     if (!hasHydrated || status !== "authenticated") return;
@@ -62,59 +52,51 @@ export function GameGate({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [hasHydrated, status]);
 
-  // Grant V5 gifts (Tickets and Orbs) to all users via Inbox
+  // One-time starter gift wave (Tickets + Orbs), gated by server truth instead of the old
+  // hasReceivedGiftsV9/V10 client-only flags. Those lived only in localStorage and had no way to
+  // know the grant already happened elsewhere — a logout/login cycle (hydrateFromServer doesn't
+  // touch them, but a stale/cleared local snapshot reads them back as false) or React
+  // StrictMode's dev-mode double effect invocation could each silently re-trigger the whole wave,
+  // duplicating tickets for real. claimStarterGiftsForUser does an atomic-ish check-and-flip on
+  // the `users` row itself, so no matter how many times or from how many tabs/devices this effect
+  // fires, at most one of them ever gets `granted: true` back and actually adds the gifts.
   useEffect(() => {
     if (!hasHydrated || status !== "authenticated") return;
-    const store = useGameStore.getState();
-    if (!store.hasReceivedGiftsV9) {
-      const newGifts: Gift[] = [];
-      const now = Date.now();
-      
-      newGifts.push({ id: `gift-v5-leg-${now}`, type: "item", itemId: "it-legendary-ticket", quantity: 20, message: "Community Rewards!", createdAt: now });
-      newGifts.push({ id: `gift-v5-myth-${now}`, type: "item", itemId: "it-mythic-ticket", quantity: 20, message: "Community Rewards!", createdAt: now });
-      
-      const elements = ["fire", "water", "nature", "light", "dark", "electric", "neutral"];
-      for (const el of elements) {
-        newGifts.push({ id: `gift-v5-orb-sm-${el}-${now}`, type: "item", itemId: `it-orb-small-${el}`, quantity: 100, message: "Training Campaign", createdAt: now });
-        newGifts.push({ id: `gift-v5-orb-md-${el}-${now}`, type: "item", itemId: `it-orb-medium-${el}`, quantity: 50, message: "Training Campaign", createdAt: now });
-        newGifts.push({ id: `gift-v5-orb-lg-${el}-${now}`, type: "item", itemId: `it-orb-large-${el}`, quantity: 25, message: "Training Campaign", createdAt: now });
-      }
-      
-      useGameStore.setState((s) => ({
-        gifts: [...s.gifts, ...newGifts],
-        hasReceivedGiftsV9: true
-      }));
-    }
-  }, [hasHydrated, status]);
+    if (useGameStore.getState().profile.hasReceivedStarterGifts) return;
 
-  // Re-grant the V9 wave as a fresh V10 one: gifts are a local-only inbox (no server table of
-  // their own — see types/game.ts's Gift comment), so anyone who already claimed V9 before the
-  // item/Hidden-Potential persistence bugs were fixed may have "claimed" it locally (removing it
-  // from their inbox) without the items ever actually landing in BigQuery. hasReceivedGiftsV10
-  // defaults to false for every account regardless of their V9 status, so this reaches everyone —
-  // new and existing — once, and this time the claim will actually stick.
-  useEffect(() => {
-    if (!hasHydrated || status !== "authenticated") return;
-    const store = useGameStore.getState();
-    if (!store.hasReceivedGiftsV10) {
-      const newGifts: Gift[] = [];
-      const now = Date.now();
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/user/gifts/claim-starter", { method: "POST" });
+      if (!res.ok || cancelled) return;
+      const { granted } = (await res.json()) as { granted: boolean };
+      if (cancelled) return;
 
-      newGifts.push({ id: `gift-v10-leg-${now}`, type: "item", itemId: "it-legendary-ticket", quantity: 20, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
-      newGifts.push({ id: `gift-v10-myth-${now}`, type: "item", itemId: "it-mythic-ticket", quantity: 20, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
-
-      const elements = ["fire", "water", "nature", "light", "dark", "electric", "neutral"];
-      for (const el of elements) {
-        newGifts.push({ id: `gift-v10-orb-sm-${el}-${now}`, type: "item", itemId: `it-orb-small-${el}`, quantity: 100, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
-        newGifts.push({ id: `gift-v10-orb-md-${el}-${now}`, type: "item", itemId: `it-orb-medium-${el}`, quantity: 50, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
-        newGifts.push({ id: `gift-v10-orb-lg-${el}-${now}`, type: "item", itemId: `it-orb-large-${el}`, quantity: 25, message: "Bug Fixed — Rewards Reissued!", createdAt: now });
+      if (!granted) {
+        // Server says this account already got it (in an earlier session, or a concurrent tab
+        // that won the race) — just stop asking locally, don't add another copy of the gifts.
+        useGameStore.setState((s) => ({ profile: { ...s.profile, hasReceivedStarterGifts: true } }));
+        return;
       }
 
+      const newGifts: Gift[] = [];
+      const now = Date.now();
+      newGifts.push({ id: `gift-starter-leg-${now}`, type: "item", itemId: "it-legendary-ticket", quantity: 20, message: "Welcome Rewards!", createdAt: now });
+      newGifts.push({ id: `gift-starter-myth-${now}`, type: "item", itemId: "it-mythic-ticket", quantity: 20, message: "Welcome Rewards!", createdAt: now });
+      const elements = ["fire", "water", "nature", "light", "dark", "electric", "neutral"];
+      for (const el of elements) {
+        newGifts.push({ id: `gift-starter-orb-sm-${el}-${now}`, type: "item", itemId: `it-orb-small-${el}`, quantity: 100, message: "Training Campaign", createdAt: now });
+        newGifts.push({ id: `gift-starter-orb-md-${el}-${now}`, type: "item", itemId: `it-orb-medium-${el}`, quantity: 50, message: "Training Campaign", createdAt: now });
+        newGifts.push({ id: `gift-starter-orb-lg-${el}-${now}`, type: "item", itemId: `it-orb-large-${el}`, quantity: 25, message: "Training Campaign", createdAt: now });
+      }
       useGameStore.setState((s) => ({
         gifts: [...s.gifts, ...newGifts],
-        hasReceivedGiftsV10: true
+        profile: { ...s.profile, hasReceivedStarterGifts: true },
       }));
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [hasHydrated, status]);
 
   // Maintenance mode: an admin can flip this on from /admin without a deploy (see

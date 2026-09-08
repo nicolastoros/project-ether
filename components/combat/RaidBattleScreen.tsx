@@ -18,6 +18,7 @@ import {
   nextLogId,
   pickEnemyAction,
   resonanceCostForSkill,
+  ULTIMATE_RESONANCE_COST,
   type BattleCombatant,
   type BattleLogEntry,
 } from "@/lib/combat";
@@ -390,7 +391,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
               {(() => {
                 const ultimate = getUltimateSkill(actor.creature);
                 if (!ultimate || !actor.creature.ultimateSkill) return null;
-                const cost = actor.creature.ultimateSkill.resonanceCost;
+                const cost = ULTIMATE_RESONANCE_COST;
                 const isReady = actor.resonance >= cost;
                 return (
                   <button
