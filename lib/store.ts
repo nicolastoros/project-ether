@@ -17,6 +17,7 @@ import type {
 import {
   applyAwakenBump,
   AWAKEN_COST,
+  creatureLevelCap,
   creatureSellValue,
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
@@ -75,18 +76,21 @@ function ensureFreshEventAttempts(
 }
 
 function applyExpGain(creature: Creature, gained: number): Creature {
-  if (creature.level >= MAX_LEVEL) return creature;
+  // Varies by rarity (and Awaken state) now instead of a flat MAX_LEVEL — see
+  // creatureLevelCap/LEVEL_CAP_BY_RARITY in lib/gameData.ts.
+  const levelCap = creatureLevelCap(creature);
+  if (creature.level >= levelCap) return creature;
   let exp = creature.exp + gained;
   let level = creature.level;
   let expToNextLevel = creature.expToNextLevel;
 
-  while (exp >= expToNextLevel && level < MAX_LEVEL) {
+  while (exp >= expToNextLevel && level < levelCap) {
     exp -= expToNextLevel;
     level += 1;
     expToNextLevel = nextLevelExpRequirement(expToNextLevel, level);
   }
-  if (level >= MAX_LEVEL) {
-    level = MAX_LEVEL;
+  if (level >= levelCap) {
+    level = levelCap;
     exp = 0;
   }
 

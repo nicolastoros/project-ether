@@ -23,12 +23,42 @@ import type {
 export const HUB_TEAM_SIZE = 7;
 
 // Shared by both creature and Tamer leveling (lib/store.ts's applyExpGain/applyProfileExpGain).
-// Early levels stay quick so the opening hours feel generous; the climb visibly steepens at 25,
-// then again at 60, so late-game leveling reads as real, slower progress instead of a flat grind.
+// Tamer (profile) leveling still caps at this flat 100 — only creature leveling now varies by
+// rarity (see LEVEL_CAP_BY_RARITY/creatureLevelCap below).
 export const MAX_LEVEL = 100;
+
+// Early levels stay quick so the opening hours feel generous; the climb steepens gradually from
+// there instead of jumping hard at 25 then again at 60 (the old 1.12/1.18/1.24 tiering — reported
+// live as "you can level fine up to ~50, then it's basically capped": those two step-ups compound
+// over dozens of levels into a wall, e.g. level 50->75 needed ~110x more EXP than 1->50 did).
+// This keeps 1-25 identical (no change to how the game has always felt early on) and narrows the
+// gap between tiers everywhere after, so the climb keeps reading as real progress instead of
+// flatlining — level 50->75 now costs ~24x instead of ~110x. The last tier (100+) only matters for
+// LR (cap 150) and Awakened Mythics (cap 140, see AWAKENED_MYTHIC_LEVEL_CAP) since nothing else
+// levels past 100.
 export function nextLevelExpRequirement(currentRequirement: number, newLevel: number): number {
-  const rate = newLevel < 25 ? 1.12 : newLevel < 60 ? 1.18 : 1.24;
+  const rate = newLevel <= 25 ? 1.12 : newLevel <= 60 ? 1.13 : newLevel <= 100 ? 1.145 : 1.12;
   return Math.round(currentRequirement * rate);
+}
+
+// Creature level caps now vary by rarity instead of everyone sharing the flat MAX_LEVEL — LR and
+// Mythic pull noticeably ahead late-game, matching how much rarer they are to obtain. A Mythic
+// reached via Awaken (an SSR bumped up — see applyAwakenBump) gets a higher cap than a naturally-
+// pulled Mythic: it's the reward for having already leveled/invested in the SSR that became it.
+export const LEVEL_CAP_BY_RARITY: Record<Rarity, number> = {
+  Common: 100,
+  Rare: 100,
+  SSR: 100,
+  Mythic: 120,
+  LR: 150,
+};
+export const AWAKENED_MYTHIC_LEVEL_CAP = 140;
+
+export function creatureLevelCap(creature: { rarity: Rarity; awakenLevel?: number }): number {
+  if (creature.rarity === "Mythic" && (creature.awakenLevel ?? 0) >= 1) {
+    return AWAKENED_MYTHIC_LEVEL_CAP;
+  }
+  return LEVEL_CAP_BY_RARITY[creature.rarity];
 }
 
 function skill(
