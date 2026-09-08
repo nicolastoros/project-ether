@@ -106,32 +106,32 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-arcade-border bg-arcade-panel shadow-xl"
+            className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-arcade-border bg-arcade-panel shadow-xl"
           >
-            <div className="flex items-center justify-between border-b border-arcade-border p-4">
-              <h2 className="flex items-center gap-2 font-arcade text-sm glow-text-gold">
-                <CalendarDays className="h-4 w-4" /> Daily Login Rewards
+            <div className="flex items-center justify-between border-b border-arcade-border p-5">
+              <h2 className="flex items-center gap-2 font-arcade text-lg glow-text-gold">
+                <CalendarDays className="h-6 w-6" /> Daily Login Rewards
               </h2>
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border text-zinc-500 hover:text-foreground"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-arcade-border text-zinc-500 hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-5">
               {loading || !status ? (
-                <p className="py-10 text-center text-xs text-zinc-500">Loading...</p>
+                <p className="py-10 text-center text-sm text-zinc-500">Loading...</p>
               ) : (
                 <>
-                  <p className="mb-3 text-center text-[11px] text-zinc-500">
+                  <p className="mb-4 text-center text-sm text-zinc-500">
                     Log in every day for Orbs and Tickets — every 5th day adds a Legendary Ticket bonus.
                     Miss a day and it&apos;s gone, so don&apos;t skip!
                   </p>
 
-                  <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
+                  <div className="grid grid-cols-5 gap-2.5 sm:grid-cols-6 sm:gap-3">
                     {Array.from({ length: DAYS_IN_CALENDAR }, (_, i) => i + 1).map((day) => {
                       const dateStr = status.today.slice(0, 8) + String(day).padStart(2, "0");
                       const isBonus = day % 5 === 0;
@@ -144,7 +144,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                         <div
                           key={day}
                           className={cn(
-                            "relative flex flex-col items-center justify-center gap-0.5 rounded-xl border p-2 text-center",
+                            "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center",
                             isToday && !isClaimed && "border-gold bg-gold/10 shadow-[0_0_0_2px_rgba(255,184,77,0.3)]",
                             isClaimed && "border-emerald-400/50 bg-emerald-400/10",
                             isMissed && "border-arcade-border bg-arcade-panel-light opacity-40",
@@ -152,25 +152,25 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                           )}
                         >
                           {isBonus && (
-                            <Star className="absolute -right-1 -top-1 h-3.5 w-3.5 fill-gold-bright text-gold-bright drop-shadow" />
+                            <Star className="absolute -right-1.5 -top-1.5 h-5 w-5 fill-gold-bright text-gold-bright drop-shadow" />
                           )}
-                          <span className="font-arcade text-[9px] text-zinc-500">D{day}</span>
+                          <span className="font-arcade text-xs font-semibold text-zinc-500 sm:text-sm">D{day}</span>
                           {isClaimed ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
+                            <Check className="h-6 w-6 text-emerald-500" />
                           ) : isMissed ? (
-                            <X className="h-4 w-4 text-zinc-400" />
+                            <X className="h-5 w-5 text-zinc-400" />
                           ) : isFuture ? (
-                            <Lock className="h-3.5 w-3.5 text-zinc-400" />
+                            <Lock className="h-5 w-5 text-zinc-400" />
                           ) : (
-                            <span className="h-4 w-4 animate-pulse rounded-full bg-gold-bright" />
+                            <span className="h-5 w-5 animate-pulse rounded-full bg-gold-bright" />
                           )}
                         </div>
                       );
                     })}
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-arcade-border bg-arcade-panel-light p-3">
-                    <p className="mb-2 text-center font-arcade text-[10px] uppercase tracking-wide text-zinc-500">
+                  <div className="mt-5 rounded-2xl border border-arcade-border bg-arcade-panel-light p-4">
+                    <p className="mb-3 text-center font-arcade text-xs uppercase tracking-wide text-zinc-500">
                       Today&apos;s Reward (Day {status.dayOfMonth}{status.dayOfMonth % 5 === 0 ? " — Bonus!" : ""})
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2">
@@ -179,19 +179,19 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                         .map((it) => (
                           <div
                             key={it.itemId}
-                            className="flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel px-2 py-1"
+                            className="flex items-center gap-1.5 rounded-full border border-arcade-border bg-arcade-panel px-3 py-1.5"
                           >
                             {itemIcon(it.itemId) && (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={itemIcon(it.itemId)} alt="" className="h-5 w-5 object-contain" />
+                              <img src={itemIcon(it.itemId)} alt="" className="h-6 w-6 object-contain" />
                             )}
-                            <span className="text-[10px] font-semibold text-foreground">
+                            <span className="text-xs font-semibold text-foreground">
                               {itemName(it.itemId)} ×{it.quantity}
                             </span>
                           </div>
                         ))}
-                      <div className="flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel px-2 py-1">
-                        <span className="text-[10px] font-semibold text-foreground">
+                      <div className="flex items-center gap-1.5 rounded-full border border-arcade-border bg-arcade-panel px-3 py-1.5">
+                        <span className="text-xs font-semibold text-foreground">
                           + every Orb type (300 / 150 / 50)
                         </span>
                       </div>
@@ -199,7 +199,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                   </div>
 
                   <PixelButton
-                    className="mt-4 w-full"
+                    className="mt-5 w-full py-3 text-sm"
                     variant={status.claimedToday ? "ghost" : "gold"}
                     disabled={status.claimedToday || claiming}
                     onClick={handleClaim}

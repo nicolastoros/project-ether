@@ -58,40 +58,43 @@ export function TopStatusBar() {
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-2">
           <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5" />} value={currencies.gold} />
           <CurrencyPill icon={<CrownIcon className="h-3.5 w-3.5" />} value={currencies.gems} />
           <button
             onClick={() => setShowGifts(true)}
             aria-label="Gifts"
-            className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright"
           >
-            <Mail className="h-3.5 w-3.5" />
+            <Mail className="h-5 w-5" />
             {gifts.length > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] text-white">
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
                 {gifts.length}
               </span>
             )}
           </button>
+          {/* Gold-tinted by default (not just on hover) — this is the one nobody could find:
+              nothing about a plain gray calendar icon says "there's a free reward waiting here"
+              the way Gifts' red badge does, so it needs to read as valuable at rest too. */}
           <button
             onClick={() => {
               setShowDailyLogin(true);
               setDailyLoginAvailable(false);
             }}
             aria-label="Daily Login Rewards"
-            className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/50 bg-gold/10 text-gold-bright transition-colors hover:border-gold hover:bg-gold/20"
           >
-            <CalendarDays className="h-3.5 w-3.5" />
+            <CalendarDays className="h-5 w-5" />
             {dailyLoginAvailable && (
-              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              <span className="absolute -top-1 -right-1 h-3.5 w-3.5 animate-pulse rounded-full border-2 border-arcade-panel bg-red-500" />
             )}
           </button>
           <button
             onClick={() => setShowGuide(true)}
             aria-label="Monster Guide"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-[#38bdf8] hover:text-[#0e7490]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-[#38bdf8] hover:text-[#0e7490]"
           >
-            <BookOpen className="h-3.5 w-3.5" />
+            <BookOpen className="h-5 w-5" />
           </button>
           <button
             onClick={async () => {
@@ -100,9 +103,9 @@ export function TopStatusBar() {
               router.replace("/");
             }}
             aria-label="Log out"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-red-500 hover:text-red-500 lg:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-red-500 hover:text-red-500 lg:hidden"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
       </div>
