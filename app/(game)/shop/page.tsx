@@ -238,7 +238,7 @@ export default function ShopPage() {
                       inputMode="numeric"
                       value={quantity}
                       onChange={(e) => setBuyQuantityInput(listing.id, e.target.value)}
-                      className="w-12 border-0 bg-transparent text-center font-mono text-sm text-zinc-300 outline-none sm:text-base"
+                      className="w-12 border-0 bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none sm:text-base"
                     />
                     <button
                       onClick={() => updateBuyQuantity(listing.id, 1)}
