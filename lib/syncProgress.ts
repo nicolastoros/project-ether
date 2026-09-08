@@ -76,6 +76,8 @@ export function syncProgressToServer(): void {
       dailyEventAttemptsDate: profile.dailyEventAttemptsDate,
       dailyShopPurchases: profile.dailyShopPurchases,
       dailyShopPurchasesDate: profile.dailyShopPurchasesDate,
+      weeklyShopPurchases: profile.weeklyShopPurchases,
+      weeklyShopPurchasesDate: profile.weeklyShopPurchasesDate,
       dailyTasksState: {
         date: dailyTasksDate,
         tasks: Object.fromEntries(dailyTasks.map((t) => [t.id, { progress: t.progress, claimed: t.claimed }])),

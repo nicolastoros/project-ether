@@ -182,6 +182,8 @@ export interface AccountBundle {
     dailyEventAttemptsDate?: string;
     dailyShopPurchases?: Record<string, number>;
     dailyShopPurchasesDate?: string;
+    weeklyShopPurchases?: Record<string, number>;
+    weeklyShopPurchasesDate?: string;
     hasReceivedStarterGifts?: boolean;
   };
   currencies: {
@@ -292,7 +294,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_shop_purchases, daily_shop_purchases_date, daily_missions_state, achievements, has_received_starter_gifts
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_shop_purchases, daily_shop_purchases_date, weekly_shop_purchases, weekly_shop_purchases_date, daily_missions_state, achievements, has_received_starter_gifts
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -483,6 +485,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       dailyEventAttemptsDate: userRow.daily_event_attempts_date || "",
       dailyShopPurchases: userRow.daily_shop_purchases ? JSON.parse(userRow.daily_shop_purchases) : {},
       dailyShopPurchasesDate: userRow.daily_shop_purchases_date || "",
+      weeklyShopPurchases: userRow.weekly_shop_purchases ? JSON.parse(userRow.weekly_shop_purchases) : {},
+      weeklyShopPurchasesDate: userRow.weekly_shop_purchases_date || "",
       hasReceivedStarterGifts: Boolean(userRow.has_received_starter_gifts),
     },
     currencies: currencyRow
@@ -581,6 +585,8 @@ export async function syncPlayerProgress(
     dailyEventAttemptsDate?: string;
     dailyShopPurchases?: Record<string, number>;
     dailyShopPurchasesDate?: string;
+    weeklyShopPurchases?: Record<string, number>;
+    weeklyShopPurchasesDate?: string;
     items?: { itemId: string; quantity: number }[];
     /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
      * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
@@ -607,6 +613,8 @@ export async function syncPlayerProgress(
         ${opts.dailyEventAttemptsDate ? ', daily_event_attempts_date = @dailyEventAttemptsDate' : ''}
         ${opts.dailyShopPurchases ? ', daily_shop_purchases = @dailyShopPurchases' : ''}
         ${opts.dailyShopPurchasesDate ? ', daily_shop_purchases_date = @dailyShopPurchasesDate' : ''}
+        ${opts.weeklyShopPurchases ? ', weekly_shop_purchases = @weeklyShopPurchases' : ''}
+        ${opts.weeklyShopPurchasesDate ? ', weekly_shop_purchases_date = @weeklyShopPurchasesDate' : ''}
         ${opts.dailyTasksState ? ', daily_missions_state = @dailyTasksState' : ''}
         WHERE id = @userId
       `,
@@ -619,6 +627,8 @@ export async function syncPlayerProgress(
         ...(opts.dailyEventAttemptsDate && { dailyEventAttemptsDate: opts.dailyEventAttemptsDate }),
         ...(opts.dailyShopPurchases && { dailyShopPurchases: JSON.stringify(opts.dailyShopPurchases) }),
         ...(opts.dailyShopPurchasesDate && { dailyShopPurchasesDate: opts.dailyShopPurchasesDate }),
+        ...(opts.weeklyShopPurchases && { weeklyShopPurchases: JSON.stringify(opts.weeklyShopPurchases) }),
+        ...(opts.weeklyShopPurchasesDate && { weeklyShopPurchasesDate: opts.weeklyShopPurchasesDate }),
         ...(opts.dailyTasksState && { dailyTasksState: JSON.stringify(opts.dailyTasksState) }),
       },
     }),

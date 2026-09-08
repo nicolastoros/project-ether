@@ -22,6 +22,20 @@ export function todayDateString(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** "YYYY-MM-DD" of this week's Monday (local time) — the weekly counterpart to todayDateString,
+ * used the same way (a boundary string that changes once a week; a stored value not matching the
+ * current one means "stale, reset"). See ShopListing.weeklyLimit / ensureFreshWeeklyShopPurchases
+ * in lib/store.ts. */
+export function thisWeekStartDateString(): string {
+  const d = new Date();
+  const dayOfWeek = d.getDay(); // 0 = Sunday .. 6 = Saturday
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  d.setDate(d.getDate() - daysSinceMonday);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 /** Formats a TamerEquipment piece's percent stat bonuses (e.g. "+2% HP · +1% ATK") — shared by
  * the Tamer page and Inventory's Equipment tab so both list a piece's bonus the same way. */
 export function formatTamerStatBonus(bonus?: TamerEquipment["statBonus"]): string | null {

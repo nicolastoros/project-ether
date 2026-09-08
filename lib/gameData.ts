@@ -1447,6 +1447,9 @@ export interface ShopListing {
    * as profile.dailyEventAttempts (see ensureFreshShopPurchases in lib/store.ts). Undefined means
    * unlimited, same as every listing before this field existed. */
   dailyLimit?: number;
+  /** Same idea as dailyLimit, but resets weekly (local Monday) instead — see
+   * ensureFreshWeeklyShopPurchases in lib/store.ts. A listing uses one or the other, never both. */
+  weeklyLimit?: number;
 }
 
 // No standalone icon field — the Shop page resolves art at render time from whatever the listing
@@ -1467,6 +1470,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
     rarity: "Common",
     price: { gold: 300 },
     grants: { kind: "item", itemId: "it-training-box" },
+    dailyLimit: 10,
   },
   {
     id: "shop-training-trx",
@@ -1474,6 +1478,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
     rarity: "Rare",
     price: { gold: 900 },
     grants: { kind: "item", itemId: "it-training-trx" },
+    dailyLimit: 10,
   },
   {
     id: "shop-training-dumbbell",
@@ -1481,6 +1486,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
     rarity: "SSR",
     price: { gold: 2200 },
     grants: { kind: "item", itemId: "it-training-dumbbell" },
+    dailyLimit: 10,
   },
   {
     id: "shop-skin-crimson-emberling",
@@ -1503,27 +1509,27 @@ export const SHOP_LISTINGS: ShopListing[] = [
     price: { gems: 300 },
     grants: { kind: "creature", creatureId: "cr-tidewarden" },
   },
-  { id: "shop-orb-s-fire", description: "50x Small Red Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-fire", amount: 50 } },
-  { id: "shop-orb-m-fire", description: "20x Medium Red Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-fire", amount: 20 } },
-  { id: "shop-orb-l-fire", description: "5x Large Red Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-fire", amount: 5 } },
-  { id: "shop-orb-s-water", description: "50x Small Blue Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-water", amount: 50 } },
-  { id: "shop-orb-m-water", description: "20x Medium Blue Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-water", amount: 20 } },
-  { id: "shop-orb-l-water", description: "5x Large Blue Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-water", amount: 5 } },
-  { id: "shop-orb-s-nature", description: "50x Small Green Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-nature", amount: 50 } },
-  { id: "shop-orb-m-nature", description: "20x Medium Green Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-nature", amount: 20 } },
-  { id: "shop-orb-l-nature", description: "5x Large Green Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-nature", amount: 5 } },
-  { id: "shop-orb-s-light", description: "50x Small Yellow Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-light", amount: 50 } },
-  { id: "shop-orb-m-light", description: "20x Medium Yellow Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-light", amount: 20 } },
-  { id: "shop-orb-l-light", description: "5x Large Yellow Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-light", amount: 5 } },
-  { id: "shop-orb-s-dark", description: "50x Small Purple Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-dark", amount: 50 } },
-  { id: "shop-orb-m-dark", description: "20x Medium Purple Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-dark", amount: 20 } },
-  { id: "shop-orb-l-dark", description: "5x Large Purple Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-dark", amount: 5 } },
-  { id: "shop-orb-s-electric", description: "50x Small Cyan Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-electric", amount: 50 } },
-  { id: "shop-orb-m-electric", description: "20x Medium Cyan Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-electric", amount: 20 } },
-  { id: "shop-orb-l-electric", description: "5x Large Cyan Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-electric", amount: 5 } },
-  { id: "shop-orb-s-neutral", description: "50x Small Gray Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-neutral", amount: 50 } },
-  { id: "shop-orb-m-neutral", description: "20x Medium Gray Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-neutral", amount: 20 } },
-  { id: "shop-orb-l-neutral", description: "5x Large Gray Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-neutral", amount: 5 } },
+  { id: "shop-orb-s-fire", description: "50x Small Red Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-fire", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-fire", description: "20x Medium Red Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-fire", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-fire", description: "5x Large Red Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-fire", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-water", description: "50x Small Blue Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-water", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-water", description: "20x Medium Blue Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-water", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-water", description: "5x Large Blue Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-water", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-nature", description: "50x Small Green Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-nature", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-nature", description: "20x Medium Green Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-nature", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-nature", description: "5x Large Green Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-nature", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-light", description: "50x Small Yellow Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-light", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-light", description: "20x Medium Yellow Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-light", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-light", description: "5x Large Yellow Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-light", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-dark", description: "50x Small Purple Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-dark", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-dark", description: "20x Medium Purple Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-dark", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-dark", description: "5x Large Purple Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-dark", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-electric", description: "50x Small Cyan Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-electric", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-electric", description: "20x Medium Cyan Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-electric", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-electric", description: "5x Large Cyan Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-electric", amount: 5 }, weeklyLimit: 10 },
+  { id: "shop-orb-s-neutral", description: "50x Small Gray Orbs", rarity: "Common", price: { gold: 1000 }, grants: { kind: "item", itemId: "it-orb-small-neutral", amount: 50 }, weeklyLimit: 10 },
+  { id: "shop-orb-m-neutral", description: "20x Medium Gray Orbs", rarity: "Rare", price: { gold: 1500 }, grants: { kind: "item", itemId: "it-orb-medium-neutral", amount: 20 }, weeklyLimit: 10 },
+  { id: "shop-orb-l-neutral", description: "5x Large Gray Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-neutral", amount: 5 }, weeklyLimit: 10 },
 ];
 
 // task-login ships pre-completed (progress = target) — reaching this fresh-day clone at all (see

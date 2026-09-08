@@ -116,6 +116,8 @@ export async function POST(request: Request) {
     dailyEventAttemptsDate,
     dailyShopPurchases,
     dailyShopPurchasesDate,
+    weeklyShopPurchases,
+    weeklyShopPurchasesDate,
     items,
     dailyTasksState,
   } = body as Record<string, unknown>;
@@ -131,6 +133,7 @@ export async function POST(request: Request) {
     (items !== undefined && !Array.isArray(items)) ||
     (dailyEventAttemptsDate !== undefined && typeof dailyEventAttemptsDate !== "string") ||
     (dailyShopPurchasesDate !== undefined && typeof dailyShopPurchasesDate !== "string") ||
+    (weeklyShopPurchasesDate !== undefined && typeof weeklyShopPurchasesDate !== "string") ||
     (dailyTasksState !== undefined && !isSyncDailyTasksState(dailyTasksState))
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -149,6 +152,8 @@ export async function POST(request: Request) {
       dailyEventAttemptsDate: dailyEventAttemptsDate as string | undefined,
       dailyShopPurchases: dailyShopPurchases as Record<string, number> | undefined,
       dailyShopPurchasesDate: dailyShopPurchasesDate as string | undefined,
+      weeklyShopPurchases: weeklyShopPurchases as Record<string, number> | undefined,
+      weeklyShopPurchasesDate: weeklyShopPurchasesDate as string | undefined,
       items: items !== undefined ? (items as unknown[]).filter(isSyncItem) : undefined,
       dailyTasksState: dailyTasksState as SyncDailyTasksState | undefined,
     });

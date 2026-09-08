@@ -34,7 +34,7 @@ import {
 } from "@/lib/gameData";
 import { partyPower } from "@/lib/power";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
-import { todayDateString } from "@/lib/utils";
+import { thisWeekStartDateString, todayDateString } from "@/lib/utils";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -84,6 +84,17 @@ function ensureFreshShopPurchases(
   const today = todayDateString();
   if (purchasesDate === today) return { purchases, date: today };
   return { purchases: {}, date: today };
+}
+
+/** Weekly counterpart to ensureFreshShopPurchases, for ShopListing.weeklyLimit (Orbs: 10/week) —
+ * resets at local Monday instead of local midnight. */
+function ensureFreshWeeklyShopPurchases(
+  purchases: Record<string, number>,
+  purchasesDate: string
+): { purchases: Record<string, number>; date: string } {
+  const thisWeek = thisWeekStartDateString();
+  if (purchasesDate === thisWeek) return { purchases, date: thisWeek };
+  return { purchases: {}, date: thisWeek };
 }
 
 function applyExpGain(creature: Creature, gained: number): Creature {
@@ -257,6 +268,8 @@ function bundleToStateFields(bundle: AccountBundle) {
       dailyEventAttemptsDate: bundle.profile.dailyEventAttemptsDate || "",
       dailyShopPurchases: bundle.profile.dailyShopPurchases || {},
       dailyShopPurchasesDate: bundle.profile.dailyShopPurchasesDate || "",
+      weeklyShopPurchases: bundle.profile.weeklyShopPurchases || {},
+      weeklyShopPurchasesDate: bundle.profile.weeklyShopPurchasesDate || "",
       hasReceivedStarterGifts: bundle.profile.hasReceivedStarterGifts || false,
     },
     currencies: {
@@ -1123,15 +1136,31 @@ export const useGameStore = create<GameState>()(
         if (!listing || quantity < 1) return false;
         const { currencies, ownedTamerIds, profile } = get();
 
-        const { purchases, date } = ensureFreshShopPurchases(
+        const { purchases: dailyPurchases, date: dailyDate } = ensureFreshShopPurchases(
           profile.dailyShopPurchases ?? {},
           profile.dailyShopPurchasesDate ?? ""
         );
-        const purchasedToday = purchases[listingId] || 0;
-        if (listing.dailyLimit !== undefined && purchasedToday + quantity > listing.dailyLimit) {
-          // Still persist the reset even on a failed attempt, same as consumeEventAttempt — a new
-          // day's fresh {} shouldn't get lost just because this particular buy was rejected.
-          set((s) => ({ profile: { ...s.profile, dailyShopPurchases: purchases, dailyShopPurchasesDate: date } }));
+        const { purchases: weeklyPurchases, date: weeklyDate } = ensureFreshWeeklyShopPurchases(
+          profile.weeklyShopPurchases ?? {},
+          profile.weeklyShopPurchasesDate ?? ""
+        );
+        const purchasedToday = dailyPurchases[listingId] || 0;
+        const purchasedThisWeek = weeklyPurchases[listingId] || 0;
+        const overDailyLimit = listing.dailyLimit !== undefined && purchasedToday + quantity > listing.dailyLimit;
+        const overWeeklyLimit = listing.weeklyLimit !== undefined && purchasedThisWeek + quantity > listing.weeklyLimit;
+        if (overDailyLimit || overWeeklyLimit) {
+          // Still persist the reset(s) even on a failed attempt, same as consumeEventAttempt — a
+          // new day/week's fresh {} shouldn't get lost just because this particular buy was
+          // rejected.
+          set((s) => ({
+            profile: {
+              ...s.profile,
+              dailyShopPurchases: dailyPurchases,
+              dailyShopPurchasesDate: dailyDate,
+              weeklyShopPurchases: weeklyPurchases,
+              weeklyShopPurchasesDate: weeklyDate,
+            },
+          }));
           return false;
         }
 
@@ -1151,12 +1180,18 @@ export const useGameStore = create<GameState>()(
           set({ ownedTamerIds: [...ownedTamerIds, listing.grants.tamerId] });
         }
 
-        if (listing.dailyLimit !== undefined) {
+        if (listing.dailyLimit !== undefined || listing.weeklyLimit !== undefined) {
           set((s) => ({
             profile: {
               ...s.profile,
-              dailyShopPurchasesDate: date,
-              dailyShopPurchases: { ...purchases, [listingId]: purchasedToday + quantity },
+              ...(listing.dailyLimit !== undefined && {
+                dailyShopPurchasesDate: dailyDate,
+                dailyShopPurchases: { ...dailyPurchases, [listingId]: purchasedToday + quantity },
+              }),
+              ...(listing.weeklyLimit !== undefined && {
+                weeklyShopPurchasesDate: weeklyDate,
+                weeklyShopPurchases: { ...weeklyPurchases, [listingId]: purchasedThisWeek + quantity },
+              }),
             },
           }));
         }

@@ -252,6 +252,10 @@ export interface UserProfile {
    * lib/store.ts's ensureFreshShopPurchases. */
   dailyShopPurchases?: Record<string, number>;
   dailyShopPurchasesDate?: string;
+  /** Same as dailyShopPurchases/dailyShopPurchasesDate but for ShopListing.weeklyLimit (Orbs) —
+   * see lib/store.ts's ensureFreshWeeklyShopPurchases. */
+  weeklyShopPurchases?: Record<string, number>;
+  weeklyShopPurchasesDate?: string;
   hasReceivedStarterGifts?: boolean;
 }
 

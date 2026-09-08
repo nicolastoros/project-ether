@@ -20,7 +20,7 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { Plus, Minus } from "lucide-react";
-import { cn, todayDateString } from "@/lib/utils";
+import { cn, thisWeekStartDateString, todayDateString } from "@/lib/utils";
 
 type Tab = "buy" | "sell" | "exchange";
 
@@ -75,13 +75,22 @@ export default function ShopPage() {
   const getBuyQuantity = (id: string) => buyQuantities[id] || 1;
   const getSellQuantity = (id: string) => sellQuantities[id] || 1;
 
-  // ShopListing.dailyLimit (e.g. Chicken: 6/day) — mirrors ensureFreshShopPurchases in
-  // lib/store.ts so the displayed "left today" count matches what buyListing will actually
-  // enforce, including the same local-midnight reset.
-  const purchasedToday = (listingId: string) =>
-    profile.dailyShopPurchasesDate === todayDateString() ? profile.dailyShopPurchases?.[listingId] ?? 0 : 0;
-  const remainingToday = (listing: ShopListing) =>
-    listing.dailyLimit === undefined ? Infinity : Math.max(0, listing.dailyLimit - purchasedToday(listing.id));
+  // ShopListing.dailyLimit/weeklyLimit (e.g. Chicken: 6/day, Orbs: 10/week) — mirrors
+  // ensureFreshShopPurchases/ensureFreshWeeklyShopPurchases in lib/store.ts so the displayed
+  // "left today"/"left this week" count matches what buyListing will actually enforce, including
+  // the same local-midnight / local-Monday reset.
+  const limitInfoFor = (listing: ShopListing): { remaining: number; limit: number; period: "day" | "week" } | null => {
+    if (listing.dailyLimit !== undefined) {
+      const purchased = profile.dailyShopPurchasesDate === todayDateString() ? profile.dailyShopPurchases?.[listing.id] ?? 0 : 0;
+      return { remaining: Math.max(0, listing.dailyLimit - purchased), limit: listing.dailyLimit, period: "day" };
+    }
+    if (listing.weeklyLimit !== undefined) {
+      const purchased =
+        profile.weeklyShopPurchasesDate === thisWeekStartDateString() ? profile.weeklyShopPurchases?.[listing.id] ?? 0 : 0;
+      return { remaining: Math.max(0, listing.weeklyLimit - purchased), limit: listing.weeklyLimit, period: "week" };
+    }
+    return null;
+  };
 
   const updateBuyQuantity = (id: string, delta: number, max: number) => {
     setBuyQuantities((prev) => ({ ...prev, [id]: Math.min(Math.max(1, (prev[id] || 1) + delta), Math.max(1, max)) }));
@@ -204,13 +213,15 @@ export default function ShopPage() {
       {tab === "buy" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
           {SHOP_LISTINGS.map((listing) => {
-            const remaining = remainingToday(listing);
-            const soldOutToday = listing.dailyLimit !== undefined && remaining <= 0;
+            const limitInfo = limitInfoFor(listing);
+            const remaining = limitInfo?.remaining ?? Infinity;
+            const soldOut = limitInfo !== null && limitInfo.remaining <= 0;
+            const periodLabel = limitInfo?.period === "week" ? "this week" : "today";
             const quantity =
               listing.grants.kind === "tamer" ? 1 : Math.min(getBuyQuantity(listing.id), Math.max(1, remaining));
             const gold = (listing.price.gold ?? 0) * quantity;
             const gems = (listing.price.gems ?? 0) * quantity;
-            const affordable = currencies.gold >= gold && currencies.gems >= gems && !soldOutToday;
+            const affordable = currencies.gold >= gold && currencies.gems >= gems && !soldOut;
             return (
               <GlowPanel key={listing.id} accent="none" className="flex flex-col items-center gap-2 p-3 text-center sm:gap-2.5 sm:p-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-20 sm:w-20 lg:h-24 lg:w-24">
@@ -219,9 +230,9 @@ export default function ShopPage() {
                 <p className="truncate text-sm font-semibold text-foreground sm:text-base">{listingName(listing)}</p>
                 <RarityBadge rarity={listing.rarity} className="sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm" />
                 <p className="text-xs text-zinc-500 sm:text-sm">{listing.description}</p>
-                {listing.dailyLimit !== undefined && (
-                  <span className={cn("font-arcade text-[10px] uppercase tracking-wide", soldOutToday ? "text-red-500" : "text-zinc-500")}>
-                    {remaining}/{listing.dailyLimit} left today
+                {limitInfo && (
+                  <span className={cn("font-arcade text-[10px] uppercase tracking-wide", soldOut ? "text-red-500" : "text-zinc-500")}>
+                    {limitInfo.remaining}/{limitInfo.limit} left {periodLabel}
                   </span>
                 )}
                 <span
@@ -241,7 +252,7 @@ export default function ShopPage() {
                     </>
                   )}
                 </span>
-                {listing.grants.kind !== "tamer" && !soldOutToday && (
+                {listing.grants.kind !== "tamer" && !soldOut && (
                   <div className="flex w-full items-center justify-between rounded-md border border-arcade-border bg-arcade-panel-dark overflow-hidden">
                     <button
                       onClick={() => updateBuyQuantity(listing.id, -1, remaining)}
@@ -273,7 +284,7 @@ export default function ShopPage() {
                   disabled={!affordable || busyId === listing.id}
                   onClick={() => handleBuy(listing)}
                 >
-                  {soldOutToday ? "Sold out today" : `Buy ${listing.grants.kind !== "tamer" ? quantity : ""}`}
+                  {soldOut ? `Sold out ${periodLabel}` : `Buy ${listing.grants.kind !== "tamer" ? quantity : ""}`}
                 </PixelButton>
               </GlowPanel>
             );
