@@ -75,6 +75,17 @@ function ensureFreshEventAttempts(
   return { attempts: {}, date: today };
 }
 
+/** Same reset-on-stale-date pattern, for Shop.buyListing's per-listing dailyLimit (e.g. Chicken:
+ * 6/day) — see ShopListing.dailyLimit in lib/gameData.ts. */
+function ensureFreshShopPurchases(
+  purchases: Record<string, number>,
+  purchasesDate: string
+): { purchases: Record<string, number>; date: string } {
+  const today = todayDateString();
+  if (purchasesDate === today) return { purchases, date: today };
+  return { purchases: {}, date: today };
+}
+
 function applyExpGain(creature: Creature, gained: number): Creature {
   // Varies by rarity (and Awaken state) now instead of a flat MAX_LEVEL — see
   // creatureLevelCap/LEVEL_CAP_BY_RARITY in lib/gameData.ts.
@@ -244,6 +255,8 @@ function bundleToStateFields(bundle: AccountBundle) {
       isAdmin: bundle.profile.isAdmin,
       dailyEventAttempts: bundle.profile.dailyEventAttempts || {},
       dailyEventAttemptsDate: bundle.profile.dailyEventAttemptsDate || "",
+      dailyShopPurchases: bundle.profile.dailyShopPurchases || {},
+      dailyShopPurchasesDate: bundle.profile.dailyShopPurchasesDate || "",
       hasReceivedStarterGifts: bundle.profile.hasReceivedStarterGifts || false,
     },
     currencies: {
@@ -1108,8 +1121,20 @@ export const useGameStore = create<GameState>()(
       buyListing: (listingId, quantity = 1) => {
         const listing = SHOP_LISTINGS.find((l) => l.id === listingId);
         if (!listing || quantity < 1) return false;
-        const { currencies, ownedTamerIds } = get();
-        
+        const { currencies, ownedTamerIds, profile } = get();
+
+        const { purchases, date } = ensureFreshShopPurchases(
+          profile.dailyShopPurchases ?? {},
+          profile.dailyShopPurchasesDate ?? ""
+        );
+        const purchasedToday = purchases[listingId] || 0;
+        if (listing.dailyLimit !== undefined && purchasedToday + quantity > listing.dailyLimit) {
+          // Still persist the reset even on a failed attempt, same as consumeEventAttempt — a new
+          // day's fresh {} shouldn't get lost just because this particular buy was rejected.
+          set((s) => ({ profile: { ...s.profile, dailyShopPurchases: purchases, dailyShopPurchasesDate: date } }));
+          return false;
+        }
+
         const totalGold = (listing.price.gold ?? 0) * quantity;
         const totalGems = (listing.price.gems ?? 0) * quantity;
 
@@ -1124,6 +1149,16 @@ export const useGameStore = create<GameState>()(
           get().grantCreature(listing.grants.creatureId, quantity);
         } else if (!ownedTamerIds.includes(listing.grants.tamerId)) {
           set({ ownedTamerIds: [...ownedTamerIds, listing.grants.tamerId] });
+        }
+
+        if (listing.dailyLimit !== undefined) {
+          set((s) => ({
+            profile: {
+              ...s.profile,
+              dailyShopPurchasesDate: date,
+              dailyShopPurchases: { ...purchases, [listingId]: purchasedToday + quantity },
+            },
+          }));
         }
         return true;
       },

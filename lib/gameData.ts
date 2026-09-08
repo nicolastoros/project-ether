@@ -1267,7 +1267,7 @@ export const ITEM_CATALOG: InventoryItem[] = [
     rarity: "Common",
     description: "A hearty meal that restores some of the Tamer's energy.",
     icon: "/assets/objects/chicken.png",
-    energyRestore: 20,
+    energyRestore: 5,
   },
   {
     id: "it-training-box",
@@ -1443,6 +1443,10 @@ export interface ShopListing {
     | { kind: "item"; itemId: string; amount?: number }
     | { kind: "creature"; creatureId: string }
     | { kind: "tamer"; tamerId: string };
+  /** Max total quantity purchasable per calendar day — resets at local midnight, same mechanism
+   * as profile.dailyEventAttempts (see ensureFreshShopPurchases in lib/store.ts). Undefined means
+   * unlimited, same as every listing before this field existed. */
+  dailyLimit?: number;
 }
 
 // No standalone icon field — the Shop page resolves art at render time from whatever the listing
@@ -1451,10 +1455,11 @@ export interface ShopListing {
 export const SHOP_LISTINGS: ShopListing[] = [
   {
     id: "shop-chicken",
-    description: "Restores 20 Tamer energy.",
+    description: "Restores 5 Tamer energy.",
     rarity: "Common",
     price: { gold: 150 },
     grants: { kind: "item", itemId: "it-chicken" },
+    dailyLimit: 6,
   },
   {
     id: "shop-training-box",

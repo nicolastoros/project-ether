@@ -20,7 +20,7 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { Plus, Minus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, todayDateString } from "@/lib/utils";
 
 type Tab = "buy" | "sell" | "exchange";
 
@@ -62,6 +62,7 @@ export default function ShopPage() {
   const currencies = useGameStore((s) => s.currencies);
   const ownedItems = useGameStore((s) => s.ownedItems);
   const creatures = useGameStore((s) => s.creatures);
+  const profile = useGameStore((s) => s.profile);
   const buyListing = useGameStore((s) => s.buyListing);
   const sellItem = useGameStore((s) => s.sellItem);
   const consumeItem = useGameStore((s) => s.consumeItem);
@@ -74,8 +75,16 @@ export default function ShopPage() {
   const getBuyQuantity = (id: string) => buyQuantities[id] || 1;
   const getSellQuantity = (id: string) => sellQuantities[id] || 1;
 
-  const updateBuyQuantity = (id: string, delta: number) => {
-    setBuyQuantities((prev) => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) + delta) }));
+  // ShopListing.dailyLimit (e.g. Chicken: 6/day) — mirrors ensureFreshShopPurchases in
+  // lib/store.ts so the displayed "left today" count matches what buyListing will actually
+  // enforce, including the same local-midnight reset.
+  const purchasedToday = (listingId: string) =>
+    profile.dailyShopPurchasesDate === todayDateString() ? profile.dailyShopPurchases?.[listingId] ?? 0 : 0;
+  const remainingToday = (listing: ShopListing) =>
+    listing.dailyLimit === undefined ? Infinity : Math.max(0, listing.dailyLimit - purchasedToday(listing.id));
+
+  const updateBuyQuantity = (id: string, delta: number, max: number) => {
+    setBuyQuantities((prev) => ({ ...prev, [id]: Math.min(Math.max(1, (prev[id] || 1) + delta), Math.max(1, max)) }));
   };
 
   const updateSellQuantity = (id: string, delta: number, max: number) => {
@@ -91,13 +100,13 @@ export default function ShopPage() {
   // new number) so the input doesn't fight the player's keystrokes; final clamping happens once
   // they actually settle on a value (the Buy/Sell buttons and price math already read the clamped
   // getBuyQuantity/getSellQuantity, not this raw field).
-  const setBuyQuantityInput = (id: string, raw: string) => {
+  const setBuyQuantityInput = (id: string, raw: string, max: number) => {
     const digits = raw.replace(/\D/g, "");
     if (digits === "") {
       setBuyQuantities((prev) => ({ ...prev, [id]: 1 }));
       return;
     }
-    setBuyQuantities((prev) => ({ ...prev, [id]: Math.max(1, Number(digits)) }));
+    setBuyQuantities((prev) => ({ ...prev, [id]: Math.min(Math.max(1, Number(digits)), Math.max(1, max)) }));
   };
 
   const setSellQuantityInput = (id: string, raw: string, max: number) => {
@@ -195,10 +204,13 @@ export default function ShopPage() {
       {tab === "buy" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
           {SHOP_LISTINGS.map((listing) => {
-            const quantity = listing.grants.kind === "tamer" ? 1 : getBuyQuantity(listing.id);
+            const remaining = remainingToday(listing);
+            const soldOutToday = listing.dailyLimit !== undefined && remaining <= 0;
+            const quantity =
+              listing.grants.kind === "tamer" ? 1 : Math.min(getBuyQuantity(listing.id), Math.max(1, remaining));
             const gold = (listing.price.gold ?? 0) * quantity;
             const gems = (listing.price.gems ?? 0) * quantity;
-            const affordable = currencies.gold >= gold && currencies.gems >= gems;
+            const affordable = currencies.gold >= gold && currencies.gems >= gems && !soldOutToday;
             return (
               <GlowPanel key={listing.id} accent="none" className="flex flex-col items-center gap-2 p-3 text-center sm:gap-2.5 sm:p-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-20 sm:w-20 lg:h-24 lg:w-24">
@@ -207,6 +219,11 @@ export default function ShopPage() {
                 <p className="truncate text-sm font-semibold text-foreground sm:text-base">{listingName(listing)}</p>
                 <RarityBadge rarity={listing.rarity} className="sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm" />
                 <p className="text-xs text-zinc-500 sm:text-sm">{listing.description}</p>
+                {listing.dailyLimit !== undefined && (
+                  <span className={cn("font-arcade text-[10px] uppercase tracking-wide", soldOutToday ? "text-red-500" : "text-zinc-500")}>
+                    {remaining}/{listing.dailyLimit} left today
+                  </span>
+                )}
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5 font-mono text-sm font-semibold sm:text-base",
@@ -224,10 +241,10 @@ export default function ShopPage() {
                     </>
                   )}
                 </span>
-                {listing.grants.kind !== "tamer" && (
+                {listing.grants.kind !== "tamer" && !soldOutToday && (
                   <div className="flex w-full items-center justify-between rounded-md border border-arcade-border bg-arcade-panel-dark overflow-hidden">
                     <button
-                      onClick={() => updateBuyQuantity(listing.id, -1)}
+                      onClick={() => updateBuyQuantity(listing.id, -1, remaining)}
                       className="px-2.5 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50 sm:px-3 sm:py-2"
                       disabled={quantity <= 1}
                     >
@@ -237,12 +254,13 @@ export default function ShopPage() {
                       type="text"
                       inputMode="numeric"
                       value={quantity}
-                      onChange={(e) => setBuyQuantityInput(listing.id, e.target.value)}
+                      onChange={(e) => setBuyQuantityInput(listing.id, e.target.value, remaining)}
                       className="w-12 border-0 bg-transparent text-center font-mono text-sm font-semibold text-foreground outline-none sm:text-base"
                     />
                     <button
-                      onClick={() => updateBuyQuantity(listing.id, 1)}
-                      className="px-2.5 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white sm:px-3 sm:py-2"
+                      onClick={() => updateBuyQuantity(listing.id, 1, remaining)}
+                      className="px-2.5 py-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:opacity-50 sm:px-3 sm:py-2"
+                      disabled={quantity >= remaining}
                     >
                       <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
@@ -255,7 +273,7 @@ export default function ShopPage() {
                   disabled={!affordable || busyId === listing.id}
                   onClick={() => handleBuy(listing)}
                 >
-                  Buy {listing.grants.kind !== "tamer" ? quantity : ""}
+                  {soldOutToday ? "Sold out today" : `Buy ${listing.grants.kind !== "tamer" ? quantity : ""}`}
                 </PixelButton>
               </GlowPanel>
             );

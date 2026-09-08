@@ -247,6 +247,11 @@ export interface UserProfile {
   /** "YYYY-MM-DD" this account's dailyEventAttempts counts were last reset for — see
    * lib/store.ts's ensureFreshEventAttempts. */
   dailyEventAttemptsDate?: string;
+  /** Total quantity bought today per Shop listing id (e.g. "shop-chicken") — enforces
+   * ShopListing.dailyLimit. Same reset mechanism as dailyEventAttempts, see
+   * lib/store.ts's ensureFreshShopPurchases. */
+  dailyShopPurchases?: Record<string, number>;
+  dailyShopPurchasesDate?: string;
   hasReceivedStarterGifts?: boolean;
 }
 

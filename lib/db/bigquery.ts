@@ -180,6 +180,8 @@ export interface AccountBundle {
     isAdmin: boolean;
     dailyEventAttempts?: Record<string, number>;
     dailyEventAttemptsDate?: string;
+    dailyShopPurchases?: Record<string, number>;
+    dailyShopPurchasesDate?: string;
     hasReceivedStarterGifts?: boolean;
   };
   currencies: {
@@ -290,7 +292,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_missions_state, achievements, has_received_starter_gifts
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_shop_purchases, daily_shop_purchases_date, daily_missions_state, achievements, has_received_starter_gifts
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
@@ -479,6 +481,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       isAdmin: Boolean(userRow.is_admin),
       dailyEventAttempts: userRow.daily_event_attempts ? JSON.parse(userRow.daily_event_attempts) : {},
       dailyEventAttemptsDate: userRow.daily_event_attempts_date || "",
+      dailyShopPurchases: userRow.daily_shop_purchases ? JSON.parse(userRow.daily_shop_purchases) : {},
+      dailyShopPurchasesDate: userRow.daily_shop_purchases_date || "",
       hasReceivedStarterGifts: Boolean(userRow.has_received_starter_gifts),
     },
     currencies: currencyRow
@@ -575,6 +579,8 @@ export async function syncPlayerProgress(
     currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
     dailyEventAttempts?: Record<string, number>;
     dailyEventAttemptsDate?: string;
+    dailyShopPurchases?: Record<string, number>;
+    dailyShopPurchasesDate?: string;
     items?: { itemId: string; quantity: number }[];
     /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
      * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
@@ -599,6 +605,8 @@ export async function syncPlayerProgress(
         SET level = @level, exp = @exp, exp_to_next_level = @expToNextLevel, updated_at = CURRENT_TIMESTAMP()
         ${opts.dailyEventAttempts ? ', daily_event_attempts = @dailyEventAttempts' : ''}
         ${opts.dailyEventAttemptsDate ? ', daily_event_attempts_date = @dailyEventAttemptsDate' : ''}
+        ${opts.dailyShopPurchases ? ', daily_shop_purchases = @dailyShopPurchases' : ''}
+        ${opts.dailyShopPurchasesDate ? ', daily_shop_purchases_date = @dailyShopPurchasesDate' : ''}
         ${opts.dailyTasksState ? ', daily_missions_state = @dailyTasksState' : ''}
         WHERE id = @userId
       `,
@@ -609,6 +617,8 @@ export async function syncPlayerProgress(
         expToNextLevel: opts.expToNextLevel,
         ...(opts.dailyEventAttempts && { dailyEventAttempts: JSON.stringify(opts.dailyEventAttempts) }),
         ...(opts.dailyEventAttemptsDate && { dailyEventAttemptsDate: opts.dailyEventAttemptsDate }),
+        ...(opts.dailyShopPurchases && { dailyShopPurchases: JSON.stringify(opts.dailyShopPurchases) }),
+        ...(opts.dailyShopPurchasesDate && { dailyShopPurchasesDate: opts.dailyShopPurchasesDate }),
         ...(opts.dailyTasksState && { dailyTasksState: JSON.stringify(opts.dailyTasksState) }),
       },
     }),
