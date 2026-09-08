@@ -21,6 +21,7 @@ import {
   creatureSellValue,
   DEFAULT_DAILY_TASKS,
   DEFAULT_PROFILE,
+  expToNextLevelForLevel,
   EXPEDITION_DEFS,
   HUB_TEAM_SIZE,
   ITEM_CATALOG,
@@ -104,7 +105,10 @@ function applyExpGain(creature: Creature, gained: number): Creature {
   if (creature.level >= levelCap) return creature;
   let exp = creature.exp + gained;
   let level = creature.level;
-  let expToNextLevel = creature.expToNextLevel;
+  // Never trust creature.expToNextLevel itself — see expToNextLevelForLevel's doc comment for why
+  // a stored value can go stale (and silently throttle every level-up from here on) whenever the
+  // curve above changes.
+  let expToNextLevel = expToNextLevelForLevel(level);
 
   while (exp >= expToNextLevel && level < levelCap) {
     exp -= expToNextLevel;
@@ -140,7 +144,8 @@ function applyProfileExpGain(profile: UserProfile, gained: number): UserProfile 
   if (profile.level >= MAX_LEVEL) return profile;
   let exp = profile.exp + gained;
   let level = profile.level;
-  let expToNextLevel = profile.expToNextLevel;
+  // See applyExpGain's identical fix just above — a stored expToNextLevel can go stale.
+  let expToNextLevel = expToNextLevelForLevel(level);
 
   while (exp >= expToNextLevel && level < MAX_LEVEL) {
     exp -= expToNextLevel;
@@ -213,7 +218,8 @@ function bundleToStateFields(bundle: AccountBundle) {
         rarity,
         level: owned.level,
         exp: owned.exp,
-        expToNextLevel: owned.expToNextLevel,
+        // Not owned.expToNextLevel — see expToNextLevelForLevel's doc comment.
+        expToNextLevel: expToNextLevelForLevel(owned.level),
         baseStats: {
           hp: awakenedBase.hp + 8 * (owned.level - 1) + pot.hp,
           atk: awakenedBase.atk + 3 * (owned.level - 1) + pot.atk,
@@ -261,7 +267,8 @@ function bundleToStateFields(bundle: AccountBundle) {
       title: bundle.profile.title,
       level: bundle.profile.level,
       exp: bundle.profile.exp,
-      expToNextLevel: bundle.profile.expToNextLevel,
+      // Not bundle.profile.expToNextLevel — see expToNextLevelForLevel's doc comment.
+      expToNextLevel: expToNextLevelForLevel(bundle.profile.level),
       avatarKey: bundle.profile.avatarKey,
       isAdmin: bundle.profile.isAdmin,
       dailyEventAttempts: bundle.profile.dailyEventAttempts || {},
@@ -874,7 +881,7 @@ export const useGameStore = create<GameState>()(
         }
         const template = STARTER_CREATURES.find((c) => c.id === creatureId);
         if (!template) return null;
-        set({ creatures: [...creatures, { ...template, copies: quantity, level: 1, exp: 0, expToNextLevel: 100, superAttackLevel: 1, potentialNodes: [] }] });
+        set({ creatures: [...creatures, { ...template, copies: quantity, level: 1, exp: 0, expToNextLevel: expToNextLevelForLevel(1), superAttackLevel: 1, potentialNodes: [] }] });
         return { isNew: true, copies: quantity };
       },
 
@@ -1326,7 +1333,7 @@ export const useGameStore = create<GameState>()(
               if (template) {
                 newCreatures = [
                   ...state.creatures,
-                  { ...template, copies: gift.quantity, level: 1, exp: 0, expToNextLevel: 100, superAttackLevel: 1, potentialNodes: [] },
+                  { ...template, copies: gift.quantity, level: 1, exp: 0, expToNextLevel: expToNextLevelForLevel(1), superAttackLevel: 1, potentialNodes: [] },
                 ];
               }
             }
@@ -1442,6 +1449,12 @@ export const useGameStore = create<GameState>()(
         const persisted = persistedState as Partial<GameState>;
         const merged: GameState = { ...currentState, ...persisted };
 
+        // Same reasoning as the creatures fixup below — a persisted profile.expToNextLevel can go
+        // stale relative to the current curve (see expToNextLevelForLevel's doc comment).
+        if (merged.profile) {
+          merged.profile = { ...merged.profile, expToNextLevel: expToNextLevelForLevel(merged.profile.level) };
+        }
+
         if (!persisted.hasReceivedLaunchTicketsV3) {
           merged.gifts = [
             ...(merged.gifts || []),
@@ -1495,7 +1508,8 @@ export const useGameStore = create<GameState>()(
               ...newCreature,
               level: saved.level,
               exp: saved.exp,
-              expToNextLevel: saved.expToNextLevel,
+              // Not saved.expToNextLevel — see expToNextLevelForLevel's doc comment.
+              expToNextLevel: expToNextLevelForLevel(saved.level),
               baseStats: saved.baseStats,
               equipment: saved.equipment,
               copies: saved.copies,

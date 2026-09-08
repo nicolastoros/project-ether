@@ -41,6 +41,26 @@ export function nextLevelExpRequirement(currentRequirement: number, newLevel: nu
   return Math.round(currentRequirement * rate);
 }
 
+/** Recomputes the correct expToNextLevel purely from a level + the CURRENT curve above — never
+ * trust a stored/persisted expToNextLevel value on its own, always derive it from level via this.
+ * Reason: expToNextLevel is a chain (each level's requirement is the previous one times that
+ * level's rate), so a creature that already leveled up under an OLDER version of the curve above
+ * keeps carrying that old, larger requirement forward through every subsequent level-up — the
+ * formula changing doesn't retroactively fix creatures that already have a stored value baked in.
+ * Confirmed live: a Mythic sitting at level 71 from before this curve was softened needed ~12x
+ * more EXP for its next level than a level-71 value computed fresh would — a level 1 creature
+ * (no stale carryover) climbed dramatically faster on the exact same EXP amount as a result. Every
+ * place that builds/rehydrates a Creature or the profile now calls this instead of trusting
+ * whatever expToNextLevel was already stored, so this self-heals automatically (including for any
+ * future curve tweak) rather than needing a one-off DB backfill. */
+export function expToNextLevelForLevel(level: number): number {
+  let requirement = 100; // level 1 -> 2 base, same seed nextLevelExpRequirement always started from.
+  for (let l = 2; l <= level; l++) {
+    requirement = nextLevelExpRequirement(requirement, l);
+  }
+  return requirement;
+}
+
 // Creature level caps now vary by rarity instead of everyone sharing the flat MAX_LEVEL — LR and
 // Mythic pull noticeably ahead late-game, matching how much rarer they are to obtain. A Mythic
 // reached via Awaken (an SSR bumped up — see applyAwakenBump) gets a higher cap than a naturally-
