@@ -446,6 +446,10 @@ export default function InventoryPage() {
                       if (consumeItem(selectedItem.id, useQuantity)) {
                         regenEnergy((selectedItem.energyRestore as number) * useQuantity);
                         consumeItemOnServer(selectedItem.id, useQuantity);
+                        // consumeItemOnServer only persists the item side — without this, the
+                        // energy gained here only lives in local state until GameGate's next
+                        // periodic sync (or is lost entirely if the tab closes before then).
+                        syncProgressToServer();
                       }
                       setSelectedItem(null);
                     }}
@@ -520,6 +524,9 @@ export default function InventoryPage() {
                   if (consumeItem(usingItemForCreature.id, useQuantity)) {
                     gainCreatureExp(pickedCreatureId, (usingItemForCreature.creatureExpValue as number) * useQuantity);
                     consumeItemOnServer(usingItemForCreature.id, useQuantity);
+                    // Same reasoning as the energy-item Use button above — persist the EXP gain
+                    // right away instead of leaving it to the next periodic sync.
+                    syncProgressToServer();
                   }
                   setUsingItemForCreature(null);
                   setPickedCreatureId(null);

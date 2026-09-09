@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { GACHA_BANNERS, GACHA_CREATURE_POOL, ITEM_CATALOG } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
-import { grantCreaturesOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { consumeItemOnServer, grantCreaturesOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { BannerSlider } from "@/components/gacha/BannerSlider";
 import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { MenuBannerButton } from "@/components/ui/MenuBannerButton";
@@ -110,6 +110,11 @@ export default function GachaPage() {
   const handleSummon = (count: number, cost: number) => {
     if (banner.currencyType === "item" && banner.currencyItemId) {
       if (!consumeItem(banner.currencyItemId, cost)) return;
+      // consumeItem above only mutates local state — without this, the spent tickets were never
+      // told to the server at all (syncProgressToServer doesn't cover items, only profile/
+      // creatures/currencies), so a reload or relogin re-hydrated from the DB's still-unspent
+      // count and the tickets silently "came back".
+      consumeItemOnServer(banner.currencyItemId, cost);
     } else {
       if (!spendGems(cost)) return;
     }

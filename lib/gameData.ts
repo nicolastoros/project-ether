@@ -1287,7 +1287,7 @@ export const ITEM_CATALOG: InventoryItem[] = [
     rarity: "Common",
     description: "A hearty meal that restores some of the Tamer's energy.",
     icon: "/assets/objects/chicken.png",
-    energyRestore: 5,
+    energyRestore: 30,
   },
   {
     id: "it-training-box",
@@ -1478,7 +1478,7 @@ export interface ShopListing {
 export const SHOP_LISTINGS: ShopListing[] = [
   {
     id: "shop-chicken",
-    description: "Restores 5 Tamer energy.",
+    description: "Restores 30 Tamer energy.",
     rarity: "Common",
     price: { gold: 150 },
     grants: { kind: "item", itemId: "it-chicken" },
