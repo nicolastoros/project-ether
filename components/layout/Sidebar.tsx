@@ -8,7 +8,7 @@ import { MAX_LEVEL } from "@/lib/gameData";
 import { ORB_EVENTS } from "@/lib/eventData";
 import { useGameStore } from "@/lib/store";
 import { getNavGroups } from "@/lib/navigation";
-import { cn, todayDateString, xpPercent } from "@/lib/utils";
+import { cn, thisWeekStartDateString, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { NewBadge } from "@/components/ui/NewBadge";
 
@@ -60,12 +60,12 @@ export function Sidebar() {
   const router = useRouter();
   const navGroups = getNavGroups(profile.isAdmin);
 
-  // True whenever at least one Hidden Training element still has an unused attempt today — a
-  // fresh (or stale, i.e. not-yet-reset-locally) date counts every attempt as available, same
-  // "reset on stale date" logic as lib/store.ts's ensureFreshEventAttempts.
+  // True whenever Hidden Training still has an unused attempt this week — a fresh (or stale, i.e.
+  // not-yet-reset-locally) date counts every attempt as available, same "reset on stale date"
+  // logic as lib/store.ts's ensureFreshWeeklyEventAttempts.
   const hasAvailableEventAttempts =
-    dailyEventAttemptsDate !== todayDateString() ||
-    ORB_EVENTS.some((ev) => (dailyEventAttempts?.[ev.id] || 0) < ev.maxDailyAttempts);
+    dailyEventAttemptsDate !== thisWeekStartDateString() ||
+    ORB_EVENTS.some((ev) => (dailyEventAttempts?.[ev.id] || 0) < ev.maxWeeklyAttempts);
 
   return (
     <aside className="sidebar-surface sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex xl:w-72 2xl:w-80">

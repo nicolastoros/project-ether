@@ -29,7 +29,7 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
   "/events": {
     id: "events",
     title: "Events",
-    body: "Hidden Training — battle elementals for Orbs to awaken your Digimon's hidden potential. Attempts reset every day, so check back daily.",
+    body: "Hidden Training — battle elementals for Orbs of every color to awaken your Digimon's hidden potential. Attempts reset every week.",
   },
   "/raid": {
     id: "raid",

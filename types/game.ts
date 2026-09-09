@@ -243,9 +243,10 @@ export interface UserProfile {
   expToNextLevel: number;
   avatarKey: string;
   isAdmin: boolean;
+  /** Despite the "daily" name (kept to avoid a DB rename), this now resets weekly — see
+   * lib/store.ts's ensureFreshWeeklyEventAttempts for the actual reset logic/reasoning. */
   dailyEventAttempts?: Record<string, number>;
-  /** "YYYY-MM-DD" this account's dailyEventAttempts counts were last reset for — see
-   * lib/store.ts's ensureFreshEventAttempts. */
+  /** "YYYY-MM-DD" of the Monday this account's dailyEventAttempts counts were last reset for. */
   dailyEventAttemptsDate?: string;
   /** Total quantity bought today per Shop listing id (e.g. "shop-chicken") — enforces
    * ShopListing.dailyLimit. Same reset mechanism as dailyEventAttempts, see

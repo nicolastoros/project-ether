@@ -63,17 +63,26 @@ function ensureFreshDailyTasks(
 export const DAILY_BONUS_GOLD = 2000;
 export const DAILY_BONUS_GEMS = 20;
 
-/** Same reset-on-stale-date pattern as ensureFreshDailyTasks above, for Hidden Training's
- * per-element daily attempts (lib/eventData.ts's ORB_EVENTS) — these previously never reset at
- * all (no date was ever stored alongside the counts), so "2 attempts a day" was actually "2
- * attempts ever" once used. */
-function ensureFreshEventAttempts(
+/** Same reset-on-stale-date pattern as ensureFreshDailyTasks above, for Hidden Training's weekly
+ * attempts (lib/eventData.ts's ORB_EVENTS) — resets at local Monday instead of local midnight.
+ * The stored field/DB column are still named profile.dailyEventAttempts(Date) (kept as-is to
+ * avoid a DB migration for a rename with zero behavior change) even though nothing about this is
+ * daily anymore; this function is the one place that actually encodes what "fresh" means, so its
+ * own name says weekly.
+ * IMPORTANT: this is only ever applied here, inside consumeEventAttempt below — anything that
+ * just reads profile.dailyEventAttempts directly (e.g. to display "X attempts left") must run the
+ * same "is dailyEventAttemptsDate === thisWeekStartDateString()" check itself first, or it'll show
+ * a stale pre-reset count and disable its own Start button forever after the first week's attempts
+ * run out. Confirmed live: that's exactly what was happening before this — the reset only ever
+ * happened at the moment an attempt was actually consumed, but the UI's disabled-button check read
+ * the raw unreset count, so the button could never be clicked again to reach that reset. */
+function ensureFreshWeeklyEventAttempts(
   attempts: Record<string, number>,
   attemptsDate: string
 ): { attempts: Record<string, number>; date: string } {
-  const today = todayDateString();
-  if (attemptsDate === today) return { attempts, date: today };
-  return { attempts: {}, date: today };
+  const thisWeek = thisWeekStartDateString();
+  if (attemptsDate === thisWeek) return { attempts, date: thisWeek };
+  return { attempts: {}, date: thisWeek };
 }
 
 /** Same reset-on-stale-date pattern, for Shop.buyListing's per-listing dailyLimit (e.g. Chicken:
@@ -549,9 +558,9 @@ interface GameState {
   clearDungeonStage: (stageNumber: number) => void;
 
   claimTask: (taskId: string) => void;
-  /** Spends one of today's attempts for a Hidden Training event (lib/eventData.ts's
-   * ORB_EVENTS) — false (no-op) if this event has already used all `maxAttempts` today.
-   * Resets automatically the first time it's called after local midnight. */
+  /** Spends one of this week's attempts for a Hidden Training event (lib/eventData.ts's
+   * ORB_EVENTS) — false (no-op) if this event has already used all `maxAttempts` this week.
+   * Resets automatically the first time it's called after local Monday. */
   consumeEventAttempt: (eventId: string, maxAttempts: number) => boolean;
 }
 
@@ -1348,7 +1357,7 @@ export const useGameStore = create<GameState>()(
 
       consumeEventAttempt: (eventId, maxAttempts) => {
         const state = get();
-        const { attempts, date } = ensureFreshEventAttempts(
+        const { attempts, date } = ensureFreshWeeklyEventAttempts(
           state.profile.dailyEventAttempts ?? {},
           state.profile.dailyEventAttemptsDate ?? ""
         );

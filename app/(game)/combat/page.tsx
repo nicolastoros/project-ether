@@ -7,7 +7,7 @@ import type { DungeonStage } from "@/types/game";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { getTierStage, parseTierStageId } from "@/lib/difficultyTiers";
-import { ORB_EVENTS, getEventEnemyTeam } from "@/lib/eventData";
+import { ALL_ORB_ELEMENTS, ORB_EVENTS, getEventEnemyTeam } from "@/lib/eventData";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
 import { BattlePage } from "@/components/combat/BattlePage";
 
@@ -21,10 +21,15 @@ function CombatPageContent() {
     const ev = ORB_EVENTS.find((e) => e.id === eventId);
     const diff = ev?.difficulties.find((d) => d.id === difficultyId);
     if (ev && diff) {
-      const eventRewards = [];
-      if (diff.rewardAmount.small > 0) eventRewards.push({ itemId: `it-orb-small-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.small });
-      if (diff.rewardAmount.medium > 0) eventRewards.push({ itemId: `it-orb-medium-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.medium });
-      if (diff.rewardAmount.large > 0) eventRewards.push({ itemId: `it-orb-large-${ev.element.toLowerCase()}`, amount: diff.rewardAmount.large });
+      // One win now grants every element's Orbs (not just one fixed element) — see
+      // lib/eventData.ts's ORB_EVENTS consolidation comment.
+      const eventRewards: { itemId: string; amount: number }[] = [];
+      for (const element of ALL_ORB_ELEMENTS) {
+        const el = element.toLowerCase();
+        if (diff.rewardAmount.small > 0) eventRewards.push({ itemId: `it-orb-small-${el}`, amount: diff.rewardAmount.small });
+        if (diff.rewardAmount.medium > 0) eventRewards.push({ itemId: `it-orb-medium-${el}`, amount: diff.rewardAmount.medium });
+        if (diff.rewardAmount.large > 0) eventRewards.push({ itemId: `it-orb-large-${el}`, amount: diff.rewardAmount.large });
+      }
 
       // Purely a display/background/reward-shape vehicle now — world/worldStageNumber no longer
       // drive the enemy team (see eventEnemies below), so this event stops silently reusing
@@ -51,8 +56,8 @@ function CombatPageContent() {
       return (
         <BattlePage
           stage={mockStage}
-          eventEnemies={getEventEnemyTeam(ev, diff)}
-          eventMaxDailyAttempts={ev.maxDailyAttempts}
+          eventEnemies={getEventEnemyTeam(diff)}
+          eventMaxWeeklyAttempts={ev.maxWeeklyAttempts}
         />
       );
     }

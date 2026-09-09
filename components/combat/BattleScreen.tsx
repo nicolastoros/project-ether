@@ -437,7 +437,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       // Tier-agnostic — losing on any difficulty still means "we went in and saw this area", so
       // the Chapter/Area list's NEW badge shouldn't keep claiming it's unseen (see
       // ChapterAreaList.tsx: NEW -> attempted-but-not-won (no badge) -> COMPLETED). Campaign-only —
-      // an Orb Event's synthetic id ("event-orb-fire-hard") isn't a real stage and would otherwise
+      // an Orb Event's synthetic id ("event-orb-training-hard") isn't a real stage and would otherwise
       // get misparsed by parseTierStageId (which only knows Campaign's tier suffixes).
       if (!stage.eventRewards) {
         useGameStore.getState().markStageAttempted(parseTierStageId(stage.id).baseId);

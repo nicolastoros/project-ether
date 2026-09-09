@@ -7,6 +7,8 @@ export interface EventDifficulty {
   staminaCost: number;
   recommendedLevel: number;
   enemyRarity: string; // "Common to Rare", "SSR", "Mythic", "LR"
+  /** Per element — a win grants this many of EVERY element's Orb at this size (7 colors), not
+   * just one. See getEventEnemyTeam/app/(game)/combat/page.tsx's eventRewards construction. */
   rewardAmount: { small: number; medium: number; large: number };
 }
 
@@ -14,18 +16,22 @@ export interface GameEvent {
   id: string;
   name: string;
   description: string;
-  element: Element;
-  maxDailyAttempts: number;
+  /** Resets weekly (local Monday) — see ensureFreshWeeklyEventAttempts in lib/store.ts. */
+  maxWeeklyAttempts: number;
   difficulties: EventDifficulty[];
 }
 
+// Consolidated from 7 separate per-element events (each with its own daily attempt pool that,
+// once used up, silently never re-enabled the Start button again — see ensureFreshWeeklyEventAttempts's
+// comment) into one event that pays out every element's Orbs on every win, with a weekly attempt
+// pool instead of daily. Same 4 difficulty tiers as before, same per-color reward amounts each
+// tier already granted for its one fixed element — now just multiplied across all 7 colors.
 export const ORB_EVENTS: GameEvent[] = [
   {
-    id: "event-orb-fire",
-    name: "Blazing Fire Orbs",
-    description: "Defeat Fire enemies to earn Fire Orbs for Potential Training.",
-    element: "Fire",
-    maxDailyAttempts: 4,
+    id: "event-orb-training",
+    name: "Hidden Training",
+    description: "Defeat elemental enemies to earn Orbs of every element for Potential Training.",
+    maxWeeklyAttempts: 6,
     difficulties: [
       { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
       { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
@@ -33,84 +39,6 @@ export const ORB_EVENTS: GameEvent[] = [
       { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
     ]
   },
-  {
-    id: "event-orb-water",
-    name: "Crashing Water Orbs",
-    description: "Defeat Water enemies to earn Water Orbs for Potential Training.",
-    element: "Water",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  },
-  {
-    id: "event-orb-nature",
-    name: "Blooming Nature Orbs",
-    description: "Defeat Nature enemies to earn Nature Orbs for Potential Training.",
-    element: "Nature",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  },
-  {
-    id: "event-orb-light",
-    name: "Radiant Light Orbs",
-    description: "Defeat Light enemies to earn Light Orbs for Potential Training.",
-    element: "Light",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  },
-  {
-    id: "event-orb-dark",
-    name: "Abyssal Dark Orbs",
-    description: "Defeat Dark enemies to earn Dark Orbs for Potential Training.",
-    element: "Dark",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  },
-  {
-    id: "event-orb-electric",
-    name: "Sparking Electric Orbs",
-    description: "Defeat Electric enemies to earn Electric Orbs for Potential Training.",
-    element: "Electric",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  },
-  {
-    id: "event-orb-neutral",
-    name: "Basic Neutral Orbs",
-    description: "Defeat Neutral enemies to earn Neutral Orbs for Potential Training.",
-    element: "Neutral",
-    maxDailyAttempts: 4,
-    difficulties: [
-      { id: "hard", name: "Hard", staminaCost: 5, recommendedLevel: 20, enemyRarity: "Common/Rare", rewardAmount: { small: 40, medium: 0, large: 0 } },
-      { id: "super", name: "Super", staminaCost: 5, recommendedLevel: 40, enemyRarity: "SSR", rewardAmount: { small: 60, medium: 20, large: 0 } },
-      { id: "super2", name: "Super2", staminaCost: 5, recommendedLevel: 60, enemyRarity: "Mythic", rewardAmount: { small: 80, medium: 40, large: 10 } },
-      { id: "super3", name: "Super3", staminaCost: 5, recommendedLevel: 80, enemyRarity: "LR", rewardAmount: { small: 100, medium: 60, large: 20 } },
-    ]
-  }
 ];
 
 // Never obtainable through the gacha (raid-exclusive) — see lib/gameData.ts's GACHA_CREATURE_POOL
@@ -138,6 +66,10 @@ const EVENT_TIER_MULTIPLIERS: Record<string, { hp: number; atk: number; def: num
   super3: { hp: 8, atk: 2.3, def: 1.6, spd: 1.3 },
 };
 
+// Every element this event's enemies can be drawn from now that the event itself grants Orbs of
+// every color instead of just one — see pickEventElementPair below.
+export const ALL_ORB_ELEMENTS: Element[] = ["Fire", "Water", "Nature", "Light", "Dark", "Electric", "Neutral"];
+
 /** Picks the roster creature closest to `targetRarity` among `element` matches (falling back to
  * the whole non-raid-boss roster for elements with thin/no coverage, e.g. Neutral has none at
  * all) — "closest" so a gap in the roster (no Fire LR yet, no Neutral anything) degrades to the
@@ -153,19 +85,20 @@ function pickEnemyTemplate(element: Element, targetRarity: Rarity, exclude: Set<
   return sorted[0] ?? EVENT_ENEMY_POOL[0];
 }
 
-/** Builds a real, on-theme enemy pair for an Orb Event fight — matching the event's own element
- * and the difficulty's advertised enemyRarity, scaled by this event system's own tier curve.
+/** Builds a real, on-theme enemy pair for an Orb Event fight — no longer pinned to one fixed
+ * element (the event itself no longer is, since it pays out every color on a win), so this now
+ * picks two different random elements each fight, scaled by this event system's own tier curve.
  * Replaces the previous approach (app/(game)/combat/page.tsx faking a
  * `{world:1, worldStageNumber:8}` DungeonStage just to reuse Campaign's getStageEnemyTeam), which
- * meant every Orb Event, on every element and every difficulty, fought the exact same 2 enemies
- * (Campaign World 1's boss line-up) at a fixed "Easy" scaling regardless of the difficulty tier
- * actually picked. */
-export function getEventEnemyTeam(event: GameEvent, diff: EventDifficulty): [Creature, Creature] {
+ * meant every Orb Event, on every difficulty, fought the exact same 2 enemies (Campaign World 1's
+ * boss line-up) at a fixed "Easy" scaling regardless of the difficulty tier actually picked. */
+export function getEventEnemyTeam(diff: EventDifficulty): [Creature, Creature] {
   const targetRarity = ENEMY_RARITY_TARGET[diff.enemyRarity] ?? "Rare";
   const mult = EVENT_TIER_MULTIPLIERS[diff.id] ?? EVENT_TIER_MULTIPLIERS.hard;
 
-  const first = pickEnemyTemplate(event.element, targetRarity, new Set());
-  const second = pickEnemyTemplate(event.element, targetRarity, new Set([first.id]));
+  const [elA, elB] = [...ALL_ORB_ELEMENTS].sort(() => Math.random() - 0.5);
+  const first = pickEnemyTemplate(elA, targetRarity, new Set());
+  const second = pickEnemyTemplate(elB, targetRarity, new Set([first.id]));
 
   const scale = (base: Creature): Creature => ({
     ...base,

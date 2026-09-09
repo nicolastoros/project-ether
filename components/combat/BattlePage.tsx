@@ -20,10 +20,10 @@ interface BattlePageProps {
   eventEnemies?: [Creature, Creature];
   /** Present only for Orb Event battles — gates Rematch behind the same attempt+Energy check
    * handleStart already does in EventsClient.tsx, instead of letting it re-fight for free. */
-  eventMaxDailyAttempts?: number;
+  eventMaxWeeklyAttempts?: number;
 }
 
-export function BattlePage({ stage, eventEnemies, eventMaxDailyAttempts }: BattlePageProps) {
+export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: BattlePageProps) {
   const creatures = useGameStore((s) => s.creatures);
   const spendEnergy = useGameStore((s) => s.spendEnergy);
   const consumeEventAttempt = useGameStore((s) => s.consumeEventAttempt);
@@ -116,13 +116,13 @@ export function BattlePage({ stage, eventEnemies, eventMaxDailyAttempts }: Battl
       playerCreatures={playerCreatures}
       enemyCreatures={[enemyCreatures[0], enemyCreatures[1]]}
       onRematch={() => {
-        if (eventMaxDailyAttempts != null && stage.eventId) {
+        if (eventMaxWeeklyAttempts != null && stage.eventId) {
           if (useGameStore.getState().currencies.energy < stage.staminaCost) {
             alert("Not enough Energy!");
             return;
           }
-          if (!consumeEventAttempt(stage.eventId, eventMaxDailyAttempts)) {
-            alert("No daily attempts left for this event!");
+          if (!consumeEventAttempt(stage.eventId, eventMaxWeeklyAttempts)) {
+            alert("No attempts left for this event this week!");
             return;
           }
           spendEnergy(stage.staminaCost);
