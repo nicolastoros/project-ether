@@ -137,18 +137,23 @@ export function getSkillTargetMode(skill: Skill): SkillTargetMode {
   return "self"; // Defense skills all buff/guard the caster
 }
 
+export interface DamageResult {
+  dmg: number;
+  isCrit: boolean;
+}
+
 export function calcDamage(
-  attacker: Creature, 
-  defender: Creature, 
-  power: number, 
-  guarding: boolean, 
+  attacker: Creature,
+  defender: Creature,
+  power: number,
+  guarding: boolean,
   isSuperAttack: boolean = false,
   atkMultiplier: number = 1,
   defMultiplier: number = 1
-): number {
+): DamageResult {
   const atkStats = getEffectiveStats(attacker);
   const defStats = getEffectiveStats(defender);
-  
+
   let finalPower = power;
   if (isSuperAttack) {
     const saLevel = attacker.superAttackLevel || 1;
@@ -160,14 +165,14 @@ export function calcDamage(
   const raw = finalPower * atkScale;
   const mitigated = raw - (defStats.def * defMultiplier) * 0.35;
   let dmg = Math.max(8, Math.round(mitigated));
-  
+
   const isCrit = Math.random() * 100 < atkStats.crit;
   if (isCrit) dmg = Math.round(dmg * 1.5);
 
   const variance = 0.9 + Math.random() * 0.2;
   dmg = Math.round(dmg * variance);
   if (guarding) dmg = Math.round(dmg * 0.5);
-  return dmg;
+  return { dmg, isCrit };
 }
 
 export function calcHeal(caster: Creature, power: number): number {
@@ -175,10 +180,19 @@ export function calcHeal(caster: Creature, power: number): number {
   return Math.max(15, Math.round((power || 80) * (stats.atk / 140))) + stats.heal * 20;
 }
 
+/** One combatant taking a damage/heal number this action — powers the floating Dokkan-style
+ * number in CombatantCard.tsx. `isCrit` drives that number's special critical-hit styling. */
+export interface HitInfo {
+  uid: string;
+  amount: number;
+  isCrit: boolean;
+  isHeal: boolean;
+}
+
 interface ApplyActionResult {
   combatants: BattleCombatant[];
   logs: BattleLogEntry[];
-  hitUids: string[];
+  hits: HitInfo[];
 }
 
 /** Resolves one actor using one skill against the current battle state, returning the next state. */
@@ -191,8 +205,8 @@ export function applyAction(
   const list = prevCombatants.map((c) => ({ ...c, cooldowns: { ...c.cooldowns } }));
   const actor = list.find((c) => c.uid === actorUid);
   const logs: BattleLogEntry[] = [];
-  const hitUids: string[] = [];
-  if (!actor) return { combatants: list, logs, hitUids };
+  const hits: HitInfo[] = [];
+  if (!actor) return { combatants: list, logs, hits };
 
   // Resonance regenerates on the actor's own turn, before status effects or their action resolve.
   actor.resonance = Math.min(actor.resonanceMax, actor.resonance + RESONANCE_REGEN_PER_TURN);
@@ -200,18 +214,19 @@ export function applyAction(
   if ((actor.statusEffects.sleep ?? 0) > 0) {
     actor.statusEffects.sleep!--;
     logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is fast asleep and cannot move!` });
-    return { combatants: list, logs, hitUids };
+    return { combatants: list, logs, hits };
   }
 
   if ((actor.statusEffects.poison ?? 0) > 0) {
     actor.statusEffects.poison!--;
     const poisonDmg = Math.max(1, Math.round(actor.maxHp * 0.08));
     actor.currentHp = Math.max(0, actor.currentHp - poisonDmg);
+    hits.push({ uid: actor.uid, amount: poisonDmg, isCrit: false, isHeal: false });
     logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} takes ${poisonDmg} poison damage!` });
     if (actor.currentHp === 0 && actor.isAlive) {
       actor.isAlive = false;
       logs.push({ id: nextLogId(), kind: "defeat", message: `${actor.creature.name} succumbed to poison!` });
-      return { combatants: list, logs, hitUids };
+      return { combatants: list, logs, hits };
     }
   }
 
@@ -219,7 +234,7 @@ export function applyAction(
     actor.statusEffects.paralysis!--;
     if (Math.random() < 0.3) {
       logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is paralyzed and cannot move!` });
-      return { combatants: list, logs, hitUids };
+      return { combatants: list, logs, hits };
     }
   }
 
@@ -227,11 +242,11 @@ export function applyAction(
   if (actor.side === "enemy" && actor.creature.id === "cr-crimson-paladin") {
     if ((skill.name === "Holy Judgment" || skill.name === "Holy Guardian") && actor.telegraphedSkill?.id !== skill.id) {
       actor.telegraphedSkill = skill;
-      const msg = skill.name === "Holy Judgment" 
-        ? `${actor.creature.name} is preparing a devastating attack!` 
+      const msg = skill.name === "Holy Judgment"
+        ? `${actor.creature.name} is preparing a devastating attack!`
         : `${actor.creature.name} is about to grow much stronger!`;
       logs.push({ id: nextLogId(), kind: "info", message: msg });
-      return { combatants: list, logs, hitUids };
+      return { combatants: list, logs, hits };
     }
   }
   if (actor.telegraphedSkill?.id === skill.id) {
@@ -256,10 +271,10 @@ export function applyAction(
     const atkMult = actor.statBuffs?.multiplier ?? 1;
     const defMult = target.statBuffs?.multiplier ?? 1;
 
-    const dmg = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
+    const { dmg, isCrit } = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
     target.currentHp = Math.max(0, target.currentHp - dmg);
     target.guarding = false;
-    hitUids.push(target.uid);
+    hits.push({ uid: target.uid, amount: dmg, isCrit, isHeal: false });
     logs.push({
       id: nextLogId(),
       kind: "attack",
@@ -311,6 +326,7 @@ export function applyAction(
     if (target) {
       const heal = calcHeal(actor.creature, skill.power);
       target.currentHp = Math.min(target.maxHp, target.currentHp + heal);
+      hits.push({ uid: target.uid, amount: heal, isCrit: false, isHeal: true });
       logs.push({
         id: nextLogId(),
         kind: "heal",
@@ -346,7 +362,7 @@ export function applyAction(
     if (actor.statBuffs.turnsLeft <= 0) actor.statBuffs = null;
   }
 
-  return { combatants: list, logs, hitUids };
+  return { combatants: list, logs, hits };
 }
 
 /** Simple priority AI: heal a wounded ally, guard when low, otherwise attack the weakest foe. */

@@ -28,12 +28,12 @@ import {
   createCombatant,
   getSkillTargetMode,
   getUltimateSkill,
-  nextLogId,
   pickEnemyAction,
   resonanceCostForSkill,
   ULTIMATE_RESONANCE_COST,
   type BattleCombatant,
   type BattleLogEntry,
+  type HitInfo,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
@@ -55,11 +55,21 @@ const ARENA_BACKGROUNDS: Record<number, string> = {
 // check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
 const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
 const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
-const ARENA_SLOTS: { side: "player" | "enemy"; index: 0 | 1; left: string; top: string; direction: Direction }[] = [
-  { side: "player", index: 0, left: "25%", top: "40%", direction: "south-east" },
-  { side: "player", index: 1, left: "15%", top: "50%", direction: "south-east" },
-  { side: "enemy", index: 0, left: "75%", top: "35%", direction: "south-west" },
-  { side: "enemy", index: 1, left: "85%", top: "45%", direction: "south-west" },
+// `lunge` is the direction the attack tackle travels — toward the opposing cluster. Campaign is
+// side-by-side, so it's mostly horizontal, with a slight vertical lean matching each side's
+// top offset (enemies sit a touch higher than the party).
+const ARENA_SLOTS: {
+  side: "player" | "enemy";
+  index: 0 | 1;
+  left: string;
+  top: string;
+  direction: Direction;
+  lunge: { x: number; y: number };
+}[] = [
+  { side: "player", index: 0, left: "25%", top: "40%", direction: "south-east", lunge: { x: 1, y: -0.18 } },
+  { side: "player", index: 1, left: "15%", top: "50%", direction: "south-east", lunge: { x: 1, y: -0.18 } },
+  { side: "enemy", index: 0, left: "75%", top: "35%", direction: "south-west", lunge: { x: -1, y: 0.18 } },
+  { side: "enemy", index: 1, left: "85%", top: "45%", direction: "south-west", lunge: { x: -1, y: 0.18 } },
 ];
 
 // Desktop-only flanking roster card — allies to the left, enemies to the right, so name/level/HP
@@ -205,9 +215,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [hasDeaths, setHasDeaths] = useState(false);
   const [phase, setPhase] = useState<BattlePhase>("active");
   const [pendingSkill, setPendingSkill] = useState<Skill | null>(null);
-  const [log, setLog] = useState<BattleLogEntry[]>([
-    { id: nextLogId(), kind: "info", message: `${stage.name} — battle start!` },
-  ]);
+  // Pokémon-style takeover: replaces the skill menu with a message box for anything the removed
+  // scrolling log used to carry (status effects landing/ticking, evasion, a combatant fainting
+  // mid-fight — never plain "used X for N damage", which the arena's own damage-number/lunge
+  // already communicates) — see resolveTurn's noticeEntries below. Turn advancement (and so the
+  // enemy AI's own next move) is held until the player taps past it.
+  const [pendingNotice, setPendingNotice] = useState<{ entries: BattleLogEntry[]; onDismiss: () => void } | null>(null);
   const [rewardGranted, setRewardGranted] = useState(false);
   const [firstClearGift, setFirstClearGift] = useState<{ isNew: boolean; copies: number } | null>(null);
   const [rewardMultiplier, setRewardMultiplier] = useState(1);
@@ -220,11 +233,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [starsEarned, setStarsEarned] = useState<{ noDeaths: boolean; noItems: boolean; underFiveTurns: boolean } | null>(null);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
-  const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
+  const [hitEvent, setHitEvent] = useState<{ hits: HitInfo[]; nonce: number }>({ hits: [], nonce: 0 });
   // uid of the combatant currently charging/unleashing an Ultimate Attack — see resolveTurn's
   // isUltimate branch, which holds this set for the charge-up delay before damage lands.
   const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
-  const logEndRef = useRef<HTMLDivElement>(null);
   // Wall-clock battle start — captured once (in an effect, not during render, per the
   // react-hooks/purity rule against calling Date.now() directly in a render body), used to
   // compute elapsedSeconds on victory.
@@ -233,33 +245,21 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     battleStartRef.current = Date.now();
   }, []);
 
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ block: "nearest" });
-  }, [log]);
-
   const actorUid = turnOrder[turnPointer];
   const actor = combatants.find((c) => c.uid === actorUid) ?? null;
   const isPlayerTurn = phase === "active" && actor?.side === "player";
 
   function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
-    const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
+    const { combatants: next, logs, hits } = applyAction(combatants, byUid, skill, explicitTargetUid);
     const actingCombatant = combatants.find((c) => c.uid === byUid);
     const isUltimate = actingCombatant?.creature.ultimateSkill?.id === skill.id;
 
-    const finalize = () => {
-      if (skill.type === "Attack") {
-        setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-      }
-      if (hitUids.length > 0) {
-        setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-      }
-
+    const settle = () => {
       // Check for deaths
       const anyDeaths = next.some(c => c.side === "player" && !c.isAlive);
       if (anyDeaths) setHasDeaths(true);
 
       setCombatants(next);
-      setLog((prev) => [...prev, ...logs]);
       setPendingSkill(null);
 
       const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
@@ -267,7 +267,6 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
       if (!enemiesAlive) {
       setPhase("victory");
-      setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Victory! All enemies defeated." }]);
 
       const isPerfectClear = playersAlive && next.filter(c => c.side === "player").every(c => c.isAlive);
       if (isPerfectClear && !isEventBattle) {
@@ -433,7 +432,6 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     }
     if (!playersAlive) {
       setPhase("defeat");
-      setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: "Defeat... your team was wiped out." }]);
       // Tier-agnostic — losing on any difficulty still means "we went in and saw this area", so
       // the Chapter/Area list's NEW badge shouldn't keep claiming it's unseen (see
       // ChapterAreaList.tsx: NEW -> attempted-but-not-won (no badge) -> COMPLETED). Campaign-only —
@@ -446,19 +444,49 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     }
 
     // Increment turn count when cycling back to start
-    setTurnPointer((prevPointer) => {
-      let nextIdx = prevPointer;
-      for (let i = 1; i <= turnOrder.length; i++) {
-        const idx = (prevPointer + i) % turnOrder.length;
-        const c = next.find((cc) => cc.uid === turnOrder[idx]);
-        if (c?.isAlive) {
-          nextIdx = idx;
-          break;
+    const advanceTurn = () => {
+      setTurnPointer((prevPointer) => {
+        let nextIdx = prevPointer;
+        for (let i = 1; i <= turnOrder.length; i++) {
+          const idx = (prevPointer + i) % turnOrder.length;
+          const c = next.find((cc) => cc.uid === turnOrder[idx]);
+          if (c?.isAlive) {
+            nextIdx = idx;
+            break;
+          }
         }
+        if (nextIdx <= prevPointer) setTurnCount((c) => c + 1);
+        return nextIdx;
+      });
+    };
+
+    // "attack"/"heal"/"guard" lines are already communicated by the floating damage/heal number
+    // and the skill-menu action itself — only status-effect-class beats (poison ticking,
+    // paralysis/sleep skipping a turn, a status landing, evasion, a mid-fight faint) get the
+    // Pokémon-style takeover, and it holds the next turn (this battle's own enemy-AI effect
+    // included) until the player taps past it.
+    const noticeEntries = logs.filter((l) => l.kind === "info" || l.kind === "defeat");
+    if (noticeEntries.length > 0) {
+      setPendingNotice({ entries: noticeEntries, onDismiss: advanceTurn });
+    } else {
+      advanceTurn();
+    }
+    };
+
+    const playAttackThenSettle = () => {
+      if (skill.type === "Attack") {
+        setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+        // Let the lunge travel most of the way before the hit actually "lands" (damage number,
+        // shake, HP change) — used to be fully simultaneous with the sprite starting to move,
+        // which made it look like the damage was already decided before the attack happened.
+        setTimeout(() => {
+          if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
+          settle();
+        }, 220);
+      } else {
+        if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
+        settle();
       }
-      if (nextIdx <= prevPointer) setTurnCount((c) => c + 1);
-      return nextIdx;
-    });
     };
 
     if (isUltimate) {
@@ -467,10 +495,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
       setTimeout(() => {
         setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
-        finalize();
+        playAttackThenSettle();
       }, 1300);
     } else {
-      finalize();
+      playAttackThenSettle();
     }
   }
 
@@ -496,6 +524,12 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       return;
     }
     resolveTurn(actor.uid, skill, null);
+  }
+
+  function dismissNotice() {
+    const onDismiss = pendingNotice?.onDismiss;
+    setPendingNotice(null);
+    onDismiss?.();
   }
 
   const players = combatants.filter((c) => c.side === "player");
@@ -546,7 +580,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
               return (
                 <div
                   key={c.uid}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  // pointer-events-none: adjacent slots are close enough (see ARENA_SLOTS above)
+                  // that a later slot's transparent wrapper sits visually on top of an earlier
+                  // slot's clickable sprite and swallows its clicks — see CombatantCard.tsx's
+                  // identical fix; its sprite button opts back in via pointer-events-auto.
+                  className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                   style={{ left: slot.left, top: slot.top }}
                 >
                   {isActing && (
@@ -571,9 +609,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                     }
                     attackerUid={attackEvent.uid}
                     attackNonce={attackEvent.nonce}
-                    hitUids={hitEvent.uids}
+                    hits={hitEvent.hits}
                     hitNonce={hitEvent.nonce}
                     isCastingUltimate={activeUltimateUid.uid === c.uid}
+                    lungeVector={slot.lunge}
                   />
                 </div>
               );
@@ -594,7 +633,31 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
               <div className="flex flex-col bg-black/60 backdrop-blur-md border-t border-white/20 min-h-[140px] sm:min-h-[160px]">
                 {/* Skills Menu */}
                 <div className="p-3 sm:p-4 flex-1">
-                  {isPlayerTurn && actor ? (
+                  {pendingNotice ? (
+                    // Pokémon-style takeover — replaces the skill menu (not a separate popup) for
+                    // status-effect-class beats (poison ticking, paralysis/sleep, a status
+                    // landing, evasion, a mid-fight faint). Tap anywhere to continue; the turn
+                    // (and this battle's own enemy-AI effect) doesn't advance until dismissed.
+                    <button
+                      onClick={dismissNotice}
+                      className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-center"
+                    >
+                      {pendingNotice.entries.map((entry) => (
+                        <p
+                          key={entry.id}
+                          className={cn(
+                            "font-arcade text-xs sm:text-sm",
+                            entry.kind === "defeat" ? "text-red-400" : "text-gold-bright"
+                          )}
+                        >
+                          {entry.message}
+                        </p>
+                      ))}
+                      <p className="mt-1 animate-pulse text-[9px] uppercase tracking-widest text-zinc-400 sm:text-[10px]">
+                        Tap to continue
+                      </p>
+                    </button>
+                  ) : isPlayerTurn && actor ? (
                     <>
                       <div className="mb-2 sm:mb-3 flex items-center justify-between">
                         <p className="font-arcade text-[10px] sm:text-xs text-white">What will <span className="text-gold">{actor.creature.name}</span> do?</p>
@@ -720,9 +783,10 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                   isTargetable={false}
                   attackerUid={attackEvent.uid}
                   attackNonce={attackEvent.nonce}
-                  hitUids={hitEvent.uids}
+                  hits={hitEvent.hits}
                   hitNonce={hitEvent.nonce}
                   isCastingUltimate={activeUltimateUid.uid === c.uid}
+                  lungeVector={{ x: 1, y: 0 }}
                 />
               ))}
             </div>
@@ -742,35 +806,16 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                   }
                   attackerUid={attackEvent.uid}
                   attackNonce={attackEvent.nonce}
-                  hitUids={hitEvent.uids}
+                  hits={hitEvent.hits}
                   hitNonce={hitEvent.nonce}
                   isCastingUltimate={activeUltimateUid.uid === c.uid}
+                  lungeVector={{ x: -1, y: 0 }}
                 />
               ))}
             </div>
           </GlowPanel>
         )}
       </div>
-
-      {/* Battle log — surfaces status-effect/Resonance flavor text (paralysis, confusion
-          misfires, poison ticks, Ultimate procs) that the arena's compact skill-menu labels
-          don't have room for. Mirrors RaidBattleScreen's own log panel. */}
-      <GlowPanel accent="none" className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-4xl xl:max-w-6xl 2xl:max-w-[1600px] max-h-32 space-y-1 overflow-y-auto p-3">
-        {log.map((entry) => (
-          <p
-            key={entry.id}
-            className={cn(
-              "text-[10px]",
-              entry.kind === "defeat" && "font-semibold text-red-500",
-              entry.kind === "heal" && "text-emerald-600",
-              entry.kind === "info" && "font-semibold text-gold-bright"
-            )}
-          >
-            {entry.message}
-          </p>
-        ))}
-        <div ref={logEndRef} />
-      </GlowPanel>
 
       {phase !== "active" && (
         <BattleResultScreen

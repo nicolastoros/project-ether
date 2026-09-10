@@ -15,12 +15,12 @@ import {
   createCombatant,
   getSkillTargetMode,
   getUltimateSkill,
-  nextLogId,
   pickEnemyAction,
   resonanceCostForSkill,
   ULTIMATE_RESONANCE_COST,
   type BattleCombatant,
   type BattleLogEntry,
+  type HitInfo,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
@@ -85,9 +85,9 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const [turnPointer, setTurnPointer] = useState(0);
   const [phase, setPhase] = useState<BattlePhase>("active");
   const [pendingSkill, setPendingSkill] = useState<Skill | null>(null);
-  const [log, setLog] = useState<BattleLogEntry[]>([
-    { id: nextLogId(), kind: "info", message: `${boss.name} — the raid begins!` },
-  ]);
+  // Pokémon-style takeover — see BattleScreen.tsx's identical field for the full reasoning.
+  // Replaces the skill panel (not the removed scrolling log) for status-effect-class beats only.
+  const [pendingNotice, setPendingNotice] = useState<{ entries: BattleLogEntry[]; onDismiss: () => void } | null>(null);
   const [rewardGranted, setRewardGranted] = useState(false);
   const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
   const [creatureResults, setCreatureResults] = useState<CreatureResultEntry[]>([]);
@@ -102,7 +102,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     battleStartRef.current = Date.now();
   }, []);
   const [attackEvent, setAttackEvent] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
-  const [hitEvent, setHitEvent] = useState<{ uids: string[]; nonce: number }>({ uids: [], nonce: 0 });
+  const [hitEvent, setHitEvent] = useState<{ hits: HitInfo[]; nonce: number }>({ hits: [], nonce: 0 });
   const [activeBossAnimation, setActiveBossAnimation] = useState<string | undefined>();
   // uid of the combatant currently charging/unleashing an Ultimate Attack — mirrors
   // activeBossAnimation's delayed-resolve pattern below, just for player-side ultimates.
@@ -112,13 +112,12 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const actor = combatants.find((c) => c.uid === actorUid) ?? null;
   const isPlayerTurn = phase === "active" && actor?.side === "player";
 
-  function checkEndConditions(next: BattleCombatant[]) {
+  function checkEndConditions(next: BattleCombatant[], logs: BattleLogEntry[]) {
     const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
     const playersAlive = next.some((c) => c.side === "player" && c.isAlive);
 
     if (!enemiesAlive) {
       setPhase("victory");
-      setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: `Victory! ${boss.name} has fallen.` }]);
       setElapsedSeconds(Math.max(0, Math.round((Date.now() - (battleStartRef.current ?? Date.now())) / 1000)));
       if (!rewardGranted) {
         setRewardGranted(true);
@@ -186,27 +185,56 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     }
     if (!playersAlive) {
       setPhase("defeat");
-      setLog((prev) => [...prev, { id: nextLogId(), kind: "info", message: `Defeat... ${boss.name} was too strong this time.` }]);
       return;
     }
 
-    setTurnPointer((prevPointer) => {
-      for (let i = 1; i <= turnOrder.length; i++) {
-        const idx = (prevPointer + i) % turnOrder.length;
-        const c = next.find((cc) => cc.uid === turnOrder[idx]);
-        if (c?.isAlive) return idx;
-      }
-      return prevPointer;
-    });
+    const advanceTurn = () => {
+      setTurnPointer((prevPointer) => {
+        for (let i = 1; i <= turnOrder.length; i++) {
+          const idx = (prevPointer + i) % turnOrder.length;
+          const c = next.find((cc) => cc.uid === turnOrder[idx]);
+          if (c?.isAlive) return idx;
+        }
+        return prevPointer;
+      });
+    };
+
+    // Same reasoning as BattleScreen.tsx's identical filter — only status-effect-class beats get
+    // the takeover; plain damage/heal/guard already read fine from the arena's own animations.
+    const noticeEntries = logs.filter((l) => l.kind === "info" || l.kind === "defeat");
+    if (noticeEntries.length > 0) {
+      setPendingNotice({ entries: noticeEntries, onDismiss: advanceTurn });
+    } else {
+      advanceTurn();
+    }
   }
 
   function resolveTurn(byUid: string, skill: Skill, explicitTargetUid: string | null) {
-    const { combatants: next, logs, hitUids } = applyAction(combatants, byUid, skill, explicitTargetUid);
+    const { combatants: next, logs, hits } = applyAction(combatants, byUid, skill, explicitTargetUid);
 
     const isBossAction = byUid.startsWith("enemy-");
     const currentBossNext = isBossAction ? next.find((c) => c.uid === byUid) : null;
     const isTelegraphing = isBossAction && currentBossNext?.telegraphedSkill?.id === skill.id;
     const isUltimate = combatants.find((c) => c.uid === byUid)?.creature.ultimateSkill?.id === skill.id;
+
+    const playAttackThenSettle = () => {
+      if (skill.type === "Attack") {
+        setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+        // Let the lunge travel most of the way before the hit actually "lands" — see
+        // BattleScreen.tsx's identical fix for why.
+        setTimeout(() => {
+          if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
+          setCombatants(next);
+          setPendingSkill(null);
+          checkEndConditions(next, logs);
+        }, 220);
+      } else {
+        if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
+        setCombatants(next);
+        setPendingSkill(null);
+        checkEndConditions(next, logs);
+      }
+    };
 
     if ((isBossAction && !isTelegraphing) || isUltimate) {
       // Play the boss animation / player Ultimate charge-up first, delay damage.
@@ -216,23 +244,10 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       setTimeout(() => {
         setActiveBossAnimation(undefined);
         setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
-        if (skill.type === "Attack") setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-        if (hitUids.length > 0) setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-
-        setCombatants(next);
-        setLog((prev) => [...prev, ...logs]);
-        setPendingSkill(null);
-        checkEndConditions(next);
+        playAttackThenSettle();
       }, 1500); // Wait 1.5s for the animation to play before dealing damage
     } else {
-      // Normal immediate resolve
-      if (skill.type === "Attack") setAttackEvent((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-      if (hitUids.length > 0) setHitEvent((prev) => ({ uids: hitUids, nonce: prev.nonce + 1 }));
-      
-      setCombatants(next);
-      setLog((prev) => [...prev, ...logs]);
-      setPendingSkill(null);
-      checkEndConditions(next);
+      playAttackThenSettle();
     }
   }
 
@@ -257,6 +272,20 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       return;
     }
     resolveTurn(actor.uid, skill, null);
+  }
+
+  function dismissNotice() {
+    // The dismiss callback (advanceTurn) is a real side effect (it calls setTurnPointer) — it
+    // must NOT run inside the setPendingNotice functional updater. React 18 StrictMode
+    // double-invokes updater functions in dev to surface exactly this kind of impurity, so a
+    // side effect placed there fires twice per single dismiss; in a 1v1 Raid fight that doubled
+    // advanceTurn() nets back to the same turnPointer value (no observable state change), so the
+    // enemy-AI effect's dependency never changes and never re-fires — the boss's actual attack
+    // (after its telegraph) never resolves and combat hangs. See BattleScreen.tsx's identical
+    // (correct) pattern this mirrors.
+    const onDismiss = pendingNotice?.onDismiss;
+    setPendingNotice(null);
+    onDismiss?.();
   }
 
   const players = combatants.filter((c) => c.side === "player");
@@ -292,9 +321,11 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                 onSelectTarget={pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined}
                 attackerUid={attackEvent.uid}
                 attackNonce={attackEvent.nonce}
-                hitUids={hitEvent.uids}
+                hits={hitEvent.hits}
                 hitNonce={hitEvent.nonce}
                 isCastingUltimate={activeUltimateUid.uid === c.uid}
+                // Boss sits at the top of the arena — it lunges DOWN toward the party.
+                lungeVector={{ x: 0, y: 1 }}
               />
             </div>
           ))}
@@ -315,9 +346,11 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                   isTargetable={false}
                   attackerUid={attackEvent.uid}
                   attackNonce={attackEvent.nonce}
-                  hitUids={hitEvent.uids}
+                  hits={hitEvent.hits}
                   hitNonce={hitEvent.nonce}
                   isCastingUltimate={activeUltimateUid.uid === c.uid}
+                  // Party sits at the bottom of the arena — they lunge UP toward the boss.
+                  lungeVector={{ x: 0, y: -1 }}
                 />
               </div>
             );
@@ -325,7 +358,31 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
         </div>
       </div>
 
-      {isPlayerTurn && actor && (
+      {pendingNotice && (
+        <GlowPanel
+          className="cursor-pointer p-4 text-center transition-colors hover:border-gold"
+          onClick={dismissNotice}
+        >
+          <div className="space-y-1">
+            {pendingNotice.entries.map((entry, i) => (
+              <p
+                key={entry.id ?? i}
+                className={cn(
+                  "text-xs sm:text-sm font-semibold",
+                  entry.kind === "defeat" ? "text-red-500" : "text-gold-bright"
+                )}
+              >
+                {entry.message}
+              </p>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] uppercase tracking-widest text-zinc-500 animate-pulse">
+            Tap to continue
+          </p>
+        </GlowPanel>
+      )}
+
+      {!pendingNotice && isPlayerTurn && actor && (
         <GlowPanel className="p-3">
           <div className="mb-2 flex items-center justify-between">
             <p className="font-arcade text-[10px] glow-text-gold">{actor.creature.name}&apos;s turn</p>
@@ -423,27 +480,11 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
         </GlowPanel>
       )}
 
-      {!isPlayerTurn && phase === "active" && (
+      {!pendingNotice && !isPlayerTurn && phase === "active" && (
         <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
           {actor ? `${actor.creature.name} is acting…` : "…"}
         </p>
       )}
-
-      <GlowPanel accent="none" className="max-h-32 space-y-1 overflow-y-auto p-3">
-        {log.map((entry) => (
-          <p
-            key={entry.id}
-            className={cn(
-              "text-[10px]",
-              entry.kind === "defeat" && "font-semibold text-red-500",
-              entry.kind === "heal" && "text-emerald-600",
-              entry.kind === "info" && "font-semibold text-gold-bright"
-            )}
-          >
-            {entry.message}
-          </p>
-        ))}
-      </GlowPanel>
 
       {phase !== "active" && (
         <BattleResultScreen

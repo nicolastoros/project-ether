@@ -86,9 +86,10 @@ export function CreatureDetailModal({
   }
 
   return (
-    <AnimatePresence>
-      {creature && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+    <>
+      <AnimatePresence>
+        {creature && (
+          <div key="creature-detail" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -272,7 +273,11 @@ export function CreatureDetailModal({
           </motion.div>
         </div>
       )}
-      <LoadingOverlay show={gating} />
     </AnimatePresence>
+    {/* Outside AnimatePresence on purpose: it's a self-contained fixed/z-[200] overlay with its
+        own show gate, and as a second keyless AnimatePresence child it collided with the modal
+        (both resolved to key="") — React's "two children with the same key, ``" warning. */}
+    <LoadingOverlay show={gating} />
+    </>
   );
 }
