@@ -14,7 +14,7 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
   "/hub": {
     id: "hub",
     title: "Hub",
-    body: "Your home base — see your active creature, daily tasks, and quick links to Raid Battle, Summon, the Blacksmith, and the Arena.",
+    body: "Your home base — see your active creature, daily tasks, and quick links to Raid Battle, Summon, the Blacksmith, and Global Ranking.",
   },
   "/campaign": {
     id: "campaign",
@@ -29,12 +29,7 @@ export const TUTORIAL_TIPS: Record<string, TutorialTip> = {
   "/events": {
     id: "events",
     title: "Events",
-    body: "Hidden Training — battle elementals for Orbs of every color to awaken your Digimon's hidden potential. Attempts reset every week.",
-  },
-  "/raid": {
-    id: "raid",
-    title: "Raid Battle",
-    body: "Bring up to 4 creatures to take down a single tough boss — harder difficulty tiers hit much harder but pay out better rewards.",
+    body: "Extra: Hidden Training battles for Orbs of every color. Extreme Battles: bring up to 4 creatures to take down a tough raid boss for Awaken Coins. Challenge: coming soon.",
   },
   "/expeditions": {
     id: "expeditions",

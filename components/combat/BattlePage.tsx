@@ -19,7 +19,7 @@ interface BattlePageProps {
    * app/(game)/combat/page.tsx and lib/eventData.ts's getEventEnemyTeam. */
   eventEnemies?: [Creature, Creature];
   /** Present only for Orb Event battles — gates Rematch behind the same attempt+Energy check
-   * handleStart already does in EventsClient.tsx, instead of letting it re-fight for free. */
+   * handleStart already does in ExtraTab.tsx, instead of letting it re-fight for free. */
   eventMaxWeeklyAttempts?: number;
 }
 
@@ -62,7 +62,7 @@ export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: Batt
           onSetTeam={(ids) => setPlayerIds(ids)}
           onStart={(sweep) =>
             runGated(() => {
-              // Orb Event stages already had their Energy spent by EventsClient.tsx before
+              // Orb Event stages already had their Energy spent by ExtraTab.tsx before
               // navigating here (it also gates the attempt itself) — spending again here would
               // silently double-charge every event battle.
               if (!stage.eventId && !spendEnergy(stage.staminaCost)) {

@@ -26,7 +26,9 @@ const orbColorMap: Record<string, string> = {
 // between 7 near-identical per-element tiles first, straight into its 4 difficulty tiers.
 const event = ORB_EVENTS[0];
 
-export function EventsClient() {
+/** "Extra" tab of the Events hub (see EventsHub.tsx) — training-style events, currently just
+ * Hidden Training. Was the whole /events page before Events grew Dokkan-style category tabs. */
+export function ExtraTab() {
   const router = useRouter();
   const profile = useGameStore((s) => s.profile);
   const consumeEventAttempt = useGameStore((s) => s.consumeEventAttempt);
@@ -75,8 +77,20 @@ export function EventsClient() {
   return (
     <div className="space-y-4">
       <LoadingOverlay show={gating} />
-      <div className="w-full overflow-hidden rounded-xl border border-white/10 flex items-center justify-center bg-black">
-        <img src="/assets/events/hidden_training.png" alt="Hidden Training" className="w-full h-auto block object-contain" />
+      {/* Was an unconstrained hero image, edge-to-edge and 300+px tall, taking up most of the
+          screen for a single event — this tab will hold more than one event over time, so no
+          single one gets to hog the whole banner slot. Tried a fixed short height at full width
+          next: object-cover then had to crop more of the "Hidden Potential" logo the wider the
+          screen got (the box's aspect ratio drifting further from the image's own the wider it
+          got), and object-contain fixed the crop but left big padded gaps either side instead —
+          this image just isn't shaped like an ultra-wide short strip (it's roughly 3:1) and
+          forcing it into one either crops it or leaves it looking small and lost.
+          Fix: don't force a box shape onto it at all — h-auto lets the image's own aspect ratio
+          set the height (so it's never cropped and never padded), and max-w-2xl keeps that from
+          still being a huge banner on a wide desktop screen (on mobile max-w-2xl is wider than
+          the viewport anyway, so it's effectively just w-full there, same as before). */}
+      <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-xl border border-white/10">
+        <img src="/assets/events/hidden_training.png" alt="Hidden Training" className="w-full h-auto block" />
       </div>
 
       <GlowPanel accent="none" className="p-4 flex flex-col gap-2">

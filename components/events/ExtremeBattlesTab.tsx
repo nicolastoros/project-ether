@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { RAID_BOSSES, RAID_EVENTS, getRaidBossCreature, type RaidBoss, type RaidEvent } from "@/lib/raidBosses";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
@@ -23,7 +23,11 @@ function getDifficultyImage(bossId: string) {
   return null;
 }
 
-export default function RaidPage() {
+/** "Extreme Battles" tab of the Events hub (see EventsHub.tsx) — was the standalone /raid page
+ * (its own sidebar nav item) before Events grew Dokkan-style category tabs; moved here as-is
+ * since it already grants Awaken Coins on a win, matching this category's "medals for Awakening"
+ * purpose exactly. */
+export function ExtremeBattlesTab() {
   const creatures = useGameStore((s) => s.creatures);
   const isOnExpedition = useGameStore((s) => s.isOnExpedition);
   const energy = useGameStore((s) => s.currencies.energy);
@@ -124,18 +128,18 @@ export default function RaidPage() {
               <GlowPanel key={boss.id} accent="gold" className="flex flex-col sm:flex-row gap-4 p-4 items-center relative overflow-hidden bg-arcade-panel-light/80 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
                 {diffImg && (
                   <div className="w-32 h-14 sm:w-40 sm:h-16 shrink-0 relative flex justify-center items-center">
-                    <img 
-                      src={diffImg} 
-                      className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] pointer-events-none transition-transform group-hover:scale-105" 
-                      alt="Difficulty" 
+                    <img
+                      src={diffImg}
+                      className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] pointer-events-none transition-transform group-hover:scale-105"
+                      alt="Difficulty"
                     />
                   </div>
                 )}
-                
+
                 <div className="min-w-0 flex-1 text-center sm:text-left z-10">
                   <p className="font-arcade text-sm font-bold text-foreground glow-text-gold">{boss.name.replace(/\s*\(.*\)\s*/, '')}</p>
                   <p className="text-xs text-zinc-400 mt-1">{boss.description}</p>
-                  
+
                   <div className="flex items-center justify-center sm:justify-start gap-4 text-xs text-zinc-500 mt-2">
                     <span className="inline-flex items-center gap-1 font-arcade">
                       <Zap className="h-3 w-3 text-neon" /> {boss.staminaCost} STAMINA
@@ -145,7 +149,7 @@ export default function RaidPage() {
                     </span>
                   </div>
                 </div>
-                
+
                 <PixelButton
                   variant="gold"
                   className="w-full sm:w-32 shrink-0 z-10 mt-2 sm:mt-0"
@@ -172,18 +176,12 @@ export default function RaidPage() {
         <p className="mt-1 text-xs text-zinc-500">
           Select an event to challenge its bosses. More events will be added over time!
         </p>
-        <button 
-           onClick={() => useGameStore.getState().regenEnergy(100)}
-           className="mt-2 font-arcade text-[10px] text-neon underline"
-        >
-          [Recover 100 Energy]
-        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {RAID_EVENTS.map((evt) => (
-          <button 
-            key={evt.id} 
+          <button
+            key={evt.id}
             onClick={() => setSelectedEvent(evt)}
             className="group relative overflow-hidden rounded-xl border-2 border-arcade-border bg-arcade-panel-light text-left transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:border-gold hover:shadow-gold/30"
           >
@@ -194,7 +192,7 @@ export default function RaidPage() {
                  <p className="font-arcade text-base text-gold glow-text-gold">{evt.name}</p>
               </div>
             )}
-            
+
             {/* Dark gradient overlay for text readability */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-3 pt-6">
                <p className="font-arcade text-xs text-white">{evt.name}</p>

@@ -4,7 +4,9 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { cn } from "@/lib/utils";
 
 const ACTIONS = [
-  { href: "/raid", label: "Raid Battle", icon: Flame, accent: "text-red-500", featured: false },
+  // Raid Battle moved into Events' "Extreme Battles" tab (see ExtremeBattlesTab.tsx) — deep-link
+  // straight there instead of dropping the player on Events' default Extra tab.
+  { href: "/events?tab=extreme", label: "Raid Battle", icon: Flame, accent: "text-red-500", featured: false },
   // The one tile that should visibly outrank the other three — it's the game's actual
   // monetization funnel, so it gets the same gold treatment as an LR pull instead of blending
   // in as a fourth identical white box.

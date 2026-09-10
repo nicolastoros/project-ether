@@ -71,7 +71,8 @@ const SLIDES: HeroSlide[] = [
     // logo — showing the title text too would just duplicate it right on top.
     title: e.id === "event-crimson" ? null : e.name,
     subtitle: e.description,
-    href: "/raid",
+    // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
+    href: "/events?tab=extreme",
     objectPosition: CROP_POSITION_OVERRIDES[e.id] ?? DEFAULT_CROP_POSITION,
   })),
 ];

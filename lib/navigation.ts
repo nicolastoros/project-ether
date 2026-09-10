@@ -3,7 +3,6 @@ import {
   Award,
   Castle,
   Calendar,
-  Flame,
   Map,
   Skull,
   Sparkles,
@@ -36,8 +35,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/hub", label: "Hub", icon: Castle },
       { href: "/campaign", label: "Campaign", icon: Map },
       { href: "/survival", label: "Survival", icon: Skull },
+      // Raid Battle is no longer a standalone nav item — it moved to Events' "Extreme Battles"
+      // tab (see components/events/ExtremeBattlesTab.tsx) once Events grew Dokkan-style category
+      // tabs; deep-link straight to it via "/events?tab=extreme".
       { href: "/events", label: "Events", icon: Calendar },
-      { href: "/raid", label: "Raid Battle", icon: Flame },
       // Hidden from the menu for now (per the user's request) — the /expeditions route and page
       // are untouched, so re-adding this entry later is a one-line change.
       { href: "/gacha", label: "Summon", icon: Sparkles },

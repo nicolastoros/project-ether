@@ -70,7 +70,8 @@ const HERO_SLIDES: HeroSlide[] = [
     label: "Raid Event",
     title: e.id === "event-crimson" ? null : e.name,
     subtitle: e.description,
-    href: "/raid",
+    // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
+    href: "/events?tab=extreme",
     objectPosition: "center",
     fit: "contain" as const,
   })),

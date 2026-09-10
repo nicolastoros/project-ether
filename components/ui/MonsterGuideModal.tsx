@@ -18,7 +18,7 @@ interface MonsterGuideModalProps {
 const GUIDE_SECTIONS: { title: string; pathnames: string[] }[] = [
   {
     title: "Play",
-    pathnames: ["/hub", "/campaign", "/survival", "/events", "/raid", "/expeditions", "/gacha", "/ranking"],
+    pathnames: ["/hub", "/campaign", "/survival", "/events", "/expeditions", "/gacha", "/ranking"],
   },
   {
     title: "Collection",
