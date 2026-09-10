@@ -18,8 +18,9 @@ interface BattlePageProps {
    * relying on getStageEnemyTeam's Campaign world/worldStageNumber lookup — see
    * app/(game)/combat/page.tsx and lib/eventData.ts's getEventEnemyTeam. */
   eventEnemies?: [Creature, Creature];
-  /** Present only for Orb Event battles — gates Rematch behind the same attempt+Energy check
-   * handleStart already does in ExtraTab.tsx, instead of letting it re-fight for free. */
+  /** Present only for Orb Event battles — this stage's weekly attempt pool, used to actually
+   * charge the attempt (+ Energy) right here in onStart/onRematch below, at the moment a battle
+   * really starts — not back on ExtraTab.tsx's difficulty card, which only navigates now. */
   eventMaxWeeklyAttempts?: number;
 }
 
@@ -62,10 +63,23 @@ export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: Batt
           onSetTeam={(ids) => setPlayerIds(ids)}
           onStart={(sweep) =>
             runGated(() => {
-              // Orb Event stages already had their Energy spent by ExtraTab.tsx before
-              // navigating here (it also gates the attempt itself) — spending again here would
-              // silently double-charge every event battle.
-              if (!stage.eventId && !spendEnergy(stage.staminaCost)) {
+              // Orb Event stages charge their weekly attempt right here, at the actual moment of
+              // starting a battle — not back on the difficulty card (ExtraTab.tsx), which used to
+              // charge it before the player had even picked a team. Reported live: picking a
+              // difficulty then backing out of team select empty-handed still burned an attempt
+              // for a battle that never happened.
+              if (stage.eventId) {
+                if (useGameStore.getState().currencies.energy < stage.staminaCost) {
+                  alert("Not enough Energy!");
+                  return;
+                }
+                if (eventMaxWeeklyAttempts == null || !consumeEventAttempt(stage.eventId, eventMaxWeeklyAttempts)) {
+                  alert("No attempts left for this event this week!");
+                  return;
+                }
+                spendEnergy(stage.staminaCost);
+                syncProgressToServer();
+              } else if (!spendEnergy(stage.staminaCost)) {
                 alert("Not enough stamina!");
                 return;
               }

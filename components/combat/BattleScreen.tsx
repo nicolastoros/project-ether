@@ -635,28 +635,30 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                       isReady ? "hover:border-gold hover:bg-white/20" : "cursor-not-allowed opacity-50"
                                     )}
                                   >
-                                    <div className="flex items-center justify-between gap-1">
-                                      <p className="text-[10px] sm:text-xs font-bold text-white truncate">{skill.name}</p>
-                                      <span className="flex shrink-0 items-center gap-1">
-                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold text-sky-300">
-                                          <Zap className="h-2 w-2" />{cost}
-                                        </span>
-                                        <span
-                                          className={cn(
-                                            "rounded-full px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white",
-                                            SKILL_TYPE_STYLES[skill.type]
-                                          )}
-                                        >
-                                          {skill.type}
-                                        </span>
+                                    {/* Name on its own row (not sharing space with the cost/type
+                                        badges) — sharing a row squeezed the name down to roughly
+                                        half the button's width, truncating longer names (e.g.
+                                        "Garuru Cannon Lockdown") on a narrow phone-width 2-column
+                                        grid even at the smallest text size. */}
+                                    <p className="text-xs sm:text-sm lg:text-base font-bold text-white truncate">{skill.name}</p>
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold text-sky-300">
+                                        <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          "rounded-full px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white",
+                                          SKILL_TYPE_STYLES[skill.type]
+                                        )}
+                                      >
+                                        {skill.type}
                                       </span>
                                     </div>
-                                    <p className="mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{skill.description}</p>
                                     {cooldownLeft > 0 && (
-                                      <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
+                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
                                     )}
                                     {cooldownLeft <= 0 && actor.resonance < cost && (
-                                      <p className="mt-0.5 text-[8px] sm:text-[9px] font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">Needs {cost} Resonance</p>
                                     )}
                                   </button>
                                 );
@@ -676,20 +678,17 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                 )}
                               >
                                 <LegendaryCardAura />
-                                <div className="relative flex items-center justify-between gap-1">
-                                  <p className="text-[10px] sm:text-xs font-bold text-white truncate">{ultimate.name}</p>
-                                  <span className="flex shrink-0 items-center gap-1">
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold text-sky-300">
-                                      <Zap className="h-2 w-2" />{cost}
-                                    </span>
-                                    <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[7px] sm:text-[9px] font-semibold uppercase text-white">
-                                      Ultimate
-                                    </span>
+                                <p className="relative text-xs sm:text-sm lg:text-base font-bold text-white truncate">{ultimate.name}</p>
+                                <div className="relative mt-1 flex items-center gap-1">
+                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold text-sky-300">
+                                    <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
+                                  </span>
+                                  <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white">
+                                    Ultimate
                                   </span>
                                 </div>
-                                <p className="relative mt-1 line-clamp-2 text-[8px] sm:text-[10px] text-zinc-300 leading-tight">{ultimate.description}</p>
                                 {!isReady && (
-                                  <p className="relative mt-0.5 text-[8px] sm:text-[9px] font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                  <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">Needs {cost} Resonance</p>
                                 )}
                               </button>
                             );

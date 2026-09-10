@@ -8,9 +8,6 @@ import { Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn, thisWeekStartDateString } from "@/lib/utils";
 import { useWeeklyResetCountdown } from "@/lib/useResetCountdown";
-import { syncProgressToServer } from "@/lib/syncProgress";
-import { useSyncGate } from "@/lib/useSyncGate";
-import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 
 const orbColorMap: Record<string, string> = {
   Fire: "red",
@@ -31,10 +28,7 @@ const event = ORB_EVENTS[0];
 export function ExtraTab() {
   const router = useRouter();
   const profile = useGameStore((s) => s.profile);
-  const consumeEventAttempt = useGameStore((s) => s.consumeEventAttempt);
-  const spendEnergy = useGameStore((s) => s.spendEnergy);
   const resetLabel = useWeeklyResetCountdown();
-  const { gating, runGated } = useSyncGate();
 
   // Not a raw read of profile.dailyEventAttempts — that field only actually resets the moment
   // consumeEventAttempt is called, so reading it directly here would show last week's leftover
@@ -45,38 +39,22 @@ export function ExtraTab() {
     profile.dailyEventAttemptsDate === thisWeekStartDateString() ? profile.dailyEventAttempts?.[event.id] ?? 0 : 0;
   const attemptsLeft = Math.max(0, event.maxWeeklyAttempts - attemptsUsed);
 
+  // Just navigates — does NOT spend Energy or the weekly attempt. Those are charged in
+  // BattlePage.tsx's TeamSelectScreen onStart instead, at the moment the player actually confirms
+  // their team and hits "Start Battle" (same as every other stage). Used to charge right here
+  // instead, before team select even loaded — reported live: picking a difficulty then backing
+  // out of team select without picking anyone still burned an attempt for a battle that never
+  // happened.
   function handleStart(diff: EventDifficulty) {
-    // Re-syncs against server truth first (see useSyncGate) before this reads/spends Energy and
-    // this week's attempt count — both are limited, easy-to-lose-track-of resources, exactly the
-    // kind a stale local snapshot could mis-charge.
-    runGated(() => {
-      // Check energy *before* spending the attempt — otherwise a player who's simply out of
-      // Energy silently loses one of this week's limited attempts for nothing.
-      if (useGameStore.getState().currencies.energy < diff.staminaCost) {
-        alert("Not enough Energy!");
-        return;
-      }
-      if (!consumeEventAttempt(event.id, event.maxWeeklyAttempts)) {
-        alert("No attempts left for this event this week!");
-        return;
-      }
-      spendEnergy(diff.staminaCost);
-      // consumeEventAttempt only mutates local state — without this, a spent attempt (and the
-      // date it reset against) reverts on the next server refresh if the player navigates away
-      // before GameGate's own ~60s poll happens to catch it.
-      syncProgressToServer();
-
-      const params = new URLSearchParams({
-        eventId: event.id,
-        difficultyId: diff.id,
-      });
-      router.push(`/combat?${params.toString()}`);
+    const params = new URLSearchParams({
+      eventId: event.id,
+      difficultyId: diff.id,
     });
+    router.push(`/combat?${params.toString()}`);
   }
 
   return (
     <div className="space-y-4">
-      <LoadingOverlay show={gating} />
       {/* Was an unconstrained hero image, edge-to-edge and 300+px tall, taking up most of the
           screen for a single event — this tab will hold more than one event over time, so no
           single one gets to hog the whole banner slot. Tried a fixed short height at full width

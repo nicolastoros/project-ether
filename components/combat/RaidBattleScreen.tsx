@@ -361,28 +361,28 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                           isReady ? "hover:border-gold" : "cursor-not-allowed opacity-50"
                         )}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-foreground">{skill.name}</p>
-                          <span className="flex shrink-0 items-center gap-1">
-                            <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] font-semibold text-sky-600">
-                              <Zap className="h-2 w-2" />{cost}
-                            </span>
-                            <span
-                              className={cn(
-                                "rounded-full px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white",
-                                SKILL_TYPE_STYLES[skill.type]
-                              )}
-                            >
-                              {skill.type}
-                            </span>
+                        {/* Name on its own row — see BattleScreen.tsx's identical fix for why
+                            (sharing a row with the badges squeezed longer names down to truncating,
+                            even at the smallest text size, once the grid goes multi-column). */}
+                        <p className="text-xs sm:text-sm lg:text-base font-semibold text-foreground truncate">{skill.name}</p>
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold text-sky-600">
+                            <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white",
+                              SKILL_TYPE_STYLES[skill.type]
+                            )}
+                          >
+                            {skill.type}
                           </span>
                         </div>
-                        <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
                         {cooldownLeft > 0 && (
-                          <p className="mt-1 text-[9px] font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
                         )}
                         {cooldownLeft <= 0 && actor.resonance < cost && (
-                          <p className="mt-1 text-[9px] font-semibold text-sky-600">Needs {cost} Resonance</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
                         )}
                       </button>
                     );
@@ -403,20 +403,17 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
                     )}
                   >
                     <LegendaryCardAura />
-                    <div className="relative flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-foreground">{ultimate.name}</p>
-                      <span className="flex shrink-0 items-center gap-1">
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[7px] font-semibold text-sky-600">
-                          <Zap className="h-2 w-2" />{cost}
-                        </span>
-                        <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[7px] font-semibold uppercase text-white">
-                          Ultimate
-                        </span>
+                    <p className="relative text-xs sm:text-sm lg:text-base font-semibold text-foreground truncate">{ultimate.name}</p>
+                    <div className="relative mt-1 flex items-center gap-1">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/20 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold text-sky-600">
+                        <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
+                      </span>
+                      <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white">
+                        Ultimate
                       </span>
                     </div>
-                    <p className="relative mt-1 text-[10px] text-zinc-600">{ultimate.description}</p>
                     {!isReady && (
-                      <p className="relative mt-1 text-[9px] font-semibold text-sky-600">Needs {cost} Resonance</p>
+                      <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
                     )}
                   </button>
                 );
