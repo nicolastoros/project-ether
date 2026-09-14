@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Zap } from "lucide-react";
-import type { Creature, Skill } from "@/types/game";
+import type { Creature, Skill, UltimateSkill } from "@/types/game";
 import { useGameStore } from "@/lib/store";
 import { ACHIEVEMENTS, ITEM_CATALOG } from "@/lib/gameData";
 import type { RaidBoss } from "@/lib/raidBosses";
 import { grantItemOnServer, syncProgressToServer, unlockAchievementOnServer } from "@/lib/syncProgress";
 import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { addGuildExpAction } from "@/app/actions/guild";
-import { applyTamerBuffs } from "@/lib/tamerBuffs";
+import { applyTamerBuffs, getTamerExpMultiplierBonus } from "@/lib/tamerBuffs";
 import {
   applyAction,
+  applyLrPassives,
   createCombatant,
   getSkillTargetMode,
   getUltimateSkill,
@@ -21,15 +23,43 @@ import {
   type BattleCombatant,
   type BattleLogEntry,
   type HitInfo,
+  type LrPassiveActivation,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
+import type { Direction } from "@/components/ui/CreatureSprite";
 import { CombatantCard } from "./CombatantCard";
+import { LrPassiveIntro } from "./LrPassiveIntro";
+import { UltimateAttackIntro } from "./UltimateAttackIntro";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
 import { cn } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
+
+// Wedge formation for a real NvN team fight (every Events > Challenge trial's 3v3) — absolute,
+// percent-positioned slots over the arena background, same idea as BattleScreen.tsx's own
+// ARENA_SLOTS, instead of a flex column: creatures read as standing on the arena's own ground
+// plane rather than floating in a stack. The middle slot steps forward (toward the enemy); the
+// outer two sit level with each other, further back. size="sm" on CombatantCard (see below) keeps
+// them small enough that 3 a side never crowd the frame.
+const RAID_TEAM_SLOTS: {
+  side: "player" | "enemy";
+  index: 0 | 1 | 2;
+  left: string;
+  top: string;
+  direction: Direction;
+  lunge: { x: number; y: number };
+}[] = [
+  { side: "player", index: 0, left: "16%", top: "44%", direction: "south-east", lunge: { x: 1, y: 0 } },
+  { side: "player", index: 1, left: "28%", top: "60%", direction: "south-east", lunge: { x: 1, y: 0 } },
+  { side: "player", index: 2, left: "16%", top: "76%", direction: "south-east", lunge: { x: 1, y: 0 } },
+  { side: "enemy", index: 0, left: "84%", top: "44%", direction: "south-west", lunge: { x: -1, y: 0 } },
+  { side: "enemy", index: 1, left: "72%", top: "60%", direction: "south-west", lunge: { x: -1, y: 0 } },
+  { side: "enemy", index: 2, left: "84%", top: "76%", direction: "south-west", lunge: { x: -1, y: 0 } },
+];
 
 function buildInitialCombatants(playerCreatures: Creature[], enemyCreatures: Creature[]): BattleCombatant[] {
   return [
@@ -40,14 +70,17 @@ function buildInitialCombatants(playerCreatures: Creature[], enemyCreatures: Cre
 
 interface RaidBattleScreenProps {
   boss: RaidBoss;
-  bossCreature: Creature;
+  /** One creature for the classic single-scaled-boss fights, several for a fixed-team fight like
+   * Scarlet Inferno Super's 3 Mythics — see lib/raidBosses.ts's getRaidEnemyCreatures, which always
+   * returns an array so callers never need to branch here. */
+  bossCreatures: Creature[];
   /** 1-4 creatures — Raid Battle allows a bigger party than Campaign's 1-2. */
   playerCreatures: Creature[];
   onRematch: () => void;
   onExit: () => void;
 }
 
-export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematch, onExit }: RaidBattleScreenProps) {
+export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRematch, onExit }: RaidBattleScreenProps) {
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -58,32 +91,58 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   const guild = useGameStore((s) => s.guild);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
 
-  const buffedPlayerCreatures = useMemo(() => {
-    // Only apply stats from gear that is actually equipped
+  // Which owned gear is actually equipped right now — shared by the buff computation below and
+  // the victory-reward block's Wind Set Effect (EXP +100%) check further down.
+  const activeTamerGear = useMemo(() => {
     const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
-    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+    return tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+  }, [tamerInventory, equippedTamerGear]);
 
+  const buffedPlayerCreatures = useMemo(() => {
     return playerCreatures.map((c) =>
       applyTamerBuffs(
         c,
-        activeGear,
+        activeTamerGear,
         equippedTamerId,
         useGameStore.getState().profile.level,
         guild?.level
       )
     );
-  }, [playerCreatures, tamerInventory, equippedTamerId, equippedTamerGear, guild?.level]);
+  }, [playerCreatures, activeTamerGear, equippedTamerId, guild?.level]);
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
-    buildInitialCombatants(buffedPlayerCreatures, [bossCreature])
+    applyLrPassives(buildInitialCombatants(buffedPlayerCreatures, bossCreatures)).combatants
   );
-  const turnOrder = useMemo(
-    () => [...combatants].sort((a, b) => b.creature.baseStats.spd - a.creature.baseStats.spd).map((c) => c.uid),
-    // Fixed once at battle start — SPD-based turn order stays stable for the whole fight.
+  // See BattleScreen.tsx's identical fields for the full reasoning — the Dokkan-style "Passive
+  // Skill" banner activates for every LR creature on either side, in every real battle screen.
+  const [lrActivations] = useState<LrPassiveActivation[]>(
+    () => applyLrPassives(buildInitialCombatants(buffedPlayerCreatures, bossCreatures)).activations
+  );
+  const [introDismissed, setIntroDismissed] = useState(() => lrActivations.length === 0);
+  const turnOrder = useMemo(() => {
+    // The player's whole team always acts before the enemy's, regardless of SPD — SPD only
+    // breaks ties within each side. Without this, a faster boss could open the fight before the
+    // player ever sees a skill menu (just "X is acting…"), which reads as a bug/frozen screen the
+    // first time it happens rather than "the boss went first, wait your turn."
+    const bySpdDesc = (a: BattleCombatant, b: BattleCombatant) => b.creature.baseStats.spd - a.creature.baseStats.spd;
+    const players = combatants.filter((c) => c.side === "player").sort(bySpdDesc);
+    const enemies = combatants.filter((c) => c.side === "enemy").sort(bySpdDesc);
+    return [...players, ...enemies].map((c) => c.uid);
+    // Fixed once at battle start — stays stable for the whole fight.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  }, []);
   const [turnPointer, setTurnPointer] = useState(0);
   const [phase, setPhase] = useState<BattlePhase>("active");
+  // See BattleScreen.tsx's identical field for the full reasoning — holds the result screen back
+  // a beat so the reward/achievement/guild-exp syncs fired the instant phase flips have real time
+  // to land before the player can hit Exit/Rematch and navigate away.
+  const [showResult, setShowResult] = useState(false);
+  useEffect(() => {
+    // phase only ever moves one-way (active -> victory/defeat, never back) within a given battle
+    // instance, so there's no reset branch to write here — just the timer for the forward case.
+    if (phase === "active") return;
+    const timeout = setTimeout(() => setShowResult(true), SYNC_PAUSE_MS);
+    return () => clearTimeout(timeout);
+  }, [phase]);
   const [pendingSkill, setPendingSkill] = useState<Skill | null>(null);
   // Pokémon-style takeover — see BattleScreen.tsx's identical field for the full reasoning.
   // Replaces the skill panel (not the removed scrolling log) for status-effect-class beats only.
@@ -107,6 +166,15 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
   // uid of the combatant currently charging/unleashing an Ultimate Attack — mirrors
   // activeBossAnimation's delayed-resolve pattern below, just for player-side ultimates.
   const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
+  // Drives the epic gold UltimateAttackIntro overlay — set alongside activeUltimateUid above, but
+  // separate: this one actually gates damage (see resolveTurn's isUltimate branch), while
+  // activeUltimateUid only drives the sprite-level aura in CombatantCard.
+  const [ultimateAttack, setUltimateAttack] = useState<{ casterName: string; ultimate: UltimateSkill } | null>(null);
+  // The "resolve after the intro" continuation, captured at the moment the Ultimate was cast (it
+  // closes over that exact applyAction() result) and invoked later by handleUltimateIntroDismiss
+  // once the player taps through (or the intro's own auto-timer fires) — a ref because it's a
+  // plain callback, not something a render needs to react to.
+  const pendingUltimateResolveRef = useRef<(() => void) | null>(null);
 
   const actorUid = turnOrder[turnPointer];
   const actor = combatants.find((c) => c.uid === actorUid) ?? null;
@@ -122,14 +190,17 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       if (!rewardGranted) {
         setRewardGranted(true);
         addGold(boss.rewardGold);
+        // Wind's "EXP +100%" Set Effect (only when every Wind piece is equipped) stacks on top of
+        // the boss's flat rewardExp.
+        const expGain = Math.round(boss.rewardExp * (1 + getTamerExpMultiplierBonus(activeTamerGear)));
         const levelsBefore = new Map(playerCreatures.map((c) => [c.id, c.level]));
         const tamerBefore = useGameStore.getState().profile;
-        playerCreatures.forEach((c) => gainCreatureExp(c.id, boss.rewardExp));
-        gainProfileExp(boss.rewardExp);
+        playerCreatures.forEach((c) => gainCreatureExp(c.id, expGain));
+        gainProfileExp(expGain);
         const updatedCreatures = useGameStore.getState().creatures;
         const tamerAfter = useGameStore.getState().profile;
         setTamerResult({
-          expGained: boss.rewardExp,
+          expGained: expGain,
           levelBefore: tamerBefore.level,
           levelAfter: tamerAfter.level,
           exp: tamerAfter.exp,
@@ -140,7 +211,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
             const updated = updatedCreatures.find((uc) => uc.id === c.id);
             return {
               creature: c,
-              expGained: boss.rewardExp,
+              expGained: expGain,
               levelBefore: levelsBefore.get(c.id) ?? c.level,
               levelAfter: updated?.level ?? c.level,
               exp: updated?.exp ?? c.exp,
@@ -162,6 +233,14 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
         grantItem("it-awaken-coin", awakenCoins);
         grantItemOnServer("it-awaken-coin", awakenCoins);
         setItemsDropped((prev) => [...prev, { itemId: "it-awaken-coin", quantity: awakenCoins }]);
+
+        // Flat, always-granted rewards (Scarlet Inferno's chipsets + Exchange Coins) — exact, not
+        // a random pick like the material/gear drops above.
+        for (const reward of boss.bonusItemRewards ?? []) {
+          grantItem(reward.itemId, reward.amount);
+          grantItemOnServer(reward.itemId, reward.amount);
+          setItemsDropped((prev) => [...prev, { itemId: reward.itemId, quantity: reward.amount }]);
+        }
 
         if (guild) {
           addGuildExpAction(guild.id, boss.rewardExp).catch(() => {});
@@ -236,23 +315,41 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       }
     };
 
-    if ((isBossAction && !isTelegraphing) || isUltimate) {
-      // Play the boss animation / player Ultimate charge-up first, delay damage.
-      if (isBossAction) setActiveBossAnimation(skill.name);
-      if (isUltimate) setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+    const casterCreature = combatants.find((c) => c.uid === byUid)?.creature;
 
+    if (isBossAction && !isTelegraphing) {
+      // Play the boss animation first, delay damage.
+      setActiveBossAnimation(skill.name);
       setTimeout(() => {
         setActiveBossAnimation(undefined);
-        setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
         playAttackThenSettle();
       }, 1500); // Wait 1.5s for the animation to play before dealing damage
+    } else if (isUltimate && casterCreature?.ultimateSkill) {
+      // Damage waits for the epic UltimateAttackIntro overlay to actually dismiss (tap, or its
+      // own ~3.2s auto-timer) rather than a fixed setTimeout here — see
+      // handleUltimateIntroDismiss below, which is what really calls playAttackThenSettle.
+      setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
+      setUltimateAttack({ casterName: casterCreature.name, ultimate: casterCreature.ultimateSkill });
+      pendingUltimateResolveRef.current = () => {
+        setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
+        playAttackThenSettle();
+      };
     } else {
       playAttackThenSettle();
     }
   }
 
+  function handleUltimateIntroDismiss() {
+    setUltimateAttack(null);
+    const resolve = pendingUltimateResolveRef.current;
+    pendingUltimateResolveRef.current = null;
+    resolve?.();
+  }
+
+  // See BattleScreen.tsx's identical effect for why !introDismissed is here — an enemy that wins
+  // the SPD-sorted turn order can't act while the passive banner still covers the screen.
   useEffect(() => {
-    if (phase !== "active") return;
+    if (phase !== "active" || !introDismissed) return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
     if (!currentActor || currentActor.side !== "enemy" || !currentActor.isAlive) return;
 
@@ -262,7 +359,7 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
     }, 900);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnPointer, phase]);
+  }, [turnPointer, phase, introDismissed]);
 
   function handleSkillClick(skill: Skill) {
     if (!actor) return;
@@ -293,12 +390,24 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
 
   return (
     <div className="space-y-3">
+      <AnimatePresence>
+        {!introDismissed && <LrPassiveIntro activations={lrActivations} onDismiss={() => setIntroDismissed(true)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {ultimateAttack && (
+          <UltimateAttackIntro
+            casterName={ultimateAttack.casterName}
+            ultimate={ultimateAttack.ultimate}
+            onDismiss={handleUltimateIntroDismiss}
+          />
+        )}
+      </AnimatePresence>
       <div>
         <h1 className="font-arcade text-lg glow-text-gold">Raid Battle</h1>
-        <p className="text-xs text-zinc-500">{boss.name} · up to 4v1</p>
+        <p className="text-xs text-zinc-500">{boss.name} · {playerCreatures.length}v{bossCreatures.length}</p>
       </div>
 
-      <div 
+      <div
         className="relative w-full h-[420px] sm:h-[580px] overflow-hidden rounded-xl border-2 border-arcade-border shadow-[0_0_20px_rgba(255,215,0,0.15)]"
         style={{
           backgroundImage: "url('/assets/maps/raid_battle_1.png')",
@@ -308,54 +417,101 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
       >
         <div className="absolute inset-0 bg-black/20" /> {/* Slight darken for UI contrast */}
 
-        {/* Boss Area (Top Center) */}
-        <div className="absolute top-[32%] sm:top-[25%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
-          {enemies.map((c) => (
-            <div key={c.uid} className="scale-125 sm:scale-150 origin-bottom transition-transform">
-              <CombatantCard
-                combatant={c}
-                direction="south"
-                activeAnimation={activeBossAnimation}
-                isActingTurn={c.uid === actorUid && phase === "active"}
-                isTargetable={Boolean(pendingSkill) && c.isAlive}
-                onSelectTarget={pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined}
-                attackerUid={attackEvent.uid}
-                attackNonce={attackEvent.nonce}
-                hits={hitEvent.hits}
-                hitNonce={hitEvent.nonce}
-                isCastingUltimate={activeUltimateUid.uid === c.uid}
-                // Boss sits at the top of the arena — it lunges DOWN toward the party.
-                lungeVector={{ x: 0, y: 1 }}
-              />
+        {enemies.length > 1 ? (
+          // A real fixed-team fight (e.g. every Events > Challenge trial's 3v3) — absolute-
+          // positioned wedge slots over the arena's own ground plane (RAID_TEAM_SLOTS above),
+          // exactly like Campaign's ARENA_SLOTS, instead of a flex column stack. That flex version
+          // read as floating icons in the corners rather than a team standing in the arena.
+          <>
+            <div className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 z-10 font-arcade text-[10px] uppercase tracking-widest text-white/60 sm:text-xs">
+              VS
             </div>
-          ))}
-        </div>
+            {RAID_TEAM_SLOTS.map((slot) => {
+              const c = (slot.side === "player" ? players : enemies)[slot.index];
+              if (!c) return null;
+              const isActing = c.uid === actorUid && phase === "active";
+              return (
+                <div
+                  key={c.uid}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"
+                  style={{ left: slot.left, top: slot.top }}
+                >
+                  <CombatantCard
+                    combatant={c}
+                    direction={slot.direction}
+                    size="sm"
+                    activeAnimation={slot.side === "enemy" ? activeBossAnimation : undefined}
+                    isActingTurn={isActing}
+                    isTargetable={slot.side === "enemy" && Boolean(pendingSkill) && c.isAlive}
+                    onSelectTarget={
+                      slot.side === "enemy" && pendingSkill && actor
+                        ? () => resolveTurn(actor.uid, pendingSkill, c.uid)
+                        : undefined
+                    }
+                    attackerUid={attackEvent.uid}
+                    attackNonce={attackEvent.nonce}
+                    hits={hitEvent.hits}
+                    hitNonce={hitEvent.nonce}
+                    isCastingUltimate={activeUltimateUid.uid === c.uid}
+                    lungeVector={slot.lunge}
+                  />
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            {/* Boss Area (Top Center) — the classic single-scaled-boss layout, unchanged for
+                Extreme Battles' raid bosses. */}
+            <div className="absolute top-[32%] sm:top-[25%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
+              {enemies.map((c) => (
+                <div key={c.uid} className="scale-125 sm:scale-150 origin-bottom transition-transform">
+                  <CombatantCard
+                    combatant={c}
+                    direction="south"
+                    activeAnimation={activeBossAnimation}
+                    isActingTurn={c.uid === actorUid && phase === "active"}
+                    isTargetable={Boolean(pendingSkill) && c.isAlive}
+                    onSelectTarget={pendingSkill && actor ? () => resolveTurn(actor.uid, pendingSkill, c.uid) : undefined}
+                    attackerUid={attackEvent.uid}
+                    attackNonce={attackEvent.nonce}
+                    hits={hitEvent.hits}
+                    hitNonce={hitEvent.nonce}
+                    isCastingUltimate={activeUltimateUid.uid === c.uid}
+                    // Boss sits at the top of the arena — it lunges DOWN toward the party.
+                    lungeVector={{ x: 0, y: 1 }}
+                  />
+                </div>
+              ))}
+            </div>
 
-        {/* Players Area (Bottom Curve) */}
-        <div className="absolute bottom-0 sm:bottom-2 left-0 right-0 flex justify-center items-end gap-2 sm:gap-6 px-4 z-20">
-          {players.map((c, i) => {
-            // Stagger heights to create a faux-3D curve effect
-            const isOuter = i === 0 || i === players.length - 1;
-            const yOffset = isOuter ? "translate-y-4 sm:translate-y-8" : "translate-y-0";
-            return (
-              <div key={c.uid} className={cn("transition-transform scale-[0.80] sm:scale-100 origin-bottom", yOffset)}>
-                <CombatantCard
-                  combatant={c}
-                  direction="north"
-                  isActingTurn={c.uid === actorUid && phase === "active"}
-                  isTargetable={false}
-                  attackerUid={attackEvent.uid}
-                  attackNonce={attackEvent.nonce}
-                  hits={hitEvent.hits}
-                  hitNonce={hitEvent.nonce}
-                  isCastingUltimate={activeUltimateUid.uid === c.uid}
-                  // Party sits at the bottom of the arena — they lunge UP toward the boss.
-                  lungeVector={{ x: 0, y: -1 }}
-                />
-              </div>
-            );
-          })}
-        </div>
+            {/* Players Area (Bottom Curve) */}
+            <div className="absolute bottom-0 sm:bottom-2 left-0 right-0 flex justify-center items-end gap-2 sm:gap-6 px-4 z-20">
+              {players.map((c, i) => {
+                // Stagger heights to create a faux-3D curve effect
+                const isOuter = i === 0 || i === players.length - 1;
+                const yOffset = isOuter ? "translate-y-4 sm:translate-y-8" : "translate-y-0";
+                return (
+                  <div key={c.uid} className={cn("transition-transform scale-[0.80] sm:scale-100 origin-bottom", yOffset)}>
+                    <CombatantCard
+                      combatant={c}
+                      direction="north"
+                      isActingTurn={c.uid === actorUid && phase === "active"}
+                      isTargetable={false}
+                      attackerUid={attackEvent.uid}
+                      attackNonce={attackEvent.nonce}
+                      hits={hitEvent.hits}
+                      hitNonce={hitEvent.nonce}
+                      isCastingUltimate={activeUltimateUid.uid === c.uid}
+                      // Party sits at the bottom of the arena — they lunge UP toward the boss.
+                      lungeVector={{ x: 0, y: -1 }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {pendingNotice && (
@@ -486,7 +642,11 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
         </p>
       )}
 
-      {phase !== "active" && (
+      {phase !== "active" && !showResult && (
+        <LoadingOverlay show label={phase === "victory" ? "Victory! Calculating rewards..." : "Calculating results..."} />
+      )}
+
+      {phase !== "active" && showResult && (
         <BattleResultScreen
           phase={phase}
           title={boss.name}
@@ -495,9 +655,9 @@ export function RaidBattleScreen({ boss, bossCreature, playerCreatures, onRematc
           itemsDropped={itemsDropped}
           elapsedSeconds={elapsedSeconds}
           tamerResult={tamerResult ?? undefined}
-          bonusLines={[achievementUnlockedName && `Achievement Unlocked: ${achievementUnlockedName}!`].filter(
-            (line): line is string => Boolean(line)
-          )}
+          bonusLines={[
+            achievementUnlockedName && `Achievement Unlocked: ${achievementUnlockedName}!`,
+          ].filter((line): line is string => Boolean(line))}
           defeatMessage="Your party was defeated. Bring more/stronger creatures next time!"
           onRematch={onRematch}
           onExitClick={onExit}

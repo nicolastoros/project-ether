@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
                 </PixelButton>
 
                 <div className="mt-2 text-center">
-                  <Link href="/" className="text-xs text-zinc-500 hover:text-white transition-colors flex items-center justify-center gap-1">
+                  <Link href="/play" className="text-xs text-zinc-500 hover:text-white transition-colors flex items-center justify-center gap-1">
                     <ArrowLeft className="h-3 w-3" /> Back to Login
                   </Link>
                 </div>
@@ -193,7 +193,7 @@ export default function ForgotPasswordPage() {
                 <p className="text-sm text-zinc-300">
                   Your password has been changed successfully. You can now log in with your new password.
                 </p>
-                <Link href="/" className="w-full">
+                <Link href="/play" className="w-full">
                   <PixelButton className="w-full mt-4">
                     Go to Login
                   </PixelButton>

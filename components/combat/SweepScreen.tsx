@@ -8,6 +8,7 @@ import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { grantItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { getTamerExpMultiplierBonus } from "@/lib/tamerBuffs";
 import { addGuildExpAction } from "@/app/actions/guild";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -15,6 +16,8 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
 
 interface SweepScreenProps {
   stage: DungeonStage;
@@ -30,14 +33,25 @@ export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: Sweep
   const addSealCoins = useGameStore((s) => s.addSealCoins);
   const grantItem = useGameStore((s) => s.grantItem);
   const guild = useGameStore((s) => s.guild);
+  const tamerInventory = useGameStore((s) => s.tamerInventory);
+  const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
 
   const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
   const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
   const [expMultiplier, setExpMultiplier] = useState(1);
+  // Same reasoning as BattleScreen.tsx's showResult — the rewards below fire syncProgressToServer
+  // the instant this effect runs, and the result panel used to render in that same instant too,
+  // so Continue/Re-Sweep could be tapped before that fire-and-forget write had any real chance to
+  // land. A brief "calculating" beat first gives it that time.
+  const [showResult, setShowResult] = useState(false);
 
   useEffect(() => {
     const isExpEventStage = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
-    const multiplier = isExpEventStage ? 2 : 1;
+    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+    // Wind's "EXP +100%" Set Effect (only when every Wind piece is equipped) stacks on top of the
+    // existing exp-event multiplier, same as a real battle's reward block.
+    const multiplier = (isExpEventStage ? 2 : 1) * (1 + getTamerExpMultiplierBonus(activeGear));
     setExpMultiplier(multiplier);
 
     addGold(stage.rewardGold);
@@ -72,8 +86,15 @@ export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: Sweep
 
     setItemsDropped(drops);
     syncProgressToServer();
+    const timeout = setTimeout(() => setShowResult(true), SYNC_PAUSE_MS);
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
+
+  // LoadingOverlay is already a fixed, full-viewport overlay — no wrapper needed here.
+  if (!showResult) {
+    return <LoadingOverlay show label="Calculating results..." />;
+  }
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center p-4">

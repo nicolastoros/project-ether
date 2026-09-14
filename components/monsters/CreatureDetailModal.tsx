@@ -170,6 +170,22 @@ export function CreatureDetailModal({
                 })}
               </div>
 
+              {creature.categories && creature.categories.length > 0 && (
+                <div className="mt-3">
+                  <h3 className="font-arcade text-xs glow-text-neon">Categories</h3>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {creature.categories.map((category) => (
+                      <span
+                        key={category}
+                        className="rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-0.5 text-[10px] font-semibold text-zinc-600"
+                      >
+                        {category}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-3">
                 <ProgressBar
                   percent={xpPercent(creature.exp, creature.expToNextLevel)}

@@ -59,11 +59,11 @@ export default function ExpeditionsPage() {
   }, []);
 
   const excludedIds = useMemo(() => {
-    const set = new Set<string>();
+    const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) set.add(c.id);
+      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
     }
-    return set;
+    return map;
   }, [creatures, isOnExpedition]);
 
   const selectedPower = useMemo(

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,29 +12,17 @@ interface BannerSliderProps {
   onChange: (index: number) => void;
 }
 
-const AUTOPLAY_MS = 5500;
 const SWIPE_THRESHOLD = 60;
 const SWIPE_VELOCITY = 400;
 
+// No autoplay, on purpose — this used to auto-advance every few seconds, and a player could tap
+// Summon right as it slid to a different banner underneath them, pulling on the wrong one. Moving
+// between banners is now 100% player-initiated: drag/swipe, the arrow buttons, or the dots.
 export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderProps) {
-  const [isInteracting, setIsInteracting] = useState(false);
-
-  useEffect(() => {
-    if (isInteracting || banners.length <= 1) return;
-    const id = setInterval(() => {
-      onChange((activeIndex + 1) % banners.length);
-    }, AUTOPLAY_MS);
-    return () => clearInterval(id);
-  }, [activeIndex, isInteracting, banners.length, onChange]);
-
   const goTo = (index: number) => onChange((index + banners.length) % banners.length);
 
   return (
-    <div
-      className="group relative select-none"
-      onMouseEnter={() => setIsInteracting(true)}
-      onMouseLeave={() => setIsInteracting(false)}
-    >
+    <div className="group relative select-none">
       <motion.div
         animate={{
           boxShadow: [
@@ -52,7 +39,6 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
           drag={banners.length > 1 ? "x" : false}
           dragMomentum={false}
           dragElastic={0.2}
-          onDragStart={() => setIsInteracting(true)}
           animate={{ x: `-${activeIndex * 100}%` }}
           transition={{ type: "spring", stiffness: 300, damping: 32 }}
           onDragEnd={(_, info) => {
@@ -107,19 +93,35 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
 
         {banners.length > 1 && (
           <>
+            {/* Always visible (not hover-only) — hover has no equivalent on mobile, and the whole
+                point is for a player to notice there's more to see without having to guess. The
+                chevrons themselves idle-nudge sideways to draw the eye the first time; the button
+                still brightens further on hover/tap for desktop polish. */}
             <button
               onClick={() => goTo(activeIndex - 1)}
               aria-label="Previous banner"
-              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+              className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-90 shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/65 hover:opacity-100 sm:h-10 sm:w-10"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <motion.span
+                animate={{ x: [0, -3, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                className="flex"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+              </motion.span>
             </button>
             <button
               onClick={() => goTo(activeIndex + 1)}
               aria-label="Next banner"
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+              className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-90 shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/65 hover:opacity-100 sm:h-10 sm:w-10"
             >
-              <ChevronRight className="h-5 w-5" />
+              <motion.span
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                className="flex"
+              >
+                <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+              </motion.span>
             </button>
           </>
         )}

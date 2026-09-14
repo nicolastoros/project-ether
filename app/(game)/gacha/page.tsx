@@ -101,6 +101,14 @@ export default function GachaPage() {
   const gachaPityCounters = useGameStore((s) => s.gachaPityCounters);
   const setGachaPityCount = useGameStore((s) => s.setGachaPityCount);
   const [results, setResults] = useState<Creature[] | null>(null);
+  // Guards against a double-tap/double-click firing handleSummon twice in a row — it used to have
+  // no such guard at all, and each call fires a fire-and-forget grantCreaturesOnServer, so two
+  // near-simultaneous taps could each grant a full pull. Worse than the gems/tickets being spent
+  // twice (that part's already guarded by consumeItem/spendGems returning false once exhausted):
+  // two concurrent grants for a creature not yet owned can each see "not found" server-side and
+  // both INSERT, leaving two DB rows for the same creatureId — confirmed live, this silently
+  // broke leveling/Hidden Potential for 13 accounts (see lib/store.ts's dedupeOwnedCreatures).
+  const [isSummoning, setIsSummoning] = useState(false);
 
   const banner = GACHA_BANNERS[activeIndex];
   const pityInfo = banner.currencyItemId ? PITY_CONFIG[banner.currencyItemId] : undefined;
@@ -108,28 +116,34 @@ export default function GachaPage() {
   const currencyItem = banner.currencyItemId ? ITEM_CATALOG.find((i) => i.id === banner.currencyItemId) : undefined;
 
   const handleSummon = (count: number, cost: number) => {
-    if (banner.currencyType === "item" && banner.currencyItemId) {
-      if (!consumeItem(banner.currencyItemId, cost)) return;
-      // consumeItem above only mutates local state — without this, the spent tickets were never
-      // told to the server at all (syncProgressToServer doesn't cover items, only profile/
-      // creatures/currencies), so a reload or relogin re-hydrated from the DB's still-unspent
-      // count and the tickets silently "came back".
-      consumeItemOnServer(banner.currencyItemId, cost);
-    } else {
-      if (!spendGems(cost)) return;
+    if (isSummoning) return;
+    setIsSummoning(true);
+    try {
+      if (banner.currencyType === "item" && banner.currencyItemId) {
+        if (!consumeItem(banner.currencyItemId, cost)) return;
+        // consumeItem above only mutates local state — without this, the spent tickets were never
+        // told to the server at all (syncProgressToServer doesn't cover items, only profile/
+        // creatures/currencies), so a reload or relogin re-hydrated from the DB's still-unspent
+        // count and the tickets silently "came back".
+        consumeItemOnServer(banner.currencyItemId, cost);
+      } else {
+        if (!spendGems(cost)) return;
+      }
+      const startingPity = (banner.currencyItemId && gachaPityCounters[banner.currencyItemId]) || 0;
+      const { results: rolled, endingPity } = rollCreatures(GACHA_CREATURE_POOL, count, banner, startingPity);
+      if (banner.currencyItemId) setGachaPityCount(banner.currencyItemId, endingPity);
+      rolled.forEach(c => grantCreature(c.id));
+      // Persisting the pull itself was missing entirely — rolled creatures only ever lived in local
+      // state, silently vanishing on the next refresh (same class of bug as the gift-claim issue
+      // fixed earlier). Batched (not one grantCreatureOnServer call per pull) since a x10 pull can
+      // easily hit BigQuery's per-table concurrent-DML limit — see grantCreaturesOnServer's comment.
+      grantCreaturesOnServer(rolled.map((c) => c.id));
+      tickMissionProgress("task-gacha");
+      syncProgressToServer();
+      setResults(rolled);
+    } finally {
+      setIsSummoning(false);
     }
-    const startingPity = (banner.currencyItemId && gachaPityCounters[banner.currencyItemId]) || 0;
-    const { results: rolled, endingPity } = rollCreatures(GACHA_CREATURE_POOL, count, banner, startingPity);
-    if (banner.currencyItemId) setGachaPityCount(banner.currencyItemId, endingPity);
-    rolled.forEach(c => grantCreature(c.id));
-    // Persisting the pull itself was missing entirely — rolled creatures only ever lived in local
-    // state, silently vanishing on the next refresh (same class of bug as the gift-claim issue
-    // fixed earlier). Batched (not one grantCreatureOnServer call per pull) since a x10 pull can
-    // easily hit BigQuery's per-table concurrent-DML limit — see grantCreaturesOnServer's comment.
-    grantCreaturesOnServer(rolled.map((c) => c.id));
-    tickMissionProgress("task-gacha");
-    syncProgressToServer();
-    setResults(rolled);
   };
 
   const getCurrencyAmount = (b: GachaBanner) => {
@@ -182,7 +196,7 @@ export default function GachaPage() {
             image="/assets/events/summon_button.png"
             hasIcon={false}
             label="Summon"
-            disabled={getCurrencyAmount(banner) < banner.singlePullCost}
+            disabled={isSummoning || getCurrencyAmount(banner) < banner.singlePullCost}
             onClick={() => handleSummon(1, banner.singlePullCost)}
             caption={
               <span className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-600 lg:text-base">
@@ -194,7 +208,7 @@ export default function GachaPage() {
             image="/assets/events/summon_button.png"
             hasIcon={false}
             label="Multi-Summon"
-            disabled={getCurrencyAmount(banner) < banner.multiPullCost}
+            disabled={isSummoning || getCurrencyAmount(banner) < banner.multiPullCost}
             onClick={() => handleSummon(banner.multiPullCount, banner.multiPullCost)}
             caption={
               <span className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-600 lg:text-base">

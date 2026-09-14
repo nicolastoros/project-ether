@@ -105,7 +105,7 @@ CREATE TABLE `project-scrappy-intelic.project_ether.user_currencies` (
   FOREIGN KEY (user_id) REFERENCES `project-scrappy-intelic.project_ether.users`(id) NOT ENFORCED
 );
 
--- Equipo del Tamer (el avatar del jugador, NO sus Digimon — eso sigue siendo user_equipment).
+-- Equipo del Tamer (el avatar del jugador, NO sus Creatures — eso sigue siendo user_equipment).
 -- Una fila por pieza poseída; sin "copies" ni "enhancement_level" todavía, cada pieza es única.
 CREATE TABLE `project-scrappy-intelic.project_ether.user_tamer_equipment` (
   id           STRING DEFAULT GENERATE_UUID(),

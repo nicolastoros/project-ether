@@ -5,20 +5,44 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Lock, Check, Pause, RotateCw, Copy } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { TAMER_EQUIPMENT_CATALOG, TAMER_CATALOG, DUNGEON_STAGES } from "@/lib/gameData";
+import { ITEM_CATALOG, TAMER_EQUIPMENT_CATALOG, TAMER_CATALOG, TAMER_SET_EFFECTS, DUNGEON_STAGES } from "@/lib/gameData";
 import { grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
-import type { TamerAvatar, TamerSlotType } from "@/types/game";
+import { getActiveTamerSetEffects } from "@/lib/tamerBuffs";
+import type { TamerAvatar, TamerEquipment, TamerSlotType } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { TamerSprite } from "@/components/ui/TamerSprite";
 import { EquippedBadge } from "@/components/ui/EquippedBadge";
+import { ItemIcon } from "@/components/ui/ItemIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatTamerStatBonus } from "@/lib/utils";
 
-// Head-to-toe, with the two cosmetic-only slots (no gear exists for them yet) trailing at the end.
+// Head-to-toe display order within a set's own grid.
 const SLOT_ORDER: TamerSlotType[] = ["Hat", "Shoulders", "Chest", "Gloves", "Legs", "Shoes", "Aura", "Wings"];
+
+// Groups TAMER_EQUIPMENT_CATALOG by setName (Crimson, Aqua, Wind, ...), preserving each set's
+// first-appearance order in the catalog — a real set-aware grouping instead of the old flat
+// one-card-per-slot layout, which silently collided/hid whenever a second set (e.g. Aqua) reused
+// a slot type (e.g. "Chest") that an earlier set (Crimson) already occupied. Computed once at
+// module scope since the catalog itself is static.
+function groupCatalogBySet(): { setName: string; items: TamerEquipment[] }[] {
+  const order: string[] = [];
+  const bySet = new Map<string, TamerEquipment[]>();
+  for (const item of TAMER_EQUIPMENT_CATALOG) {
+    if (!bySet.has(item.setName)) {
+      bySet.set(item.setName, []);
+      order.push(item.setName);
+    }
+    bySet.get(item.setName)!.push(item);
+  }
+  return order.map((setName) => ({
+    setName,
+    items: [...bySet.get(setName)!].sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot)),
+  }));
+}
+const EQUIPMENT_SETS = groupCatalogBySet();
 
 function campaignClearLabel(stageId: string): string {
   const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
@@ -50,7 +74,9 @@ export default function TamerPage() {
   const equipTamerGear = useGameStore((s) => s.equipTamerGear);
   const unequipTamerGear = useGameStore((s) => s.unequipTamerGear);
   const sealCoins = useGameStore((s) => s.currencies.sealCoins);
+  const ownedItems = useGameStore((s) => s.ownedItems);
   const craftTamerEquipment = useGameStore((s) => s.craftTamerEquipment);
+  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const profile = useGameStore((s) => s.profile);
   const [craftingId, setCraftingId] = useState<string | null>(null);
@@ -63,13 +89,15 @@ export default function TamerPage() {
   }, [markTamerSeen]);
 
   const equippedTamer = TAMER_CATALOG.find((t) => t.id === equippedTamerId) ?? TAMER_CATALOG[0];
-  const ownedBySlot = new Map(tamerInventory.map((t) => [t.slot, t]));
+  const ownedByCatalogId = new Map(tamerInventory.map((t) => [t.id, t]));
+  const ownedItemQuantityById = new Map(ownedItems.map((o) => [o.itemId, o.quantity]));
 
   function handleCraft(itemId: string) {
     setCraftingId(itemId);
     const crafted = craftTamerEquipment(itemId);
     if (crafted) {
       grantTamerEquipmentOnServer(itemId);
+      tickMissionProgress("task-enhance");
       syncProgressToServer();
     }
     setCraftingId(null);
@@ -110,19 +138,34 @@ export default function TamerPage() {
   let ctPercent = equippedTamer.buffs.ctPercent ?? 0;
 
   const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
-  for (const gear of tamerInventory) {
-    if (equippedGearIds.has(gear.id)) {
-      hpPercent += gear.statBonus?.hp ?? 0;
-      atkPercent += gear.statBonus?.atk ?? 0;
-      defPercent += gear.statBonus?.def ?? 0;
-      spdPercent += gear.statBonus?.spd ?? 0;
-      dpPercent += gear.statBonus?.dp ?? 0;
-      asPercent += gear.statBonus?.as ?? 0;
-      htPercent += gear.statBonus?.ht ?? 0;
-      cdPercent += gear.statBonus?.cd ?? 0;
-      scdPercent += gear.statBonus?.scd ?? 0;
-      ctPercent += gear.statBonus?.ct ?? 0;
-    }
+  const activeTamerGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+  for (const gear of activeTamerGear) {
+    hpPercent += gear.statBonus?.hp ?? 0;
+    atkPercent += gear.statBonus?.atk ?? 0;
+    defPercent += gear.statBonus?.def ?? 0;
+    spdPercent += gear.statBonus?.spd ?? 0;
+    dpPercent += gear.statBonus?.dp ?? 0;
+    asPercent += gear.statBonus?.as ?? 0;
+    htPercent += gear.statBonus?.ht ?? 0;
+    cdPercent += gear.statBonus?.cd ?? 0;
+    scdPercent += gear.statBonus?.scd ?? 0;
+    ctPercent += gear.statBonus?.ct ?? 0;
+  }
+
+  // Full-set Set Effects (e.g. Aqua's Crit Rate, Thunder/Ice's ATK) — same rule as
+  // lib/tamerBuffs.ts's applyTamerBuffs, kept in sync so this page's numbers match real battle.
+  const activeSetEffects = getActiveTamerSetEffects(activeTamerGear);
+  for (const effect of activeSetEffects) {
+    hpPercent += effect.statBonus?.hp ?? 0;
+    atkPercent += effect.statBonus?.atk ?? 0;
+    defPercent += effect.statBonus?.def ?? 0;
+    spdPercent += effect.statBonus?.spd ?? 0;
+    dpPercent += effect.statBonus?.dp ?? 0;
+    asPercent += effect.statBonus?.as ?? 0;
+    htPercent += effect.statBonus?.ht ?? 0;
+    cdPercent += effect.statBonus?.cd ?? 0;
+    scdPercent += effect.statBonus?.scd ?? 0;
+    ctPercent += effect.statBonus?.ct ?? 0;
   }
 
   const finalHp = Math.round(scaledTamerHp * (1 + hpPercent / 100));
@@ -144,7 +187,7 @@ export default function TamerPage() {
         <div>
           <h1 className="font-arcade text-lg glow-text-gold">Tamer</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Your own gear — separate from your Digimon&apos;s equipment.
+            Your own gear — separate from your creature&apos;s equipment.
           </p>
         </div>
         <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5" />} value={sealCoins} />
@@ -252,120 +295,181 @@ export default function TamerPage() {
           </div>
         </GlowPanel>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-          {SLOT_ORDER.map((slot) => {
-            const owned = ownedBySlot.get(slot);
-            const catalogItem = TAMER_EQUIPMENT_CATALOG.find((t) => t.slot === slot);
-            const isEquipped = owned && equippedTamerGear[slot] === owned.id;
-
-            if (owned) {
-              return (
-                <GlowPanel key={slot} accent={isEquipped ? "gold" : "none"} className="flex flex-col items-center gap-2 p-3 text-center">
-                  <div className={cn("relative flex h-16 w-16 items-center justify-center rounded-xl border bg-arcade-panel-light pixel-frame", isEquipped ? "border-gold" : "border-arcade-border")}>
-                    <Image src={owned.icon} alt="" width={48} height={48} className={cn("h-11 w-11 object-contain", isEquipped ? "" : "opacity-60")} />
-                    {isEquipped && <EquippedBadge />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-arcade text-xs font-bold text-foreground">{slot}</p>
-                    <p className="truncate text-[9px] text-zinc-500">
-                      {owned.name} · {owned.setName}
-                    </p>
-                  </div>
-                  <RarityBadge rarity={owned.rarity} />
-                  {formatTamerStatBonus(owned.statBonus) && (
-                    <p className="text-[8px] font-semibold text-emerald-600">{formatTamerStatBonus(owned.statBonus)}</p>
-                  )}
-                  {isEquipped ? (
-                    <div className="w-full mt-1">
-                      <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600 mb-1">
-                        <Check className="h-2.5 w-2.5" /> Equipped
-                      </span>
-                      <PixelButton size="sm" variant="ghost" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
-                        Unequip
-                      </PixelButton>
-                    </div>
-                  ) : (
-                    <div className="w-full mt-1">
-                      <PixelButton size="sm" variant="gold" className="w-full text-[10px] h-7" onClick={() => equipTamerGear(owned.id)}>
-                        Equip
-                      </PixelButton>
-                    </div>
-                  )}
-                </GlowPanel>
-              );
-            }
-
-            if (!catalogItem) {
-              return (
-                <GlowPanel
-                  key={slot}
-                  accent="none"
-                  className="flex flex-col items-center justify-center gap-2 p-3 text-center opacity-60"
-                >
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-arcade-border">
-                    <Lock className="h-5 w-5 text-zinc-400" />
-                  </div>
-                  <p className="font-arcade text-xs font-bold text-zinc-500">{slot}</p>
-                  <p className="text-[8px] text-zinc-400">No gear yet</p>
-                </GlowPanel>
-              );
-            }
-
-            const canCraft = catalogItem.source.kind === "craft";
-            const cost = catalogItem.source.kind === "craft" ? catalogItem.source.sealCoinCost : null;
-            const affordable = cost !== null && sealCoins >= cost;
-
+        <div className="space-y-6">
+          {EQUIPMENT_SETS.map(({ setName, items }) => {
+            const ownedCount = items.filter((item) => ownedByCatalogId.has(item.id)).length;
+            const equippedCount = items.filter((item) => {
+              const owned = ownedByCatalogId.get(item.id);
+              return owned && equippedTamerGear[item.slot] === owned.id;
+            }).length;
+            const setEffect = TAMER_SET_EFFECTS[setName];
+            const isSetEffectActive = Boolean(setEffect) && equippedCount >= items.length;
             return (
-              <GlowPanel
-                key={slot}
-                accent="none"
-                className="flex flex-col items-center gap-2 p-3 text-center"
-              >
-                <div className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light pixel-frame">
-                  <Image
-                    src={catalogItem.icon}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className="h-11 w-11 object-contain opacity-40 grayscale"
-                  />
-                  <Lock className="absolute h-5 w-5 text-zinc-500" />
+              <div key={setName} className="space-y-2">
+                <div className="flex items-center justify-between px-0.5">
+                  <h2 className="font-arcade text-xs uppercase tracking-wide text-foreground">{setName} Set</h2>
+                  <span className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">
+                    {ownedCount}/{items.length} pieces
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <p className="font-arcade text-xs font-bold text-zinc-500">{slot}</p>
-                  <p className="truncate text-[9px] text-zinc-400">
-                    {catalogItem.name} · {catalogItem.setName}
-                  </p>
-                  {formatTamerStatBonus(catalogItem.statBonus) && (
-                    <p className="text-[8px] text-zinc-400">{formatTamerStatBonus(catalogItem.statBonus)}</p>
-                  )}
-                </div>
-                {canCraft ? (
-                  <>
+                {setEffect && (
+                  <div
+                    className={cn(
+                      "flex flex-col gap-1.5 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2",
+                      isSetEffectActive
+                        ? "border-gold bg-gold/15"
+                        : "border-arcade-border bg-arcade-panel-light"
+                    )}
+                  >
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 font-mono text-[10px] font-semibold",
-                        affordable ? "text-foreground" : "text-red-500"
+                        "font-arcade text-[10px] uppercase tracking-wide leading-relaxed",
+                        isSetEffectActive ? "text-gold-ink" : "text-zinc-700"
                       )}
                     >
-                      <SealCoinIcon className="h-3 w-3" /> {cost}
+                      <span className={isSetEffectActive ? "text-gold-bright" : "text-zinc-500"}>Set Effect:</span>{" "}
+                      {setEffect.description}
                     </span>
-                    <PixelButton
-                      size="sm"
-                      variant="gold"
-                      disabled={!affordable || craftingId === catalogItem.id}
-                      onClick={() => handleCraft(catalogItem.id)}
-                      className="w-full"
+                    <span
+                      className={cn(
+                        "shrink-0 self-start rounded-full px-2 py-0.5 font-arcade text-[9px] uppercase tracking-wide sm:self-auto",
+                        isSetEffectActive
+                          ? "bg-gold text-gold-ink"
+                          : "bg-zinc-200 text-zinc-600"
+                      )}
                     >
-                      Craft
-                    </PixelButton>
-                  </>
-                ) : catalogItem.source.kind === "campaign-clear" ? (
-                  <p className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">
-                    {campaignClearLabel(catalogItem.source.stageId)}
-                  </p>
-                ) : null}
-              </GlowPanel>
+                      {isSetEffectActive ? "Active" : `${equippedCount}/${items.length} equipped`}
+                    </span>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  {items.map((catalogItem) => {
+                    const slot = catalogItem.slot;
+                    const owned = ownedByCatalogId.get(catalogItem.id);
+                    const isEquipped = owned && equippedTamerGear[slot] === owned.id;
+
+                    if (owned) {
+                      return (
+                        <GlowPanel key={catalogItem.id} accent={isEquipped ? "gold" : "none"} className="flex flex-col items-center gap-2 p-3 text-center">
+                          <div className={cn("relative flex h-16 w-16 items-center justify-center rounded-xl border bg-arcade-panel-light pixel-frame", isEquipped ? "border-gold" : "border-arcade-border")}>
+                            <Image src={owned.icon} alt="" width={48} height={48} className={cn("h-11 w-11 object-contain", isEquipped ? "" : "opacity-60")} />
+                            {isEquipped && <EquippedBadge />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-arcade text-xs font-bold text-foreground">{slot}</p>
+                            <p className="truncate text-[9px] text-zinc-500">{owned.name}</p>
+                          </div>
+                          <RarityBadge rarity={owned.rarity} />
+                          {formatTamerStatBonus(owned.statBonus) && (
+                            <p className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold leading-snug text-emerald-700">
+                              {formatTamerStatBonus(owned.statBonus)}
+                            </p>
+                          )}
+                          {isEquipped ? (
+                            <div className="w-full mt-1">
+                              <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600 mb-1">
+                                <Check className="h-2.5 w-2.5" /> Equipped
+                              </span>
+                              <PixelButton size="sm" variant="ghost" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
+                                Unequip
+                              </PixelButton>
+                            </div>
+                          ) : (
+                            <div className="w-full mt-1">
+                              <PixelButton size="sm" variant="gold" className="w-full text-[10px] h-7" onClick={() => equipTamerGear(owned.id)}>
+                                Equip
+                              </PixelButton>
+                            </div>
+                          )}
+                        </GlowPanel>
+                      );
+                    }
+
+                    const canCraft = catalogItem.source.kind === "craft" || catalogItem.source.kind === "craft-item";
+                    const catalogItemSource = catalogItem.source;
+                    const affordable =
+                      catalogItemSource.kind === "craft"
+                        ? sealCoins >= catalogItemSource.sealCoinCost
+                        : catalogItemSource.kind === "craft-item"
+                          ? catalogItemSource.costs.every((cost) => (ownedItemQuantityById.get(cost.itemId) ?? 0) >= cost.quantity)
+                          : false;
+
+                    return (
+                      <GlowPanel
+                        key={catalogItem.id}
+                        accent="none"
+                        className="flex flex-col items-center gap-2 p-3 text-center"
+                      >
+                        <div className="relative flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light pixel-frame">
+                          <Image
+                            src={catalogItem.icon}
+                            alt=""
+                            width={48}
+                            height={48}
+                            className="h-11 w-11 object-contain opacity-40 grayscale"
+                          />
+                          <Lock className="absolute h-5 w-5 text-zinc-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-arcade text-xs font-bold text-zinc-500">{slot}</p>
+                          <p className="truncate text-[9px] text-zinc-500">{catalogItem.name}</p>
+                          {formatTamerStatBonus(catalogItem.statBonus) && (
+                            <p className="mt-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold leading-snug text-zinc-600">
+                              {formatTamerStatBonus(catalogItem.statBonus)}
+                            </p>
+                          )}
+                        </div>
+                        {canCraft ? (
+                          <>
+                            <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
+                              {catalogItemSource.kind === "craft" ? (
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center gap-1.5 font-mono text-sm font-semibold",
+                                    affordable ? "text-foreground" : "text-red-500"
+                                  )}
+                                >
+                                  <SealCoinIcon className="h-4 w-4" /> {catalogItemSource.sealCoinCost}
+                                </span>
+                              ) : catalogItemSource.kind === "craft-item" ? (
+                                catalogItemSource.costs.map((cost) => {
+                                  const costItem = ITEM_CATALOG.find((i) => i.id === cost.itemId);
+                                  if (!costItem) return null;
+                                  const short = (ownedItemQuantityById.get(cost.itemId) ?? 0) < cost.quantity;
+                                  return (
+                                    <span
+                                      key={cost.itemId}
+                                      className={cn(
+                                        "inline-flex items-center gap-1.5 font-mono text-sm font-semibold",
+                                        short ? "text-red-500" : "text-foreground"
+                                      )}
+                                    >
+                                      <ItemIcon item={costItem} className="h-4 w-4" /> {cost.quantity}
+                                    </span>
+                                  );
+                                })
+                              ) : null}
+                            </div>
+                            <PixelButton
+                              size="sm"
+                              variant="gold"
+                              disabled={!affordable || craftingId === catalogItem.id}
+                              onClick={() => handleCraft(catalogItem.id)}
+                              className="w-full"
+                            >
+                              Craft
+                            </PixelButton>
+                          </>
+                        ) : catalogItem.source.kind === "campaign-clear" ? (
+                          <p className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">
+                            {campaignClearLabel(catalogItem.source.stageId)}
+                          </p>
+                        ) : null}
+                      </GlowPanel>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>

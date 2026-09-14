@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Settings, UserCircle2, LogOut } from "lucide-react";
+import { motion } from "framer-motion";
+import { Settings, LogOut, Pencil } from "lucide-react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { ORB_EVENTS } from "@/lib/eventData";
 import { useGameStore } from "@/lib/store";
@@ -11,6 +14,8 @@ import { getNavGroups } from "@/lib/navigation";
 import { cn, thisWeekStartDateString, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { NewBadge } from "@/components/ui/NewBadge";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
+import { ProfileModal } from "@/components/layout/ProfileModal";
 
 /**
  * Decorative watermark for the empty space below the nav groups.
@@ -55,10 +60,12 @@ export function Sidebar() {
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
   const hasUnseenTamer = useGameStore((s) => s.hasUnseenTamer);
   const pendingGuildInvitesCount = useGameStore((s) => s.pendingGuildInvitesCount);
+  const hasUnseenProfile = useGameStore((s) => s.hasUnseenProfile);
   const dailyEventAttempts = useGameStore((s) => s.profile.dailyEventAttempts);
   const dailyEventAttemptsDate = useGameStore((s) => s.profile.dailyEventAttemptsDate);
   const router = useRouter();
   const navGroups = getNavGroups(profile.isAdmin);
+  const [showProfile, setShowProfile] = useState(false);
 
   // True whenever Hidden Training still has an unused attempt this week — a fresh (or stale, i.e.
   // not-yet-reset-locally) date counts every attempt as available, same "reset on stale date"
@@ -81,6 +88,44 @@ export function Sidebar() {
             <ul className="space-y-1.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const isActive = pathname.startsWith(href);
+
+                // "Start" is the door into every game mode (Adventure/Survivor/Overclock/Infinite
+                // Tower — see app/(game)/start/page.tsx) — it has to read as THE way to play, not
+                // as one more row in this list, so it gets the real branded button art and a
+                // continuous breathing glow instead of the generic icon+label treatment every
+                // other item uses. Same asset/animation as the Hub's own Start buttons
+                // (MobileHeroHub.tsx, QuickActions.tsx) for one consistent "this is the CTA" cue.
+                if (href === "/start") {
+                  return (
+                    <li key={href}>
+                      <Link href={href} className="group relative block py-1">
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.035, 1],
+                            filter: [
+                              "drop-shadow(0 0 4px rgba(255,184,77,0.5))",
+                              "drop-shadow(0 0 16px rgba(255,184,77,0.85))",
+                              "drop-shadow(0 0 4px rgba(255,184,77,0.5))",
+                            ],
+                          }}
+                          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Image
+                            src="/assets/ui/start_button.png"
+                            alt="Start"
+                            width={2172}
+                            height={724}
+                            className="h-auto w-full"
+                          />
+                        </motion.div>
+                        {hasUnseenCampaign && <NewBadge className="-right-1 -top-1" />}
+                      </Link>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={href}>
                     <Link
@@ -112,7 +157,7 @@ export function Sidebar() {
                         {href === "/inventory" && hasUnseenInventory && (
                           <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 ring-2 ring-white" />
                         )}
-                        {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0) || (href === "/events" && hasAvailableEventAttempts)) && (
+                        {((href === "/tamer" && hasUnseenTamer) || (href === "/guild" && pendingGuildInvitesCount > 0) || (href === "/events" && hasAvailableEventAttempts)) && (
                           <NewBadge className="-right-2 -top-2" />
                         )}
                       </span>
@@ -130,10 +175,32 @@ export function Sidebar() {
 
       <div className="border-t border-arcade-border/70 px-3.5 py-3.5 xl:px-4">
         <div className="flex items-center gap-3 rounded-xl px-1.5 py-1.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/70 bg-gradient-to-b from-white to-arcade-panel-light shadow-[0_2px_8px_-2px_rgba(255,184,77,0.35)] xl:h-12 xl:w-12">
-            <UserCircle2 className="h-6 w-6 text-gold-bright xl:h-7 xl:w-7" />
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowProfile(true)}
+              title="My Profile"
+              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-gradient-to-b from-white to-arcade-panel-light shadow-[0_2px_8px_-2px_rgba(255,184,77,0.35)] transition-transform hover:scale-105 xl:h-12 xl:w-12"
+            >
+              <ProfileAvatar avatarKey={profile.avatarKey} iconClassName="h-6 w-6 xl:h-7 xl:w-7" />
+            </button>
+            {/* Pulsing "!" until they open the modal once (matches every other nav-item's
+                first-visit convention, e.g. hasUnseenTamer above) plus a permanent pencil badge
+                that stays after — the pulse says "something's new here", the pencil says "and
+                it's this thing specifically, always". */}
+            {hasUnseenProfile && <NewBadge className="-right-1 -top-1" />}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-gold text-white shadow-sm"
+            >
+              <Pencil className="h-2.5 w-2.5" strokeWidth={2.5} />
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setShowProfile(true)}
+            className="min-w-0 flex-1 text-left"
+          >
             <p className="truncate text-sm font-semibold text-foreground">
               {profile.name} <span className="font-normal text-slate-400">Lv.{profile.level}</span>
             </p>
@@ -147,7 +214,7 @@ export function Sidebar() {
             ) : (
               <p className="mt-1 font-arcade text-[9px] uppercase tracking-wide text-gold-bright">Max level</p>
             )}
-          </div>
+          </button>
           <button
             type="button"
             disabled
@@ -157,11 +224,14 @@ export function Sidebar() {
             <Settings strokeWidth={2.25} className="h-4 w-4" />
           </button>
         </div>
+        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <button
           onClick={async () => {
             await signOut({ redirect: false });
             logout();
-            router.replace("/");
+            // "/" is the marketing landing now — a just-logged-out player wants the login form
+            // back, not the pitch (see app/play/page.tsx).
+            router.replace("/play");
           }}
           className="mt-0.5 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
         >

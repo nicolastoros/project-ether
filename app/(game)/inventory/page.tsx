@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { ITEM_CATALOG } from "@/lib/gameData";
+import { creatureLevelCap, ITEM_CATALOG } from "@/lib/gameData";
 import { consumeItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
-import type { Equipment, InventoryItem, InventoryItemCategory, TamerEquipment } from "@/types/game";
+import type { InventoryItem, InventoryItemCategory, TamerEquipment } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -20,10 +20,10 @@ import { CrownIcon } from "@/components/icons/CrownIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatTamerStatBonus } from "@/lib/utils";
 
-type TabId = "Equipment" | InventoryItemCategory;
+type TabId = "Gear" | InventoryItemCategory;
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "Equipment", label: "Equipment" },
+  { id: "Gear", label: "Tamer Gear" },
   { id: "Consumable", label: "Consumables" },
   { id: "Quest", label: "Quest" },
   { id: "Evolution", label: "Evolution" },
@@ -31,30 +31,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "Crafting", label: "Crafting" },
 ];
 
-function EquipmentCard({ item, onClick }: { item: Equipment; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="text-left">
-      <GlowPanel accent={item.equippedTo ? "gold" : "none"} className="flex flex-col items-center gap-1.5 p-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light">
-          <Sparkles className="h-6 w-6 text-zinc-400" />
-        </div>
-        <p className="truncate text-[11px] font-semibold text-foreground">{item.name}</p>
-        <p className="text-[9px] uppercase tracking-wide text-zinc-500">
-          {item.slot} · +{item.enhancementLevel}
-        </p>
-        <RarityBadge rarity={item.rarity} />
-        {item.equippedTo && (
-          <span className="inline-flex items-center gap-0.5 font-arcade text-[7px] uppercase text-emerald-600">
-            <Check className="h-2.5 w-2.5" /> Equipped
-          </span>
-        )}
-      </GlowPanel>
-    </button>
-  );
-}
-
-// Tamer gear (e.g. the Crimson set) is a separate system from Digimon Equipment above — owning a
-// piece means wearing it (no per-creature assignment), so every card here shows the "E" badge.
+// Owning a piece of Tamer gear means wearing it (no per-creature assignment), so every card here
+// shows the "E" badge.
 function TamerGearCard({ item, onClick }: { item: TamerEquipment; onClick: () => void }) {
   return (
     <button onClick={onClick} className="text-left">
@@ -112,36 +90,38 @@ function EmptyTab({ label }: { label: string }) {
 
 export default function InventoryPage() {
   const currencies = useGameStore((s) => s.currencies);
-  const inventory = useGameStore((s) => s.inventory);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const ownedItems = useGameStore((s) => s.ownedItems);
   const markInventorySeen = useGameStore((s) => s.markInventorySeen);
-  const activeCreatureId = useGameStore((s) => s.activeCreatureId);
   const creatures = useGameStore((s) => s.creatures);
-  const equipItem = useGameStore((s) => s.equipItem);
-  const unequipItem = useGameStore((s) => s.unequipItem);
-  const enhanceEquipment = useGameStore((s) => s.enhanceEquipment);
-  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
   const consumeItem = useGameStore((s) => s.consumeItem);
   const regenEnergy = useGameStore((s) => s.regenEnergy);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
 
-  const [activeTab, setActiveTab] = useState<TabId>("Equipment");
-  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("Gear");
   const [selectedTamerGear, setSelectedTamerGear] = useState<TamerEquipment | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [useQuantity, setUseQuantity] = useState(1);
   const [usingItemForCreature, setUsingItemForCreature] = useState<InventoryItem | null>(null);
   const [pickedCreatureId, setPickedCreatureId] = useState<string | null>(null);
 
+  // A creature already at its level cap can't gain any more EXP (applyExpGain in lib/store.ts is
+  // a no-op past creatureLevelCap) — without this, picking one here still consumed the item for
+  // literally zero effect, with no warning at all. Excluded here (not filtered out) so the reason
+  // is visible instead of the creature just silently disappearing from the list.
+  const maxLevelCreatureIds = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of creatures) {
+      if (c.level >= creatureLevelCap(c)) map.set(c.id, "MAX LEVEL");
+    }
+    return map;
+  }, [creatures]);
+
   useEffect(() => {
     markInventorySeen();
   }, [markInventorySeen]);
 
   const ownedQuantityByItemId = new Map(ownedItems.map((o) => [o.itemId, o.quantity]));
-  const equippedToCreature = selectedEquipment
-    ? creatures.find((c) => c.id === selectedEquipment.equippedTo)
-    : undefined;
 
   return (
     <div className="space-y-4">
@@ -176,36 +156,14 @@ export default function InventoryPage() {
         ))}
       </div>
 
-      {activeTab === "Equipment" ? (
-        inventory.length === 0 && tamerInventory.length === 0 ? (
-          <EmptyTab label="Equipment" />
+      {activeTab === "Gear" ? (
+        tamerInventory.length === 0 ? (
+          <EmptyTab label="Tamer Gear" />
         ) : (
-          <div className="space-y-4">
-            {tamerInventory.length > 0 && (
-              <div className="space-y-2">
-                <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">
-                  Tamer Gear — separate from your Digimon&apos;s equipment
-                </p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {tamerInventory.map((item) => (
-                    <TamerGearCard key={item.id} item={item} onClick={() => setSelectedTamerGear(item)} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {inventory.length > 0 && (
-              <div className="space-y-2">
-                {tamerInventory.length > 0 && (
-                  <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Digimon Equipment</p>
-                )}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {inventory.map((item) => (
-                    <EquipmentCard key={item.id} item={item} onClick={() => setSelectedEquipment(item)} />
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {tamerInventory.map((item) => (
+              <TamerGearCard key={item.id} item={item} onClick={() => setSelectedTamerGear(item)} />
+            ))}
           </div>
         )
       ) : (
@@ -231,95 +189,6 @@ export default function InventoryPage() {
           );
         })()
       )}
-
-      <AnimatePresence>
-        {selectedEquipment && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedEquipment(null)}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="relative w-full max-w-sm rounded-t-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl sm:rounded-3xl"
-            >
-              <button
-                onClick={() => setSelectedEquipment(null)}
-                aria-label="Close"
-                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{selectedEquipment.slot}</p>
-              <h2 className="text-xl font-bold text-foreground">{selectedEquipment.name}</h2>
-              <div className="mt-2 flex items-center gap-2">
-                <RarityBadge rarity={selectedEquipment.rarity} />
-                <span className="font-arcade text-[10px] text-zinc-500">+{selectedEquipment.enhancementLevel}</span>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {Object.entries(selectedEquipment.baseStats).map(([stat, value]) => (
-                  <div key={stat} className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2 text-center">
-                    <p className="text-[9px] uppercase tracking-wide text-zinc-500">{stat}</p>
-                    <p className="font-mono text-sm font-semibold text-foreground">+{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {selectedEquipment.equippedTo ? (
-                  <>
-                    <p className="text-center text-[11px] text-zinc-500">
-                      Equipped to {equippedToCreature?.name ?? "a creature"}
-                    </p>
-                    <PixelButton
-                      variant="ghost"
-                      className="w-full"
-                      onClick={() => {
-                        unequipItem(selectedEquipment.equippedTo as string, selectedEquipment.id);
-                        setSelectedEquipment(null);
-                      }}
-                    >
-                      Unequip
-                    </PixelButton>
-                  </>
-                ) : (
-                  <PixelButton
-                    variant="gold"
-                    className="w-full"
-                    disabled={!activeCreatureId}
-                    onClick={() => {
-                      equipItem(activeCreatureId, selectedEquipment.id);
-                      setSelectedEquipment(null);
-                    }}
-                  >
-                    Equip to active creature
-                  </PixelButton>
-                )}
-                <PixelButton
-                  variant="ghost"
-                  className="w-full"
-                  disabled={selectedEquipment.enhancementLevel >= 10}
-                  onClick={() => {
-                    enhanceEquipment(selectedEquipment.id);
-                    tickMissionProgress("task-enhance");
-                    syncProgressToServer();
-                  }}
-                >
-                  {selectedEquipment.enhancementLevel >= 10 ? "Max Enhancement" : "Enhance"}
-                </PixelButton>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {selectedTamerGear && (
@@ -466,7 +335,7 @@ export default function InventoryPage() {
                       setSelectedItem(null);
                     }}
                   >
-                    Use on a Digimon
+                    Use on a Creature
                   </PixelButton>
                 )}
                 {selectedItem.sellPriceGold && (
@@ -498,7 +367,11 @@ export default function InventoryPage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="relative w-full max-w-md space-y-3 rounded-t-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl sm:rounded-3xl"
+              // max-h-[85vh] + the inner overflow-y-auto below (same idiom as CreatureDetailModal):
+              // this used to have no height cap at all, so with 40+ creatures the whole PAGE
+              // scrolled to see the list instead of the modal, and the title/close button scrolled
+              // away with it — the close button became unreachable without scrolling back up.
+              className="relative flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-arcade-border bg-arcade-panel shadow-xl sm:rounded-3xl"
             >
               <button
                 onClick={() => {
@@ -506,32 +379,35 @@ export default function InventoryPage() {
                   setPickedCreatureId(null);
                 }}
                 aria-label="Close"
-                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
+                className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
-              <h2 className="text-sm font-bold text-foreground">
-                Use {useQuantity}x {usingItemForCreature.name} on which Digimon?
+              <h2 className="shrink-0 px-4 pr-12 pt-4 text-sm font-bold text-foreground">
+                Use {useQuantity}x {usingItemForCreature.name} on which creature?
               </h2>
-              <MultiCreaturePicker
-                creatures={creatures}
-                selectedIds={pickedCreatureId ? [pickedCreatureId] : []}
-                maxCount={1}
-                onToggle={(id) => setPickedCreatureId(id)}
-                confirmLabel={`Use (+${(usingItemForCreature.creatureExpValue as number) * useQuantity} EXP)`}
-                onConfirm={() => {
-                  if (!pickedCreatureId) return;
-                  if (consumeItem(usingItemForCreature.id, useQuantity)) {
-                    gainCreatureExp(pickedCreatureId, (usingItemForCreature.creatureExpValue as number) * useQuantity);
-                    consumeItemOnServer(usingItemForCreature.id, useQuantity);
-                    // Same reasoning as the energy-item Use button above — persist the EXP gain
-                    // right away instead of leaving it to the next periodic sync.
-                    syncProgressToServer();
-                  }
-                  setUsingItemForCreature(null);
-                  setPickedCreatureId(null);
-                }}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <MultiCreaturePicker
+                  creatures={creatures}
+                  excludedIds={maxLevelCreatureIds}
+                  selectedIds={pickedCreatureId ? [pickedCreatureId] : []}
+                  maxCount={1}
+                  onToggle={(id) => setPickedCreatureId(id)}
+                  confirmLabel={`Use (+${(usingItemForCreature.creatureExpValue as number) * useQuantity} EXP)`}
+                  onConfirm={() => {
+                    if (!pickedCreatureId) return;
+                    if (consumeItem(usingItemForCreature.id, useQuantity)) {
+                      gainCreatureExp(pickedCreatureId, (usingItemForCreature.creatureExpValue as number) * useQuantity);
+                      consumeItemOnServer(usingItemForCreature.id, useQuantity);
+                      // Same reasoning as the energy-item Use button above — persist the EXP gain
+                      // right away instead of leaving it to the next periodic sync.
+                      syncProgressToServer();
+                    }
+                    setUsingItemForCreature(null);
+                    setPickedCreatureId(null);
+                  }}
+                />
+              </div>
             </motion.div>
           </div>
         )}

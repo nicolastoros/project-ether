@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Zap } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { RAID_BOSSES, RAID_EVENTS, getRaidBossCreature, type RaidBoss, type RaidEvent } from "@/lib/raidBosses";
+import { RAID_BOSSES, RAID_EVENTS, getRaidEnemyCreatures, type RaidBoss, type RaidEvent } from "@/lib/raidBosses";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import { RaidBattleScreen } from "@/components/combat/RaidBattleScreen";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -41,11 +41,11 @@ export function ExtremeBattlesTab() {
   const { gating, runGated } = useSyncGate();
 
   const excludedIds = useMemo(() => {
-    const set = new Set<string>();
+    const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) set.add(c.id);
+      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
     }
-    return set;
+    return map;
   }, [creatures, isOnExpedition]);
 
   if (fightingBoss) {
@@ -56,7 +56,7 @@ export function ExtremeBattlesTab() {
       <RaidBattleScreen
         key={battleKey}
         boss={fightingBoss}
-        bossCreature={getRaidBossCreature(fightingBoss)}
+        bossCreatures={getRaidEnemyCreatures(fightingBoss)}
         playerCreatures={playerCreatures}
         onRematch={() => setBattleKey((k) => k + 1)}
         onExit={() => {

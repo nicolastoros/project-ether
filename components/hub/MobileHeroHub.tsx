@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,9 +14,6 @@ import { cn } from "@/lib/utils";
 
 const COLLECTION_RAIL = NAV_GROUPS.find((g) => g.title === "Collection")?.items ?? [];
 const SOCIAL_RAIL = NAV_GROUPS.find((g) => g.title === "Social")?.items ?? [];
-const PLAY_MODES = (NAV_GROUPS.find((g) => g.title === "Play")?.items ?? []).filter(
-  (item) => item.href !== "/hub"
-);
 
 interface HeroSlide {
   id: string;
@@ -118,41 +114,8 @@ function RailButton({ label, icon: Icon, href, onClick, badge }: RailButtonProps
   );
 }
 
-function BottomSheet({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <motion.div
-      initial={{ y: 40, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 40, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 340, damping: 30 }}
-      className="rounded-3xl border border-arcade-border bg-arcade-panel/95 p-3 shadow-xl backdrop-blur-sm"
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <p className="font-arcade text-[10px] glow-text-gold">{title}</p>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-arcade-border text-zinc-500"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {children}
-    </motion.div>
-  );
-}
-
 export function MobileHeroHub() {
   const dailyTasks = useGameStore((s) => s.dailyTasks);
-  const [modesOpen, setModesOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const hasClaimableMission = dailyTasks.some((t) => t.progress >= t.target && !t.claimed);
 
@@ -260,60 +223,38 @@ export function MobileHeroHub() {
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
-        <AnimatePresence mode="wait">
-          {modesOpen ? (
-            <BottomSheet key="modes" title="Choose a mode" onClose={() => setModesOpen(false)}>
-              <div className="grid grid-cols-2 gap-2">
-                {PLAY_MODES.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-2 rounded-2xl border border-arcade-border bg-arcade-panel-light px-3 py-2.5 transition-colors active:border-gold"
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-gold-bright" />
-                    <span className="font-arcade text-[9px] uppercase tracking-wide text-foreground">
-                      {label}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </BottomSheet>
-          ) : (
-            <motion.button
-              key="start"
-              type="button"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{
-                opacity: 1,
-                scale: [1, 1.045, 1],
-                filter: [
-                  "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
-                  "drop-shadow(0 0 20px rgba(255,184,77,0.9))",
-                  "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
-                ],
-              }}
-              exit={{ opacity: 0, scale: 0.85, filter: "none", transition: { duration: 0.2 } }}
-              transition={{
-                opacity: { duration: 0.25 },
-                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-                filter: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-              }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={() => setModesOpen(true)}
-              className="mx-auto block"
-            >
-              <Image
-                src="/assets/ui/start_button.png"
-                alt="Start"
-                width={2172}
-                height={724}
-                priority
-                className="h-auto w-56"
-              />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {/* Straight into the mode-select hub (app/(game)/start/page.tsx) — Adventure, Survivor,
+            Overclock, Infinite Tower all live there now instead of in an in-place sheet here. */}
+        <Link href="/start" className="mx-auto block w-fit">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{
+              opacity: 1,
+              scale: [1, 1.045, 1],
+              filter: [
+                "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
+                "drop-shadow(0 0 20px rgba(255,184,77,0.9))",
+                "drop-shadow(0 0 4px rgba(255,184,77,0.55))",
+              ],
+            }}
+            transition={{
+              opacity: { duration: 0.25 },
+              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              filter: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+            }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.92 }}
+          >
+            <Image
+              src="/assets/ui/start_button.png"
+              alt="Start"
+              width={2172}
+              height={724}
+              priority
+              className="h-auto w-56"
+            />
+          </motion.div>
+        </Link>
       </div>
 
       <AnimatePresence>

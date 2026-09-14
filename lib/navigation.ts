@@ -4,7 +4,7 @@ import {
   Castle,
   Calendar,
   Map,
-  Skull,
+  Rocket,
   Sparkles,
   Store,
   Users,
@@ -33,8 +33,12 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Play",
     items: [
       { href: "/hub", label: "Hub", icon: Castle },
-      { href: "/campaign", label: "Campaign", icon: Map },
-      { href: "/survival", label: "Survival", icon: Skull },
+      // Dokkan-style single entry point — Campaign ("Adventure") and Survival ("Survivor") moved
+      // here from their own top-level links, joined by Overclock and Infinite Tower (both still
+      // "Coming Soon" — see app/(game)/start/page.tsx). Keeps this list from growing one item per
+      // new game mode forever; /campaign and /survival themselves are untouched, still real routes,
+      // just reached through /start now instead of linked directly.
+      { href: "/start", label: "Start", icon: Rocket },
       // Raid Battle is no longer a standalone nav item — it moved to Events' "Extreme Battles"
       // tab (see components/events/ExtremeBattlesTab.tsx) once Events grew Dokkan-style category
       // tabs; deep-link straight to it via "/events?tab=extreme".

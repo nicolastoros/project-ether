@@ -10,6 +10,8 @@ import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { useSyncSettleGate } from "@/lib/useSyncGate";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -24,6 +26,7 @@ export function AwakenScreen({ creature, onClose }: { creature: Creature; onClos
   const liveCreature = useGameStore((s) => s.creatures.find((c) => c.id === creature.id)) || creature;
   const ownedCoins = useGameStore((s) => s.ownedItems.find((o) => o.itemId === "it-awaken-coin")?.quantity ?? 0);
   const awakenCreature = useGameStore((s) => s.awakenCreature);
+  const { settling, runWithSettle } = useSyncSettleGate();
 
   const alreadyAwakened = (liveCreature.awakenLevel ?? 0) >= 1;
   const eligible = liveCreature.rarity === "SSR";
@@ -35,10 +38,15 @@ export function AwakenScreen({ creature, onClose }: { creature: Creature; onClos
       toast.error("Couldn't Awaken — check coins and eligibility.");
       return;
     }
-    consumeItemOnServer("it-awaken-coin", AWAKEN_COST);
-    syncProgressToServer();
-    toast.success(`${liveCreature.name} has Awakened!`);
-    onClose();
+    // Used to fire the server write and call onClose() in the very same tick — a rarity/stat
+    // bump this permanent deserves a beat of confirmation on its own, and closing instantly gave
+    // consumeItemOnServer/syncProgressToServer zero time to land before the player could navigate
+    // away (see useSyncSettleGate's doc comment). onClose now only runs after that beat.
+    runWithSettle(() => {
+      consumeItemOnServer("it-awaken-coin", AWAKEN_COST);
+      syncProgressToServer();
+      toast.success(`${liveCreature.name} has Awakened!`);
+    }, onClose);
   };
 
   return (
@@ -55,7 +63,8 @@ export function AwakenScreen({ creature, onClose }: { creature: Creature; onClos
         </div>
         <button
           onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-zinc-400 transition-colors hover:text-white"
+          disabled={settling}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-zinc-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X className="h-6 w-6" />
         </button>
@@ -110,7 +119,7 @@ export function AwakenScreen({ creature, onClose }: { creature: Creature; onClos
             <PixelButton
               variant="gold"
               className="w-full bg-gradient-to-r from-amber-500 to-gold-bright"
-              disabled={!canAfford}
+              disabled={!canAfford || settling}
               onClick={handleAwaken}
             >
               {canAfford ? `Awaken (${AWAKEN_COST} coins)` : "Not enough coins"}
@@ -118,6 +127,7 @@ export function AwakenScreen({ creature, onClose }: { creature: Creature; onClos
           </div>
         )}
       </div>
+      <LoadingOverlay show={settling} label="Awakening..." />
     </div>
   );
 }

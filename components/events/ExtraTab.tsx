@@ -78,13 +78,19 @@ export function ExtraTab() {
             <p className="text-xs text-zinc-500">{event.description}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Attempts</p>
+            {/* Was just "Attempts" — 6/6 alone doesn't say WHICH clock it's on, and "Resets in
+                2d 2h" below it reads as a one-off countdown rather than a recurring weekly cadence
+                unless you already know it's weekly. Spelling out "every 7 days" in both lines
+                removes the ambiguity entirely. */}
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Attempts / 7 Days</p>
             <p className={cn("font-mono text-sm font-bold", attemptsLeft > 0 ? "text-green-500" : "text-red-500")}>
               {attemptsLeft}/{event.maxWeeklyAttempts}
             </p>
           </div>
         </div>
-        <p className="text-[10px] text-zinc-500 font-mono">Resets in {resetLabel}</p>
+        <p className="text-[10px] text-zinc-500 font-mono">
+          {event.maxWeeklyAttempts} attempts every 7 days · Refills in {resetLabel}
+        </p>
       </GlowPanel>
 
       <div className="grid gap-3">

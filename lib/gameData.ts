@@ -4,7 +4,6 @@ import type {
   CreatureStats,
   DailyTask,
   DungeonStage,
-  Equipment,
   Friend,
   GachaBanner,
   GuildInfo,
@@ -14,6 +13,7 @@ import type {
   Skill,
   TamerAvatar,
   TamerEquipment,
+  TamerSetEffect,
   UserProfile,
 } from "@/types/game";
 
@@ -93,12 +93,43 @@ function skill(
   return { id, name, description, type, power, cooldown, unlockLevel };
 }
 
+// The canonical Dokkan-style Category list — every creature below carries a handful of these
+// (Creature.categories), assigned by element/lore/role so team-building has real cross-unit
+// synergy instead of one-off flavor tags. Also the vocabulary LrPassiveCondition.categories draws
+// from (see lib/combat.ts's creatureMatchesLrPassiveCondition) — GallantKnight's "Royal Knights"
+// passive is the current example, matching every other Royal Knights-tagged creature too, not just
+// itself. Order here has no meaning; it's just every valid name in one place.
+export const CREATURE_CATEGORIES = [
+  "Dragon",
+  "Dragon Kings",
+  "Royal Knights",
+  "Power of Darkness",
+  "Power of Light",
+  "Guardian of the Real World",
+  "Guardian of the Digital World",
+  "Eternal Rivals",
+  "Saving Power",
+  "Battle of Fate",
+  "Savior",
+  "Fighter of Justice",
+  "Digital Power",
+  "Power of the Seas",
+  "Volcanic Power",
+  "Power of Time",
+  "Power of Space",
+  "Time Travelers",
+  "Travelers from the Future",
+  "Winged Warriors",
+  "Holy Knights",
+] as const;
+
 export const STARTER_CREATURES: Creature[] = [
   {
     id: "cr-crimson-paladin",
     name: "Crimson Paladin",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Holy Knights", "Royal Knights", "Fighter of Justice", "Battle of Fate"],
     level: 100,
     exp: 0,
     expToNextLevel: 1000000,
@@ -111,7 +142,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-cp-2", "Holy Guardian", "A sacred aura that buffs all stats for 3 turns.", "Defense", 0, 5, 1),
       skill("sk-cp-3", "Holy Judgment", "A massive energy blast that hits all enemies. 15% chance to paralyze.", "Attack", 220, 4, 1),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -127,6 +157,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "StormEagle",
     element: "Electric",
     rarity: "Mythic",
+    categories: ["Digital Power", "Winged Warriors", "Battle of Fate"],
     level: 100,
     exp: 0,
     expToNextLevel: 1000000,
@@ -141,7 +172,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-se-1", "Stormcore Discharge", "A concentrated bolt of storm energy blasts one enemy.", "Attack", 160, 0, 1),
       skill("sk-se-2", "Tempest Wingstorm", "A thunderous wingbeat unleashes a storm shockwave on all enemies.", "Attack", 210, 4, 1),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -159,6 +189,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "XPaladin",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Holy Knights", "Royal Knights", "Battle of Fate", "Travelers from the Future"],
     level: 100,
     exp: 0,
     expToNextLevel: 1000000,
@@ -172,7 +203,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-xp-1", "Radiant Blade Rush", "A blazing sword thrust pierces one enemy.", "Attack", 150, 0, 1),
       skill("sk-xp-2", "Elysian Judgment", "A holy light erupts from the sacred shield, judging all enemies.", "Attack", 220, 4, 1),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -183,11 +213,104 @@ export const STARTER_CREATURES: Creature[] = [
       "final_elysium": 9,
     },
   },
+
+  // Overclock weekly boss roster (lib/overclock.ts's OVERCLOCK_BOSS_ROTATION cycles through these
+  // 3) — same "raid boss" pattern as Crimson Paladin/StormEagle/XPaladin above, but each animation
+  // folder here keeps its literal on-disk name (special_attack1/special_attack2) rather than a
+  // custom auto-captioned one, so CreatureSprite.tsx's replace chain maps display name -> that
+  // literal folder name instead of a one-off auto-caption.
+  //
+  // baseStats here are deliberately much lower than the other raid bosses above — those are tuned
+  // for a 3-4 player team; Overclock is 2v1, and turn-by-turn escalation (statBuffs, applied live in
+  // OverclockBattleScreen.tsx, +8%/boss-turn) already does the "gets harder over time" work on top
+  // of this starting point. level: 60 (not 100) both reflects that lower starting power and gives
+  // the escalation something to visibly climb toward — OverclockBattleScreen also bumps the
+  // displayed level a couple points per boss turn as a cosmetic readout of the same real escalation.
+  {
+    id: "cr-ov-cyber-knight",
+    name: "Cyber Knight",
+    element: "Electric",
+    rarity: "Mythic",
+    categories: ["Digital Power", "Royal Knights"],
+    level: 60,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "cyberknight",
+    spriteFolder: "/assets/creatures/raid_bosses/cyberknight/Idle/animations/stand_animation/south",
+    baseStats: { hp: 10000000, atk: 280, def: 180, spd: 380 },
+    skills: [
+      skill("sk-ovck-1", "Neon Blade", "A crackling blade of light slashes one enemy.", "Attack", 155, 0, 1),
+      skill("sk-ovck-2", "Overload Purge", "A surge of raw voltage overloads all enemies at once.", "Attack", 215, 4, 1),
+    ],
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    animationFrames: {
+      "stand_animation": 15,
+      "special_attack1": 15,
+      "special_attack2": 15,
+    },
+  },
+  {
+    id: "cr-ov-imperial-guardian",
+    name: "Imperial Guardian",
+    element: "Light",
+    rarity: "Mythic",
+    categories: ["Guardian of the Digital World", "Royal Knights"],
+    level: 60,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "imperialguardian",
+    spriteFolder: "/assets/creatures/raid_bosses/imperialguardian/Idle/animations/stand_animation/south",
+    baseStats: { hp: 10000000, atk: 260, def: 220, spd: 340 },
+    skills: [
+      skill("sk-ovig-1", "Sovereign Smite", "A crushing blow from the guardian's own halberd.", "Attack", 150, 0, 1),
+      skill("sk-ovig-2", "Imperial Decree", "A radiant shockwave judges every enemy at once.", "Attack", 225, 4, 1),
+    ],
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    animationFrames: {
+      "stand_animation": 15,
+      "special_attack1": 15,
+      "special_attack2": 17,
+    },
+  },
+  {
+    id: "cr-ov-dragon-lord",
+    name: "Dragon Lord",
+    element: "Fire",
+    rarity: "Mythic",
+    categories: ["Dragon", "Dragon Kings", "Volcanic Power"],
+    level: 60,
+    exp: 0,
+    expToNextLevel: 1000000,
+    stage: 3,
+    spriteKey: "dragonlord",
+    spriteFolder: "/assets/creatures/raid_bosses/dragonlord/Idle/animations/stand_animation/south",
+    baseStats: { hp: 10000000, atk: 310, def: 160, spd: 400 },
+    skills: [
+      skill("sk-ovdl-1", "Infernal Claw", "A molten claw rakes across one enemy.", "Attack", 160, 0, 1),
+      skill("sk-ovdl-2", "Draconic Cataclysm", "A cataclysmic blast of dragonfire engulfs all enemies.", "Attack", 230, 4, 1),
+    ],
+    copies: 1,
+    superAttackLevel: 1,
+    potentialNodes: [],
+    animationFrames: {
+      "stand_animation": 15,
+      "special_attack1": 17,
+      "special_attack2": 15,
+    },
+  },
+
   {
     id: "cr-emberling",
     name: "Emberling",
     element: "Fire",
     rarity: "Rare",
+    categories: ["Volcanic Power"],
     level: 12,
     exp: 340,
     expToNextLevel: 600,
@@ -201,7 +324,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-em-3", "Ash Cyclone", "Hits all enemies with a spinning ember burst.", "Attack", 95, 4, 10),
       skill("sk-em-4", "Rekindle", "Passively regenerates HP each turn.", "Passive", 0, 0, 15),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -211,6 +333,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Tidalfin",
     element: "Water",
     rarity: "SSR",
+    categories: ["Power of the Seas"],
     level: 15,
     exp: 120,
     expToNextLevel: 720,
@@ -224,7 +347,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ti-3", "Whirlpool", "Pulls all enemies in, dealing water damage.", "Attack", 88, 4, 12),
       skill("sk-ti-4", "Deep Focus", "Passively boosts SPD when HP is above 50%.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -234,6 +356,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Gale Sprite",
     element: "Nature",
     rarity: "Common",
+    categories: ["Winged Warriors"],
     level: 8,
     exp: 60,
     expToNextLevel: 320,
@@ -247,7 +370,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ga-3", "Bloom Burst", "Nature damage to all enemies with a chance to slow.", "Attack", 80, 4, 10),
       skill("sk-ga-4", "Photosynthesis", "Passively restores small HP each turn in daylight.", "Passive", 0, 0, 12),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -257,6 +379,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Voltling",
     element: "Electric",
     rarity: "Rare",
+    categories: ["Digital Power"],
     level: 10,
     exp: 210,
     expToNextLevel: 480,
@@ -270,7 +393,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-vo-3", "Thunder Dash", "Electric damage to all enemies with a chance to stun.", "Attack", 92, 4, 10),
       skill("sk-vo-4", "Capacitor Coils", "Passively charges up, boosting the next skill's power.", "Passive", 0, 0, 14),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -280,6 +402,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Firebit",
     element: "Fire",
     rarity: "Rare",
+    categories: ["Volcanic Power"],
     level: 9,
     exp: 150,
     expToNextLevel: 420,
@@ -293,7 +416,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-fb-3", "Wildfire Romp", "Fire damage to all enemies with a chance to burn.", "Attack", 90, 4, 10),
       skill("sk-fb-4", "Kindle Spirit", "Passively regenerates a small amount of HP each turn.", "Passive", 0, 0, 13),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -303,6 +425,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Dragoon",
     element: "Nature",
     rarity: "SSR",
+    categories: ["Dragon", "Winged Warriors"],
     level: 11,
     exp: 260,
     expToNextLevel: 540,
@@ -316,7 +439,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-dr-3", "Verdant Roar", "Nature damage to all enemies with a chance to slow.", "Attack", 96, 4, 10),
       skill("sk-dr-4", "Regenerative Hide", "Passively restores HP each turn based on max HP.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -326,6 +448,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "CrimsonGuardian",
     element: "Fire",
     rarity: "SSR",
+    categories: ["Volcanic Power", "Guardian of the Real World"],
     level: 14,
     exp: 320,
     expToNextLevel: 680,
@@ -344,7 +467,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-cg-3", "Crimson Cataclysm", "An overwhelming flame judgment on all enemies.", "Attack", 110, 4, 11),
       skill("sk-cg-4", "Guardian's Resolve", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -354,6 +476,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "SilverDragon",
     element: "Light",
     rarity: "SSR",
+    categories: ["Power of Light", "Dragon", "Dragon Kings", "Winged Warriors"],
     level: 15,
     exp: 350,
     expToNextLevel: 720,
@@ -369,7 +492,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sd-3", "Astral Nova", "A burst of sacred light damages all enemies with a chance to blind.", "Attack", 104, 4, 12),
       skill("sk-sd-4", "Celestial Ward", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 17),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -379,6 +501,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Venomshade",
     element: "Dark",
     rarity: "Rare",
+    categories: ["Power of Darkness"],
     level: 10,
     exp: 180,
     expToNextLevel: 460,
@@ -392,7 +515,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ve-3", "Venom Flurry", "A flurry of blades hitting all enemies with a chance to poison.", "Attack", 92, 4, 10),
       skill("sk-ve-4", "Creeping Poison", "Passively deals damage over time to a poisoned enemy.", "Passive", 0, 0, 14),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -402,6 +524,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Tidewarden",
     element: "Water",
     rarity: "Rare",
+    categories: ["Power of the Seas", "Guardian of the Real World"],
     level: 9,
     exp: 140,
     expToNextLevel: 400,
@@ -415,7 +538,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-tw-3", "Riptide Chant", "Water damage to all enemies with a chance to slow.", "Attack", 86, 4, 10),
       skill("sk-tw-4", "Spirit Current", "Passively restores a small amount of HP each turn.", "Passive", 0, 0, 13),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -425,6 +547,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Emberfiend",
     element: "Dark",
     rarity: "SSR",
+    categories: ["Power of Darkness"],
     level: 13,
     exp: 300,
     expToNextLevel: 620,
@@ -438,7 +561,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-ef-3", "Ashen Wingstorm", "A sweep of smoldering wings damaging all enemies.", "Attack", 112, 4, 11),
       skill("sk-ef-4", "Undying Wrath", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -448,6 +570,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Thundracoil",
     element: "Electric",
     rarity: "SSR",
+    categories: ["Digital Power", "Dragon"],
     level: 14,
     exp: 340,
     expToNextLevel: 660,
@@ -461,7 +584,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-th-3", "Tempest Roar", "A crashing storm damaging all enemies with a chance to stun.", "Attack", 108, 4, 12),
       skill("sk-th-4", "Galvanic Core", "Passively charges up, boosting the next skill's power.", "Passive", 0, 0, 17),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -471,6 +593,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Starweaver",
     element: "Light",
     rarity: "SSR",
+    categories: ["Power of Light", "Saving Power"],
     level: 12,
     exp: 260,
     expToNextLevel: 600,
@@ -484,7 +607,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sw-3", "Nova Cascade", "A burst of starlight damaging all enemies.", "Attack", 96, 4, 11),
       skill("sk-sw-4", "Guiding Light", "Passively restores HP to the lowest-HP ally each turn.", "Passive", 0, 0, 15),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -494,6 +616,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Wargek",
     element: "Fire",
     rarity: "SSR",
+    categories: ["Volcanic Power"],
     level: 14,
     exp: 330,
     expToNextLevel: 680,
@@ -509,7 +632,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-wg-3", "Terra Force", "A devastating energy sphere scorches all enemies.", "Attack", 112, 4, 11),
       skill("sk-wg-4", "Warrior's Instinct", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -519,6 +641,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Goldak",
     element: "Water",
     rarity: "SSR",
+    categories: ["Power of the Seas"],
     level: 13,
     exp: 300,
     expToNextLevel: 640,
@@ -534,7 +657,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-gd-3", "Abyssal Tentacle Storm", "Four cybernetic tentacles lash all enemies with a chance to slow.", "Attack", 100, 4, 11),
       skill("sk-gd-4", "Pressure Hide", "Passively reduces damage taken when HP falls below 30%.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -544,6 +666,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Firefex",
     element: "Fire",
     rarity: "SSR",
+    categories: ["Volcanic Power"],
     level: 12,
     exp: 270,
     expToNextLevel: 600,
@@ -559,7 +682,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-fx-3", "Phoenix Flare", "A cascade of solar embers burns all enemies with a chance to burn.", "Attack", 108, 4, 11),
       skill("sk-fx-4", "Solar Rebirth", "Passively regenerates HP each turn, fueled by the reactor core.", "Passive", 0, 0, 16),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -575,6 +697,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Blitzfire",
     element: "Fire",
     rarity: "Mythic",
+    categories: ["Volcanic Power"],
     level: 33,
     exp: 880,
     expToNextLevel: 2150,
@@ -589,7 +712,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-bf-3", "Missile Pod Salvo", "Back-mounted missile pods saturate all enemies.", "Attack", 142, 5, 16),
       skill("sk-bf-4", "Overcharged Core", "Passively boosts the next skill's power after taking damage.", "Passive", 0, 0, 20),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -599,6 +721,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Emperortoise",
     element: "Water",
     rarity: "Mythic",
+    categories: ["Power of the Seas", "Guardian of the Digital World"],
     level: 32,
     exp: 850,
     expToNextLevel: 2100,
@@ -612,7 +735,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-et-3", "Tsunami Tremor", "A devastating wave damages all enemies.", "Attack", 130, 4, 15),
       skill("sk-et-4", "Ancient Resilience", "Passively regenerates HP and boosts DEF.", "Passive", 0, 0, 20),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -628,6 +750,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Omega",
     element: "Light",
     rarity: "LR",
+    categories: ["Power of Light", "Royal Knights", "Savior", "Fighter of Justice"],
     level: 45,
     exp: 1600,
     expToNextLevel: 3400,
@@ -649,8 +772,16 @@ export const STARTER_CREATURES: Creature[] = [
       power: 320,
       resonanceCost: 80,
       inflicts: { status: "paralysis", turns: 2, chance: 100 },
+      animationGif: "/assets/creatures/omega/animations/special_attack.gif",
     },
-    equipment: {},
+    lrPassive: {
+      name: "Balance Power",
+      description: "Increases ATK of Light and Dark type monsters by 70% for 3 turns from the start of the battle.",
+      effect: "atk-buff",
+      percent: 70,
+      turns: 3,
+      appliesTo: { elements: ["Light", "Dark"] },
+    },
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -660,6 +791,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Poseidon",
     element: "Water",
     rarity: "LR",
+    categories: ["Power of the Seas", "Saving Power", "Savior"],
     level: 42,
     exp: 1450,
     expToNextLevel: 3250,
@@ -681,8 +813,16 @@ export const STARTER_CREATURES: Creature[] = [
       power: 190,
       resonanceCost: 75,
       inflicts: { status: "paralysis", turns: 2, chance: 100 },
+      animationGif: "/assets/creatures/poseidon/animations/special_attack.gif",
     },
-    equipment: {},
+    lrPassive: {
+      name: "King of the Sea",
+      description: "For 3 turns from the start of the battle, increases DEF of Water type and LR monsters by 50%.",
+      effect: "def-buff",
+      percent: 50,
+      turns: 3,
+      appliesTo: { elements: ["Water"], rarities: ["LR"] },
+    },
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -692,6 +832,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Magnagold",
     element: "Light",
     rarity: "LR",
+    categories: ["Power of Light", "Royal Knights", "Savior"],
     level: 40,
     exp: 1350,
     expToNextLevel: 3100,
@@ -713,8 +854,16 @@ export const STARTER_CREATURES: Creature[] = [
       power: 210,
       resonanceCost: 80,
       inflicts: { status: "paralysis", turns: 2, chance: 100 },
+      animationGif: "/assets/creatures/magnagold/animations/special_attack.gif",
     },
-    equipment: {},
+    lrPassive: {
+      name: "Draconic Power",
+      description: "For 3 turns from the start of the battle, increases evasion probability by 200%.",
+      effect: "evasion-buff",
+      percent: 200,
+      turns: 3,
+      appliesTo: {}, // unrestricted — the whole team
+    },
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -724,6 +873,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Abaddo",
     element: "Dark",
     rarity: "LR",
+    categories: ["Power of Darkness", "Eternal Rivals"],
     level: 44,
     exp: 1550,
     expToNextLevel: 3350,
@@ -745,8 +895,16 @@ export const STARTER_CREATURES: Creature[] = [
       power: 230,
       resonanceCost: 85,
       inflicts: { status: "confusion", turns: 2, chance: 100 },
+      animationGif: "/assets/creatures/abaddo/animations/special_attack.gif",
     },
-    equipment: {},
+    lrPassive: {
+      name: "Dark Emperor",
+      description: "Drastically increases the probability of Dark type monsters attacking twice.",
+      effect: "double-hit-chance",
+      percent: 50,
+      // No turns field — unlike the other 4 LR passives, this one never expires this battle.
+      appliesTo: { elements: ["Dark"] },
+    },
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -756,6 +914,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "GallantKnight",
     element: "Light",
     rarity: "LR",
+    categories: ["Power of Light", "Royal Knights", "Holy Knights", "Savior", "Eternal Rivals"],
     level: 41,
     exp: 1400,
     expToNextLevel: 3200,
@@ -772,7 +931,23 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-gk-3", "Final Elysion", "A holy energy blast judges all enemies.", "Attack", 176, 5, 22),
       skill("sk-gk-4", "Knight's Vow", "Passively shields the lowest-HP ally each turn.", "Passive", 0, 0, 25),
     ],
-    equipment: {},
+    ultimateSkill: {
+      id: "ult-gk-1",
+      name: "Sovereign's Judgment",
+      description: "A radiant blade of pure light passes final judgment on one enemy, leaving them paralyzed.",
+      power: 300,
+      resonanceCost: 80,
+      inflicts: { status: "paralysis", turns: 2, chance: 100 },
+      animationGif: "/assets/creatures/gallantknight/animations/special_attack.gif",
+    },
+    lrPassive: {
+      name: "Royal Knight",
+      description: "Increases ATK of Royal Knights category monsters by 40% for 3 turns from the start of the battle.",
+      effect: "atk-buff",
+      percent: 40,
+      turns: 3,
+      appliesTo: { categories: ["Royal Knights"] },
+    },
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -787,6 +962,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Jeshunter",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Fighter of Justice"],
     level: 31,
     exp: 830,
     expToNextLevel: 2060,
@@ -801,7 +977,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-je-3", "Drone Barrage", "The orbiting sword-drones launch a relentless barrage on all enemies.", "Attack", 140, 4, 14),
       skill("sk-je-4", "Runic Resolve", "Passively raises crit chance as the tattered cape billows with charged digital runes.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -811,6 +986,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Blazefire",
     element: "Fire",
     rarity: "Mythic",
+    categories: ["Volcanic Power"],
     level: 29,
     exp: 770,
     expToNextLevel: 1960,
@@ -825,7 +1001,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-bz-3", "Flare Blitz Barrage", "A relentless flurry of blazing kicks scorches all enemies.", "Attack", 142, 4, 14),
       skill("sk-bz-4", "Rising Flame", "Passively raises ATK further as its internal temperature climbs each turn.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -835,6 +1010,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Zion",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Holy Knights", "Guardian of the Digital World"],
     level: 34,
     exp: 920,
     expToNextLevel: 2200,
@@ -849,7 +1025,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-zi-3", "Holy Wing Barrage", "Supersonic wing strikes rain purifying light on all enemies.", "Attack", 146, 5, 16),
       skill("sk-zi-4", "Founder's Authority", "Passively raises ATK when HP falls below 40%.", "Passive", 0, 0, 20),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -859,6 +1034,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Murasame",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Holy Knights", "Eternal Rivals"],
     level: 27,
     exp: 680,
     expToNextLevel: 1850,
@@ -873,7 +1049,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-mu-3", "Taidō Ryūgoku", "A ceremonial purification dance conjures a mandala that restores HP to the lowest-HP ally.", "Support", 150, 4, 14),
       skill("sk-mu-4", "Kuda-gitsune Ward", "Passively channels spirit foxes to shield allies from status ailments.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -883,6 +1058,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Quantum",
     element: "Electric",
     rarity: "Mythic",
+    categories: ["Digital Power", "Power of Space", "Power of Time", "Travelers from the Future"],
     level: 30,
     exp: 800,
     expToNextLevel: 2000,
@@ -897,7 +1073,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-qt-3", "Timeline Collapse", "Simulates and collapses countless branching timelines onto all enemies at once.", "Attack", 138, 4, 14),
       skill("sk-qt-4", "Observer's Insight", "Passively raises crit chance by calculating enemy patterns before they strike.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -907,6 +1082,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Goldion",
     element: "Fire",
     rarity: "Mythic",
+    categories: ["Volcanic Power", "Digital Power"],
     level: 33,
     exp: 870,
     expToNextLevel: 2150,
@@ -921,7 +1097,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-gl-3", "Sol Blaster", "Releases a massive sphere of high-density solar plasma that scorches all enemies.", "Attack", 148, 5, 16),
       skill("sk-gl-4", "Noble Discipline", "Passively raises ATK when an ally is struck down, honoring their sacrifice.", "Passive", 0, 0, 20),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -931,6 +1106,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Mugen",
     element: "Dark",
     rarity: "Mythic",
+    categories: ["Power of Darkness", "Power of Time"],
     level: 35,
     exp: 950,
     expToNextLevel: 2250,
@@ -945,7 +1121,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-mn-3", "Infinity Cannons", "Dual naval-grade cannons unleash apocalyptic beams of plasma on all enemies.", "Attack", 152, 5, 16),
       skill("sk-mn-4", "Catastrophe Core", "Passively overheats its reactor to boost the next skill's power after taking damage.", "Passive", 0, 0, 22),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -955,6 +1130,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Sakuya",
     element: "Nature",
     rarity: "Mythic",
+    categories: ["Guardian of the Real World", "Saving Power"],
     level: 30,
     exp: 810,
     expToNextLevel: 2000,
@@ -969,7 +1145,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-sy-3", "Izuna", "Summons four elemental spirit foxes in a synchronized whirlwind that tracks and strikes all enemies.", "Attack", 142, 4, 14),
       skill("sk-sy-4", "Kongoushin Mandala", "Passively purifies status ailments from the caster at the start of each turn.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -979,6 +1154,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Habakiri",
     element: "Dark",
     rarity: "Mythic",
+    categories: ["Power of Darkness", "Eternal Rivals"],
     level: 32,
     exp: 860,
     expToNextLevel: 2100,
@@ -993,7 +1169,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-hb-3", "Habakiri", "Concentrates the body's full divine aura into the blade for a single massive cut across all enemies.", "Attack", 156, 5, 17),
       skill("sk-hb-4", "Castle Guardian's Vow", "Passively raises DEF the longer it remains standing without retreating.", "Passive", 0, 0, 22),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1003,6 +1178,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Platinum Dragon",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Dragon", "Dragon Kings", "Winged Warriors"],
     level: 28,
     exp: 720,
     expToNextLevel: 1900,
@@ -1017,7 +1193,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-pd-3", "Meteor Lux", "All four wings unleash a rapid-fire barrage of searing light bullets on all enemies.", "Attack", 140, 4, 14),
       skill("sk-pd-4", "Righteous Aerial Guardian", "Passively shields the lowest-HP ally when it drops below 30% HP.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1027,6 +1202,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Sirius",
     element: "Fire",
     rarity: "Mythic",
+    categories: ["Volcanic Power", "Power of Space"],
     level: 31,
     exp: 830,
     expToNextLevel: 2050,
@@ -1041,7 +1217,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-si-3", "Photon Blaster", "Sylvia shifts to cannon mode, firing a piercing beam of superheated starlight through all enemies.", "Attack", 144, 4, 15),
       skill("sk-si-4", "Guiding Beacon", "Passively raises ATK for the whole team when leading the charge.", "Passive", 0, 0, 19),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1051,6 +1226,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Wolfang",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Guardian of the Real World", "Holy Knights"],
     level: 29,
     exp: 760,
     expToNextLevel: 1950,
@@ -1065,7 +1241,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-wf-3", "Halo Requiem", "Every blade in the halo fires at once, raining ethereal steel on all enemies.", "Attack", 138, 4, 14),
       skill("sk-wf-4", "Sovereign's Composure", "Passively raises DEF and resists status ailments while guarding.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1075,6 +1250,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Chronos",
     element: "Light",
     rarity: "Mythic",
+    categories: ["Power of Light", "Power of Time", "Time Travelers", "Guardian of the Digital World"],
     level: 30,
     exp: 790,
     expToNextLevel: 1980,
@@ -1090,7 +1266,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-cr-3", "Event Horizon", "The core's gravity well collapses, dealing heavy damage to all enemies.", "Attack", 136, 4, 15),
       skill("sk-cr-4", "Chronal Shift", "Passively raises SPD and grants a chance to act again.", "Passive", 0, 0, 19),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1100,6 +1275,7 @@ export const STARTER_CREATURES: Creature[] = [
     name: "Astarion",
     element: "Electric",
     rarity: "Mythic",
+    categories: ["Digital Power", "Power of Space", "Travelers from the Future"],
     level: 29,
     exp: 770,
     expToNextLevel: 1960,
@@ -1115,7 +1291,6 @@ export const STARTER_CREATURES: Creature[] = [
       skill("sk-as-3", "Thunderclap Howl", "A deafening electrified howl shocks all enemies.", "Attack", 140, 4, 14),
       skill("sk-as-4", "Overcurrent Fangs", "Passively boosts ATK further whenever it lands a critical hit.", "Passive", 0, 0, 18),
     ],
-    equipment: {},
     copies: 1,
     superAttackLevel: 1,
     potentialNodes: [],
@@ -1134,56 +1309,11 @@ export const GACHA_CREATURE_POOL: Creature[] = STARTER_CREATURES.filter(
 export const STARTER_CHOICE_IDS = ["cr-emberling", "cr-gale-sprite", "cr-voltling"] as const;
 export type StarterChoiceId = (typeof STARTER_CHOICE_IDS)[number];
 
-export const STARTER_EQUIPMENT: Equipment[] = [
-  {
-    id: "eq-ember-blade",
-    name: "Ember Blade",
-    slot: "Weapon",
-    rarity: "Rare",
-    enhancementLevel: 3,
-    baseStats: { atk: 42 },
-    setName: "Blazing Fury",
-  },
-  {
-    id: "eq-tidal-crown",
-    name: "Tidal Crown",
-    slot: "Helmet",
-    rarity: "SSR",
-    enhancementLevel: 5,
-    baseStats: { hp: 120, def: 18 },
-    setName: "Abyssal Guard",
-  },
-  {
-    id: "eq-gale-wings",
-    name: "Gale Wings",
-    slot: "Wings",
-    rarity: "Rare",
-    enhancementLevel: 2,
-    baseStats: { spd: 24 },
-    setName: "Windrunner",
-  },
-  {
-    id: "eq-ashen-aura",
-    name: "Ashen Aura",
-    slot: "Aura",
-    rarity: "Mythic",
-    enhancementLevel: 0,
-    baseStats: { atk: 30, spd: 12 },
-    setName: "Blazing Fury",
-  },
-  {
-    id: "eq-scale-plate",
-    name: "Scale Plate",
-    slot: "Armor",
-    rarity: "Common",
-    enhancementLevel: 1,
-    baseStats: { hp: 90, def: 22 },
-  },
-];
-
-// The Tamer's first gear set. Hat + Shoulders are one-time Campaign clear rewards (World 1's
-// stage 5 and its final/boss stage — see BattleScreen.tsx's TAMER_SET_STAGE_REWARDS); the rest
-// is crafted with Seal Coins, which Campaign stages also drop (DungeonStage.equipmentDropChance).
+// The Tamer's first gear set — Tier 1, no Gloves piece. Every piece is crafted in the Shop for 30x
+// Blue Chipset (it-chipset-blue), earned from Events > Challenge's Scarlet Inferno trial (Hard:
+// 2/win, Super: 10/win — see the raid-crimson-trial-hard/-super RaidBoss entries below). Replaces
+// the old dual sourcing (Hat/Shoulders as Campaign-clear rewards, the rest craft-with-Seal-Coins)
+// now that Scarlet Inferno gives the whole set one consistent acquisition path.
 export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
   {
     id: "tamer-crimson-hat",
@@ -1192,8 +1322,8 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_hat.png",
-    source: { kind: "campaign-clear", stageId: "dg-stage-5" },
-    statBonus: { hp: 2, ht: 5, dp: 10 },
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }] },
+    statBonus: { atk: 5, ct: 5 },
   },
   {
     id: "tamer-crimson-shoulders",
@@ -1202,10 +1332,8 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoulders.png",
-    // Chapter 1's new finale/boss area ("The Royal Knights", area 15) — was dg-stage-8 back when
-    // Chapter 1 was still the old 8-stage World 1.
-    source: { kind: "campaign-clear", stageId: "dg-stage-15" },
-    statBonus: { def: 2, dp: 15, cd: 10 },
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }] },
+    statBonus: { def: 10 },
   },
   {
     id: "tamer-crimson-chest",
@@ -1214,8 +1342,8 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_chest.png",
-    source: { kind: "craft", sealCoinCost: 20 },
-    statBonus: { hp: 3, ht: 10, dp: 20 },
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }] },
+    statBonus: { hp: 10 },
   },
   {
     id: "tamer-crimson-legs",
@@ -1224,8 +1352,8 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_legs.png",
-    source: { kind: "craft", sealCoinCost: 15 },
-    statBonus: { spd: 2, as: 5, ct: 3 },
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }] },
+    statBonus: { spd: 3 },
   },
   {
     id: "tamer-crimson-shoes",
@@ -1234,13 +1362,373 @@ export const TAMER_EQUIPMENT_CATALOG: TamerEquipment[] = [
     rarity: "SSR",
     setName: "Crimson",
     icon: "/assets/objects/tamer_gear/crimson_shoes.png",
-    source: { kind: "craft", sealCoinCost: 15 },
-    statBonus: { spd: 2, atk: 1, as: 8, scd: 15 },
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }] },
+    statBonus: { spd: 3 },
+  },
+
+  // Aqua set — crafted in the Shop for 30x Blue Chipset + 30x Purple Chipset each, both earned
+  // from the Events > Challenge "Aqua Trial" (see lib/raidBosses.ts's raid-aqua-trial-hard/-super,
+  // deliberately tuned harder than Scarlet Inferno's own tiers). A defensive/bulk-leaning kit, in
+  // keeping with the tide/depths theme.
+  {
+    id: "tamer-aqua-hat",
+    name: "Aqua Hood",
+    slot: "Hat",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_hat.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { atk: 12, ct: 8 },
+  },
+  {
+    id: "tamer-aqua-shoulders",
+    name: "Aqua Shoulders",
+    slot: "Shoulders",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_shoulders.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { def: 16 },
+  },
+  {
+    id: "tamer-aqua-chest",
+    name: "Aqua Chestplate",
+    slot: "Chest",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_chest.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { hp: 16 },
+  },
+  {
+    id: "tamer-aqua-gloves",
+    name: "Aqua Gloves",
+    slot: "Gloves",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_gloves.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { hp: 20 },
+  },
+  {
+    id: "tamer-aqua-legs",
+    name: "Aqua Greaves",
+    slot: "Legs",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_legs.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { spd: 5 },
+  },
+  {
+    id: "tamer-aqua-shoes",
+    name: "Aqua Boots",
+    slot: "Shoes",
+    rarity: "SSR",
+    setName: "Aqua",
+    icon: "/assets/objects/tamer_gear/aqua_shoes.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { spd: 7 },
+  },
+
+  // Wind set — homologous to Aqua in every mechanical sense (same 30x Blue + 30x Purple Chipset
+  // craft cost, same Hard/Super Challenge tiers, rewards and difficulty — see
+  // raid-wind-trial-hard/-super in lib/raidBosses.ts). A speed/crit-leaning kit, in keeping with
+  // the gale/whirlwind theme.
+  {
+    id: "tamer-wind-hat",
+    name: "Wind Hood",
+    slot: "Hat",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_hat.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { atk: 12, ct: 8 },
+  },
+  {
+    id: "tamer-wind-shoulders",
+    name: "Wind Shoulders",
+    slot: "Shoulders",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_shoulders.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { def: 16 },
+  },
+  {
+    id: "tamer-wind-chest",
+    name: "Wind Chestplate",
+    slot: "Chest",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_chest.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { hp: 16 },
+  },
+  {
+    id: "tamer-wind-gloves",
+    name: "Wind Gloves",
+    slot: "Gloves",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_gloves.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { hp: 20 },
+  },
+  {
+    id: "tamer-wind-legs",
+    name: "Wind Greaves",
+    slot: "Legs",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_legs.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { spd: 5 },
+  },
+  {
+    id: "tamer-wind-shoes",
+    name: "Wind Boots",
+    slot: "Shoes",
+    rarity: "SSR",
+    setName: "Wind",
+    icon: "/assets/objects/tamer_gear/wind_shoes.png",
+    source: { kind: "craft-item", costs: [{ itemId: "it-chipset-blue", quantity: 30 }, { itemId: "it-chipset-purple", quantity: 30 }] },
+    statBonus: { spd: 7 },
+  },
+
+  // Thunder set — crafted in the Shop for 30x Blue + 30x Purple + 10x Green Chipset each, all
+  // earned from the Events > Challenge "Thunderclap Fury" trial (Super/Super2 only — no Hard tier,
+  // both deliberately tuned harder than Scarlet Inferno's AND Aqua's own tiers — see
+  // raid-thunder-trial-super/-super2 in lib/raidBosses.ts). An ATK/crit/attack-speed-leaning kit,
+  // in keeping with the lightning theme.
+  {
+    id: "tamer-thunder-hat",
+    name: "Thunder Hood",
+    slot: "Hat",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_hat.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { atk: 15, ct: 12 },
+  },
+  {
+    id: "tamer-thunder-shoulders",
+    name: "Thunder Shoulders",
+    slot: "Shoulders",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_shoulders.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { def: 20 },
+  },
+  {
+    id: "tamer-thunder-chest",
+    name: "Thunder Chestplate",
+    slot: "Chest",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_chest.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { hp: 30 },
+  },
+  {
+    id: "tamer-thunder-gloves",
+    name: "Thunder Gloves",
+    slot: "Gloves",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_gloves.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { scd: 10 },
+  },
+  {
+    id: "tamer-thunder-legs",
+    name: "Thunder Greaves",
+    slot: "Legs",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_legs.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { spd: 9 },
+  },
+  {
+    id: "tamer-thunder-shoes",
+    name: "Thunder Boots",
+    slot: "Shoes",
+    rarity: "SSR",
+    setName: "Thunder",
+    icon: "/assets/objects/tamer_gear/thunder_shoes.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { spd: 9 },
+  },
+
+  // Ice set — homologous to Thunder in every mechanical sense (same 30x Blue + 30x Purple + 10x
+  // Green Chipset craft cost, same Super/Super2-only Challenge tiers and rewards — see
+  // raid-ice-trial-super/-super2 in lib/raidBosses.ts, deliberately equal difficulty to Thunder's
+  // own tiers rather than another escalation). An HP/DEF/DP-leaning tanky kit — "frozen armor" —
+  // distinct from Thunder's ATK/crit/speed lean.
+  {
+    id: "tamer-ice-hat",
+    name: "Ice Hood",
+    slot: "Hat",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_hat.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { atk: 15, ct: 12 },
+  },
+  {
+    id: "tamer-ice-shoulders",
+    name: "Ice Shoulders",
+    slot: "Shoulders",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_shoulders.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { def: 20 },
+  },
+  {
+    id: "tamer-ice-chest",
+    name: "Ice Chestplate",
+    slot: "Chest",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_chest.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { hp: 30 },
+  },
+  {
+    id: "tamer-ice-gloves",
+    name: "Ice Gloves",
+    slot: "Gloves",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_gloves.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { scd: 10 },
+  },
+  {
+    id: "tamer-ice-legs",
+    name: "Ice Greaves",
+    slot: "Legs",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_legs.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { spd: 9 },
+  },
+  {
+    id: "tamer-ice-shoes",
+    name: "Ice Boots",
+    slot: "Shoes",
+    rarity: "SSR",
+    setName: "Ice",
+    icon: "/assets/objects/tamer_gear/ice_shoes.png",
+    source: {
+      kind: "craft-item",
+      costs: [
+        { itemId: "it-chipset-blue", quantity: 30 },
+        { itemId: "it-chipset-purple", quantity: 30 },
+        { itemId: "it-chipset-green", quantity: 10 },
+      ],
+    },
+    statBonus: { spd: 9 },
   },
 ];
 
-// The player's own on-screen avatar (distinct from Digimon) — owning/equipping one applies its
-// buffs to every Digimon in battle (lib/tamerBuffs.ts). tamer1 is the free default every account
+// A single bonus that fires only when a player has EVERY piece of one set (per the grouping
+// above) simultaneously EQUIPPED at once — not just owned. Exactly 1 effect per set, never
+// stacking multiple; a set absent from this map (Crimson) has no Set Effect at all. Aqua's Crit
+// Rate folds into the existing percent-stat pipeline in lib/tamerBuffs.ts alongside per-piece
+// statBonus; Wind's EXP bonus and Thunder/Ice's Skill Damage bonus are separate mechanics with no
+// existing stat field — see getTamerExpMultiplierBonus (lib/tamerBuffs.ts) and
+// Creature.skillDamageMult (types/game.ts) respectively.
+export const TAMER_SET_EFFECTS: Record<string, TamerSetEffect | undefined> = {
+  Aqua: { description: "Crit Rate +30%", statBonus: { ct: 30 } },
+  Wind: { description: "EXP +100%", expMultiplierBonus: 1 },
+  Thunder: { description: "ATK +30% / Skill Damage +20%", statBonus: { atk: 30 }, skillDamageBonus: 0.2 },
+  Ice: { description: "ATK +30% / Skill Damage +20%", statBonus: { atk: 30 }, skillDamageBonus: 0.2 },
+};
+
+// The player's own on-screen avatar (distinct from Creatures) — owning/equipping one applies its
+// buffs to every Creature in battle (lib/tamerBuffs.ts). tamer1 is the free default every account
 // starts with; future purchasable Tamers slot into this same catalog (see SHOP_LISTINGS).
 export const TAMER_CATALOG: TamerAvatar[] = [
   {
@@ -1250,6 +1738,24 @@ export const TAMER_CATALOG: TamerAvatar[] = [
     baseStats: { hp: 400, atk: 80, def: 50, spd: 40, dp: 200, as: 100, ht: 80, cd: 120, scd: 110, ct: 5 },
     buffs: { hpPercent: 15, elementAtkBonus: { Light: 10 }, ctPercent: 5, cdPercent: 10 },
   },
+];
+
+// Selectable profile pictures (Sidebar/TopStatusBar avatar + the Profile modal's picker). Every
+// account is created with avatarKey "avatar-male"/"avatar-female" (see createAccount() in
+// lib/db/bigquery.ts) — neither has art here on purpose, so a fresh account falls back to the
+// generic UserCircle2 icon until the player actually picks one of these from the Profile modal.
+export interface AvatarOption {
+  key: string;
+  name: string;
+  icon: string;
+}
+export const AVATAR_CATALOG: AvatarOption[] = [
+  { key: "avatar-profile1", name: "Star Paladin", icon: "/assets/profile_img/profile1.png" },
+  { key: "avatar-profile2", name: "Ember Fox", icon: "/assets/profile_img/profile2.png" },
+  { key: "avatar-profile3", name: "Jade Hatchling", icon: "/assets/profile_img/profile3.png" },
+  { key: "avatar-profile4", name: "Void Knight", icon: "/assets/profile_img/profile4.png" },
+  { key: "avatar-profile5", name: "Crimson Dragoon", icon: "/assets/profile_img/profile5.png" },
+  { key: "avatar-profile6", name: "Solar King", icon: "/assets/profile_img/profile6.png" },
 ];
 
 // Matches the real DB default createAccount() inserts (lib/db/bigquery.ts) — kept in sync so the
@@ -1265,11 +1771,11 @@ export const DEFAULT_PROFILE: UserProfile = {
   isAdmin: false,
   dailyEventAttempts: {},
   dailyEventAttemptsDate: "",
+  dailyChallengeAttempts: {},
+  dailyChallengeAttemptsDate: "",
 };
 
-// Generic collectible items — Consumable/Quest/Evolution/Skin/Crafting. Equipment (creature gear)
-// stays in its own richer catalog above (STARTER_EQUIPMENT/Equipment type) since it has slot/
-// enhancement/equipped-to fields this simpler stackable-quantity model doesn't need.
+// Generic collectible items — Consumable/Quest/Evolution/Skin/Crafting.
 export const ITEM_CATALOG: InventoryItem[] = [
   {
     id: "it-rotten-egg",
@@ -1294,7 +1800,7 @@ export const ITEM_CATALOG: InventoryItem[] = [
     name: "Training Box",
     category: "Consumable",
     rarity: "Common",
-    description: "Basic training gear — a small dose of EXP for one Digimon.",
+    description: "Basic training gear — a small dose of EXP for one Creature.",
     icon: "/assets/objects/box_exp1.png",
     creatureExpValue: 200,
   },
@@ -1312,7 +1818,7 @@ export const ITEM_CATALOG: InventoryItem[] = [
     name: "Training Dumbbells",
     category: "Consumable",
     rarity: "SSR",
-    description: "Serious training gear — the biggest single dose of EXP for one Digimon.",
+    description: "Serious training gear — the biggest single dose of EXP for one Creature.",
     icon: "/assets/objects/mancuerna_exp3.png",
     creatureExpValue: 1500,
   },
@@ -1350,6 +1856,14 @@ export const ITEM_CATALOG: InventoryItem[] = [
   { id: "it-orb-small-neutral", name: "Small Gray Orb", category: "Evolution", rarity: "Common", description: "Used to unlock basic Gray potential.", icon: "/assets/objects/orbs/gray_orb.png" },
   { id: "it-orb-medium-neutral", name: "Medium Gray Orb", category: "Evolution", rarity: "Rare", description: "Used to unlock intermediate Gray potential.", icon: "/assets/objects/orbs/gray_medium_orb.png" },
   { id: "it-orb-large-neutral", name: "Large Gray Orb", category: "Evolution", rarity: "SSR", description: "Used to unlock advanced Gray potential.", icon: "/assets/objects/orbs/gray_large_orb.png" },
+
+  // Tier chipsets — crafting currency for Tamer armor sets, dropped by their matching Events >
+  // Challenge trial (Blue: Crimson/Scarlet Inferno; the other 3 tiers aren't live yet, see
+  // CHALLENGE_EVENTS in lib/raidBosses.ts). Spent via TAMER_EQUIPMENT_CATALOG's "craft-item" source.
+  { id: "it-chipset-blue", name: "Blue Chipset", category: "Crafting", rarity: "SSR", description: "Tier 1 crafting currency — forges pieces of the Crimson armor set.", icon: "/assets/objects/chipsets/blue_chipset.png" },
+  { id: "it-chipset-golden", name: "Golden Chipset", category: "Crafting", rarity: "SSR", description: "Tier crafting currency for a future armor set.", icon: "/assets/objects/chipsets/golden_chipset.png" },
+  { id: "it-chipset-green", name: "Green Chipset", category: "Crafting", rarity: "SSR", description: "Tier crafting currency for a future armor set.", icon: "/assets/objects/chipsets/green_chipset.png" },
+  { id: "it-chipset-purple", name: "Purple Chipset", category: "Crafting", rarity: "SSR", description: "Tier crafting currency for a future armor set.", icon: "/assets/objects/chipsets/purple_chipset.png" },
 ];
 
 // --- Awaken (it-awaken-coin) ---
@@ -1486,7 +2000,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
   },
   {
     id: "shop-training-box",
-    description: "Grants 200 EXP to one Digimon.",
+    description: "Grants 200 EXP to one Creature.",
     rarity: "Common",
     price: { gold: 300 },
     grants: { kind: "item", itemId: "it-training-box" },
@@ -1494,7 +2008,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
   },
   {
     id: "shop-training-trx",
-    description: "Grants 600 EXP to one Digimon.",
+    description: "Grants 600 EXP to one Creature.",
     rarity: "Rare",
     price: { gold: 900 },
     grants: { kind: "item", itemId: "it-training-trx" },
@@ -1502,7 +2016,7 @@ export const SHOP_LISTINGS: ShopListing[] = [
   },
   {
     id: "shop-training-dumbbell",
-    description: "Grants 1500 EXP to one Digimon.",
+    description: "Grants 1500 EXP to one Creature.",
     rarity: "SSR",
     price: { gold: 2200 },
     grants: { kind: "item", itemId: "it-training-dumbbell" },
@@ -1517,14 +2031,14 @@ export const SHOP_LISTINGS: ShopListing[] = [
   },
   {
     id: "shop-creature-venomshade",
-    description: "A Dark-type Digimon, available directly for gems.",
+    description: "A Dark-type Creature, available directly for gems.",
     rarity: "Rare",
     price: { gems: 300 },
     grants: { kind: "creature", creatureId: "cr-venomshade" },
   },
   {
     id: "shop-creature-tidewarden",
-    description: "A Water-type Digimon, available directly for gems.",
+    description: "A Water-type Creature, available directly for gems.",
     rarity: "Rare",
     price: { gems: 300 },
     grants: { kind: "creature", creatureId: "cr-tidewarden" },
@@ -1552,16 +2066,37 @@ export const SHOP_LISTINGS: ShopListing[] = [
   { id: "shop-orb-l-neutral", description: "5x Large Gray Orbs", rarity: "SSR", price: { gold: 2000 }, grants: { kind: "item", itemId: "it-orb-large-neutral", amount: 5 }, weeklyLimit: 10 },
 ];
 
+/** Real-money-only Premium Shop listing — deliberately NOT a ShopListing (no gold/gems price, no
+ * `grants`) since there's nothing to purchase yet: every entry here renders with a disabled
+ * "Coming Soon" button in the Shop's Premium tab, ahead of real payment integration. */
+export interface PremiumShopItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+// Five Lacrima bundle sizes, smallest to largest — the game's future premium gem currency.
+export const PREMIUM_SHOP_ITEMS: PremiumShopItem[] = [
+  { id: "premium-lacrima", name: "Lacrima", description: "A single shimmering Lacrima.", icon: "/assets/objects/lacrima.png" },
+  { id: "premium-lacrima-pack01", name: "Lacrima Pack", description: "A small pack of Lacrima.", icon: "/assets/objects/lacrima_pack01.png" },
+  { id: "premium-lacrima-pack02", name: "Lacrima Bundle", description: "A larger bundle of Lacrima.", icon: "/assets/objects/lacrima_pack02.png" },
+  { id: "premium-lacrima-bag", name: "Lacrima Bag", description: "A bag brimming with Lacrima.", icon: "/assets/objects/lacrima_bag.png" },
+  { id: "premium-lacrima-box", name: "Lacrima Box", description: "A box overflowing with Lacrima.", icon: "/assets/objects/lacrima_box.png" },
+];
+
 // task-login ships pre-completed (progress = target) — reaching this fresh-day clone at all (see
 // lib/store.ts's ensureFreshDailyTasks/bundleToStateFields) already implies a same-day login, so
 // there's no separate "did they log in" check to wire up. The other three now track real progress
-// (see the tickMissionProgress call sites in BattleScreen.tsx, gacha/page.tsx, inventory/page.tsx)
-// and correctly start at 0 — they used to ship fake-pre-completed too, before any backend existed.
+// (see the tickMissionProgress call sites in BattleScreen.tsx, gacha/page.tsx, shop/page.tsx) and
+// correctly start at 0 — they used to ship fake-pre-completed too, before any backend existed.
+// task-enhance kept its id (was "Enhance a piece of gear", from the now-removed Creature Equipment
+// system) to avoid a pointless persisted-task-id migration — only its description/trigger changed.
 export const DEFAULT_DAILY_TASKS: DailyTask[] = [
   { id: "task-login", description: "Log in to the city hub", progress: 1, target: 1, rewardGold: 500, claimed: false },
   { id: "task-dungeon", description: "Clear 3 dungeon waves", progress: 0, target: 3, rewardGems: 30, claimed: false },
   { id: "task-gacha", description: "Perform 1 summon", progress: 0, target: 1, rewardGold: 1000, claimed: false },
-  { id: "task-enhance", description: "Enhance a piece of gear", progress: 0, target: 1, rewardGems: 20, claimed: false },
+  { id: "task-enhance", description: "Craft a piece of Tamer gear", progress: 0, target: 1, rewardGems: 20, claimed: false },
 ];
 
 export const ACHIEVEMENTS: Achievement[] = [
@@ -1652,16 +2187,25 @@ const STAGE_NAMES = [
   "A World That Shouldn't Exist", "The First Replica", "Echoes of Reality", "Worlds Out of Sync",
   "The Collision Begins", "Reality in Danger", "Protect the Original World",
 
-  // World 3 (12 stages)
-  "Ironclad Foundry", "Sable Undercroft", "Gale Citadel", "Dragon's Reprieve",
-  "Celestial Terrace", "Lunar Eclipse", "Solar Flare", "Abyssal Trench",
-  "Crystal Peak", "Shadow Veil", "Thunder Plains", "Aero Heights",
-  
-  // World 4 (12 stages)
-  "Void's Edge", "Neon Ruins", "Cyber Core", "Glitch Matrix",
-  "Ethereal Realm", "Phantom Keep", "Spirit Woods", "Mirage Desert",
-  "Oasis Shrine", "Volcanic Ash", "Lava Tube", "Inferno Core",
-  
+  // Chapter 3 (20 areas) — see lib/campaignChapters.ts's CAMPAIGN_CHAPTERS, which must stay in
+  // sync with this list (same names, same order). Area 20 (this chapter's 20th) is the chapter's
+  // boss: the parallel-world collision from Chapter 2 left the Digital World scarred, and a
+  // shadow entity (Habakiri) has been growing in the cracks ever since.
+  "The Lingering Static", "Cracks in Reality", "A World Half-Formed", "Corrupted Frontier",
+  "Whispers From the Rift", "The Fractured Plains", "Data Gone Wild", "Where Two Skies Meet",
+  "The Wandering Anomaly", "Echoes That Shouldn't Be", "A Shadow Takes Root", "The Hollow Frontier",
+  "Static Overload", "Beneath the Broken Sky", "Fracture Point", "A World Unraveling",
+  "Where Shadows Gather", "The Silence Before", "Descent Into Darkness", "The Devourer Awakens",
+
+  // Chapter 4 (15 areas) — see lib/campaignChapters.ts's CAMPAIGN_CHAPTERS, must stay in sync
+  // (same names, same order). Area 15 (this chapter's 15th) is the chapter's boss: with the
+  // shadow in Chapter 3 put down, a splinter faction of Royal Knights — the same order Chapter 1
+  // first glimpsed — moves in, and their corrupted vanguard Magnagold makes its stand here.
+  "A Knight's Warning", "Banners of Gold", "The Silent Garrison", "Steel Against Shadow",
+  "Trial by Fire and Faith", "The Iron Oath", "Beyond Their Duty", "A Guardian's Doubt",
+  "The Fallen Vanguard", "Cracks in the Armor", "The Gathering Storm", "Where Loyalty Ends",
+  "The Last Bastion", "A Knight's Reckoning", "The Golden Guardian's Wrath",
+
   // World 5 (14 stages)
   "Astral Pathway", "Nebula Cloud", "Comet Trail", "Starlight Bridge",
   "Galaxy Center", "Black Hole Event", "Cosmic Forge", "Chronos Rift",
@@ -1676,7 +2220,7 @@ const HIGHEST_STAGE_CLEARED = 0;
 // visibly reward the player with a level-up. Bumped well above that gap for stages 1-2 only.
 const EARLY_STAGE_REWARD_EXP: Record<number, number> = { 1: 300, 2: 220 };
 
-const WORLD_SIZES = [15, 15, 12, 12, 14];
+const WORLD_SIZES = [15, 15, 20, 15, 14];
 
 /** Cumulative stage count through the end of `world` (1-indexed) — e.g. 5 -> 54, since worlds
  * 1-5 are sized [8,8,12,12,14]. Used to check "has this player cleared through World N" against

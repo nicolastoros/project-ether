@@ -46,11 +46,16 @@ interface SyncCurrencies {
   gold: number;
   gems: number;
   sealCoins: number;
+  lacrima: number;
   energy: number;
   lastEnergyTickAt: number;
 }
 
-function isSyncCurrencies(value: unknown): value is SyncCurrencies {
+// lacrima is checked defensively (not required in the shape check below) — an older cached
+// client bundle predating Lacrima's DB wiring could still POST a body without it; withLacrima
+// just below is what actually plugs a default 0 in for that case, same "don't reject, just
+// default" reasoning as withAwakenLevel above.
+function isSyncCurrencies(value: unknown): value is Omit<SyncCurrencies, "lacrima"> {
   if (!value || typeof value !== "object") return false;
   const c = value as Record<string, unknown>;
   return (
@@ -60,6 +65,10 @@ function isSyncCurrencies(value: unknown): value is SyncCurrencies {
     typeof c.energy === "number" &&
     typeof c.lastEnergyTickAt === "number"
   );
+}
+
+function withLacrima(c: Omit<SyncCurrencies, "lacrima"> & { lacrima?: unknown }): SyncCurrencies {
+  return { ...c, lacrima: typeof c.lacrima === "number" ? c.lacrima : 0 };
 }
 
 interface SyncItem {
@@ -118,6 +127,8 @@ export async function POST(request: Request) {
     dailyShopPurchasesDate,
     weeklyShopPurchases,
     weeklyShopPurchasesDate,
+    dailyChallengeAttempts,
+    dailyChallengeAttemptsDate,
     items,
     dailyTasksState,
   } = body as Record<string, unknown>;
@@ -134,6 +145,7 @@ export async function POST(request: Request) {
     (dailyEventAttemptsDate !== undefined && typeof dailyEventAttemptsDate !== "string") ||
     (dailyShopPurchasesDate !== undefined && typeof dailyShopPurchasesDate !== "string") ||
     (weeklyShopPurchasesDate !== undefined && typeof weeklyShopPurchasesDate !== "string") ||
+    (dailyChallengeAttemptsDate !== undefined && typeof dailyChallengeAttemptsDate !== "string") ||
     (dailyTasksState !== undefined && !isSyncDailyTasksState(dailyTasksState))
   ) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -147,13 +159,15 @@ export async function POST(request: Request) {
       creatures: creatures.filter(isSyncCreature).map(withAwakenLevel),
       dungeonHighestStageCleared: dungeonHighestStageCleared as number | undefined,
       dungeonPerfectStages: dungeonPerfectStages as string[] | undefined,
-      currencies: currencies as SyncCurrencies | undefined,
+      currencies: currencies ? withLacrima(currencies as Omit<SyncCurrencies, "lacrima">) : undefined,
       dailyEventAttempts: dailyEventAttempts as Record<string, number> | undefined,
       dailyEventAttemptsDate: dailyEventAttemptsDate as string | undefined,
       dailyShopPurchases: dailyShopPurchases as Record<string, number> | undefined,
       dailyShopPurchasesDate: dailyShopPurchasesDate as string | undefined,
       weeklyShopPurchases: weeklyShopPurchases as Record<string, number> | undefined,
       weeklyShopPurchasesDate: weeklyShopPurchasesDate as string | undefined,
+      dailyChallengeAttempts: dailyChallengeAttempts as Record<string, number> | undefined,
+      dailyChallengeAttemptsDate: dailyChallengeAttemptsDate as string | undefined,
       items: items !== undefined ? (items as unknown[]).filter(isSyncItem) : undefined,
       dailyTasksState: dailyTasksState as SyncDailyTasksState | undefined,
     });

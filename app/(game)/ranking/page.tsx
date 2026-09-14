@@ -39,7 +39,7 @@ const CATALOG_BY_ID = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
 // CreatureSprite only actually reads name/element/rarity/spriteFolder/animationFrames/
 // potentialNodes off a Creature — level/exp/baseStats etc are along for the ride to satisfy the
 // type, not shown. Rarity re-derives the Awaken bump (SSR -> Mythic) the same way every other
-// creature card in the app does, so an awakened Digimon shows its real aura here too.
+// creature card in the app does, so an awakened Creature shows its real aura here too.
 function displayCreature(tc: TopCreature): Creature | null {
   const base = CATALOG_BY_ID.get(tc.creatureId);
   if (!base) return null;

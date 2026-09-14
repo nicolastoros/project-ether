@@ -9,6 +9,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { toast } from "sonner";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { syncProgressToServer } from "@/lib/syncProgress";
+import { useSyncSettleGate } from "@/lib/useSyncGate";
 
 export function SuperAttackTrainingModal({
   creature,
@@ -21,6 +22,11 @@ export function SuperAttackTrainingModal({
   // Get live creature data from store to ensure UI updates immediately
   const liveCreature = useGameStore((s) => s.creatures.find((c) => c.id === creature.id)) || creature;
   const [isAnimating, setIsAnimating] = useState(false);
+  // A full-screen LoadingOverlay would hide the power-up flash below it (it's already the
+  // "something happened" signal here) — so instead of that shared overlay, `settling` just
+  // disables Train/Close for the same window, giving syncProgressToServer real time to land
+  // before the player can act again or close this modal. See useSyncSettleGate's doc comment.
+  const { settling, runWithSettle } = useSyncSettleGate();
 
   const maxLevel = liveCreature.rarity === "LR" ? 20 : liveCreature.rarity === "SSR" || liveCreature.rarity === "Mythic" ? 15 : 10;
   const isMaxed = liveCreature.superAttackLevel >= maxLevel;
@@ -28,12 +34,14 @@ export function SuperAttackTrainingModal({
 
   const handleTrain = () => {
     if (trainSuperAttack(liveCreature.id)) {
-      syncProgressToServer();
-      setIsAnimating(true);
-      toast.success(`${liveCreature.name}'s Super Attack increased to Lv. ${liveCreature.superAttackLevel + 1}!`, {
-        icon: "🌟"
+      runWithSettle(() => {
+        syncProgressToServer();
+        setIsAnimating(true);
+        toast.success(`${liveCreature.name}'s Super Attack increased to Lv. ${liveCreature.superAttackLevel + 1}!`, {
+          icon: "🌟"
+        });
+        setTimeout(() => setIsAnimating(false), 800);
       });
-      setTimeout(() => setIsAnimating(false), 800);
     } else {
       toast.error("Not enough duplicate copies!");
     }
@@ -61,7 +69,8 @@ export function SuperAttackTrainingModal({
         <div className="relative z-10 p-5 text-center">
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-arcade-panel-light text-zinc-500 hover:text-foreground border border-arcade-border"
+            disabled={settling}
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-arcade-panel-light text-zinc-500 hover:text-foreground border border-arcade-border disabled:cursor-not-allowed disabled:opacity-40"
           >
             <X className="h-5 w-5" />
           </button>
@@ -130,10 +139,10 @@ export function SuperAttackTrainingModal({
             <PixelButton
               variant={canTrain ? "gold" : "ghost"}
               className="w-full"
-              disabled={!canTrain}
+              disabled={!canTrain || settling}
               onClick={handleTrain}
             >
-              {isMaxed ? "Max Level Reached" : canTrain ? "Train (-1 Duplicate)" : "No Duplicates Available"}
+              {settling ? "Syncing..." : isMaxed ? "Max Level Reached" : canTrain ? "Train (-1 Duplicate)" : "No Duplicates Available"}
             </PixelButton>
           </div>
         </div>

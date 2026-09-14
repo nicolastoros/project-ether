@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Zap } from "lucide-react";
-import type { Creature, DungeonStage, Skill, StatusEffectType } from "@/types/game";
+import type { Creature, DungeonStage, Skill, StatusEffectType, UltimateSkill } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
@@ -14,7 +14,7 @@ import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { parseTierStageId } from "@/lib/difficultyTiers";
 import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
-import { applyTamerBuffs } from "@/lib/tamerBuffs";
+import { applyTamerBuffs, getTamerExpMultiplierBonus } from "@/lib/tamerBuffs";
 import {
   grantCreatureOnServer,
   grantItemOnServer,
@@ -25,6 +25,7 @@ import {
 import { addGuildExpAction } from "@/app/actions/guild";
 import {
   applyAction,
+  applyLrPassives,
   createCombatant,
   getSkillTargetMode,
   getUltimateSkill,
@@ -34,10 +35,15 @@ import {
   type BattleCombatant,
   type BattleLogEntry,
   type HitInfo,
+  type LrPassiveActivation,
 } from "@/lib/combat";
 import { GlowPanel } from "@/components/ui/GlowPanel";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
 import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
 import { CombatantCard, STATUS_BADGE } from "./CombatantCard";
+import { LrPassiveIntro } from "./LrPassiveIntro";
+import { UltimateAttackIntro } from "./UltimateAttackIntro";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
 import { cn } from "@/lib/utils";
 
@@ -184,26 +190,38 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     ? undefined
     : DUNGEON_STAGES.find((s) => s.stageNumber === stage.stageNumber + 1 && s.world === stage.world);
 
+  // Which owned gear is actually equipped right now — shared by the buff computation below and
+  // the victory-reward block's Wind Set Effect (EXP +100%) check further down.
+  const activeTamerGear = useMemo(() => {
+    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+    return tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+  }, [tamerInventory, equippedTamerGear]);
+
   // Buffed once at battle start (not reactively — mid-fight gear changes shouldn't retroactively
   // rescale an in-progress combatant's stats). gainCreatureExp/etc. below still use the original
   // unbuffed playerCreatures since only their ids matter there, not baseStats.
   const buffedPlayerCreatures = useMemo(() => {
-    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
-    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
-
     return playerCreatures.map((c) =>
       applyTamerBuffs(
         c,
-        activeGear,
+        activeTamerGear,
         equippedTamerId,
         useGameStore.getState().profile.level,
         guild?.level
       )
     );
-  }, [playerCreatures, tamerInventory, equippedTamerGear, equippedTamerId, guild?.level]);
+  }, [playerCreatures, activeTamerGear, equippedTamerId, guild?.level]);
   const [combatants, setCombatants] = useState<BattleCombatant[]>(() =>
-    buildInitialCombatants(buffedPlayerCreatures, enemyCreatures)
+    applyLrPassives(buildInitialCombatants(buffedPlayerCreatures, enemyCreatures)).combatants
   );
+  // Dokkan-style "Passive Skill" activation banner — every LR creature on either side always
+  // activates the instant battle starts, regardless of stage/battle type (see LrPassiveIntro.tsx).
+  // Computed once from the same (pure, deterministic) inputs as `combatants` above, so calling it
+  // again here instead of threading a shared value through is cheap and safe.
+  const [lrActivations] = useState<LrPassiveActivation[]>(
+    () => applyLrPassives(buildInitialCombatants(buffedPlayerCreatures, enemyCreatures)).activations
+  );
+  const [introDismissed, setIntroDismissed] = useState(() => lrActivations.length === 0);
   const turnOrder = useMemo(
     () => [...combatants].sort((a, b) => b.creature.baseStats.spd - a.creature.baseStats.spd).map((c) => c.uid),
     // Fixed once at battle start — SPD-based turn order stays stable for the whole fight.
@@ -214,6 +232,19 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   const [turnCount, setTurnCount] = useState(0);
   const [hasDeaths, setHasDeaths] = useState(false);
   const [phase, setPhase] = useState<BattlePhase>("active");
+  // Holds the result screen back for a beat once the battle actually ends — settle() below fires
+  // syncProgressToServer (plus item/achievement/guild-exp grants) fire-and-forget right as phase
+  // flips, and a player who immediately hits Exit/Rematch on the result screen could otherwise
+  // navigate away before any of that lands. Dokkan-style "results are being calculated" loading
+  // beat doubles as exactly the pause that protects it. See useSyncGate's SYNC_PAUSE_MS.
+  const [showResult, setShowResult] = useState(false);
+  useEffect(() => {
+    // phase only ever moves one-way (active -> victory/defeat, never back) within a given battle
+    // instance, so there's no reset branch to write here — just the timer for the forward case.
+    if (phase === "active") return;
+    const timeout = setTimeout(() => setShowResult(true), SYNC_PAUSE_MS);
+    return () => clearTimeout(timeout);
+  }, [phase]);
   const [pendingSkill, setPendingSkill] = useState<Skill | null>(null);
   // Pokémon-style takeover: replaces the skill menu with a message box for anything the removed
   // scrolling log used to carry (status effects landing/ticking, evasion, a combatant fainting
@@ -237,6 +268,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   // uid of the combatant currently charging/unleashing an Ultimate Attack — see resolveTurn's
   // isUltimate branch, which holds this set for the charge-up delay before damage lands.
   const [activeUltimateUid, setActiveUltimateUid] = useState<{ uid: string; nonce: number }>({ uid: "", nonce: 0 });
+  // See RaidBattleScreen.tsx's identical pair for the full reasoning — drives the epic gold
+  // UltimateAttackIntro overlay, with the "resolve after the intro" continuation stashed in a ref
+  // (captured at cast time) rather than a fixed setTimeout.
+  const [ultimateAttack, setUltimateAttack] = useState<{ casterName: string; ultimate: UltimateSkill } | null>(null);
+  const pendingUltimateResolveRef = useRef<(() => void) | null>(null);
   // Wall-clock battle start — captured once (in an effect, not during render, per the
   // react-hooks/purity rule against calling Date.now() directly in a render body), used to
   // compute elapsedSeconds on victory.
@@ -303,7 +339,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
         const expEventActive = !isEventBattle && stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
         setIsExpEventStage(expEventActive);
-        const expMultiplier = multiplier * (expEventActive ? 2 : 1);
+        // Wind's "EXP +100%" Set Effect (only when every Wind piece is equipped) stacks with the
+        // existing first-clear/exp-event multipliers rather than replacing them.
+        const expMultiplier = multiplier * (expEventActive ? 2 : 1) * (1 + getTamerExpMultiplierBonus(activeTamerGear));
 
         addGold(stage.rewardGold * multiplier);
         const expGainAmount = stage.rewardExp * expMultiplier;
@@ -489,22 +527,34 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       }
     };
 
-    if (isUltimate) {
-      // Play the charge-up aura on the caster before damage/status actually lands — mirrors
-      // RaidBattleScreen's existing boss-telegraph delayed-animation pattern.
+    if (isUltimate && actingCombatant?.creature.ultimateSkill) {
+      // Play the charge-up aura on the caster immediately, but damage waits for the epic
+      // UltimateAttackIntro overlay to actually dismiss (tap, or its own ~3.2s auto-timer)
+      // instead of a fixed setTimeout — see handleUltimateIntroDismiss below.
       setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
-      setTimeout(() => {
+      setUltimateAttack({ casterName: actingCombatant.creature.name, ultimate: actingCombatant.creature.ultimateSkill });
+      pendingUltimateResolveRef.current = () => {
         setActiveUltimateUid((prev) => ({ uid: "", nonce: prev.nonce }));
         playAttackThenSettle();
-      }, 1300);
+      };
     } else {
       playAttackThenSettle();
     }
   }
 
-  // Enemy turns resolve themselves after a short "thinking" delay.
+  function handleUltimateIntroDismiss() {
+    setUltimateAttack(null);
+    const resolve = pendingUltimateResolveRef.current;
+    pendingUltimateResolveRef.current = null;
+    resolve?.();
+  }
+
+  // Enemy turns resolve themselves after a short "thinking" delay. Held back by !introDismissed
+  // so an enemy that happens to win the SPD-sorted turn order can't act (and land damage) while
+  // the passive activation banner is still covering the screen — re-fires once introDismissed
+  // flips true, same as any other dependency change.
   useEffect(() => {
-    if (phase !== "active") return;
+    if (phase !== "active" || !introDismissed) return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
     if (!currentActor || currentActor.side !== "enemy" || !currentActor.isAlive) return;
 
@@ -514,7 +564,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     }, 900);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnPointer, phase]);
+  }, [turnPointer, phase, introDismissed]);
 
   function handleSkillClick(skill: Skill) {
     if (!actor) return;
@@ -538,6 +588,18 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
 
   return (
     <div className="space-y-3">
+      <AnimatePresence>
+        {!introDismissed && <LrPassiveIntro activations={lrActivations} onDismiss={() => setIntroDismissed(true)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {ultimateAttack && (
+          <UltimateAttackIntro
+            casterName={ultimateAttack.casterName}
+            ultimate={ultimateAttack.ultimate}
+            onDismiss={handleUltimateIntroDismiss}
+          />
+        )}
+      </AnimatePresence>
       <div>
         <h1 className="font-arcade text-lg glow-text-gold">
           World {stage.world}-{stage.worldStageNumber}
@@ -817,7 +879,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         )}
       </div>
 
-      {phase !== "active" && (
+      {phase !== "active" && !showResult && (
+        <LoadingOverlay show label={phase === "victory" ? "Victory! Calculating rewards..." : "Calculating results..."} />
+      )}
+
+      {phase !== "active" && showResult && (
         <BattleResultScreen
           nextHref={
             phase === "victory" && nextAreaStage ? `/combat?stage=${nextAreaStage.id}` : undefined

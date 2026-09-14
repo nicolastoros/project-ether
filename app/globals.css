@@ -168,18 +168,39 @@ body {
   animation: rainbow-border-shimmer 3s linear infinite;
 }
 
-/* Sync-gate loading disc (see components/ui/LoadingOverlay.tsx) — spins counter-clockwise, as
-   requested, unlike Tailwind's built-in animate-spin (clockwise). */
-@keyframes loading-disc-spin {
-  from {
-    transform: rotate(0deg);
+/* Sync-gate loading spinner (see components/ui/LoadingOverlay.tsx) — was a static PNG icon just
+   spinning in place, which read as flat/cheap at 64px. Replaced with a layered CSS "digital" ring:
+   a bright arc sweeping clockwise over a dim static track, a thinner dashed ring counter-rotating
+   inside it, and a pulsing core — no image asset, scales crisply at any size. */
+@keyframes loading-ring-spin {
+  to {
+    transform: rotate(360deg);
   }
+}
+@keyframes loading-ring-spin-reverse {
   to {
     transform: rotate(-360deg);
   }
 }
-.animate-loading-disc {
-  animation: loading-disc-spin 1.3s linear infinite;
+@keyframes loading-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+.animate-loading-ring {
+  animation: loading-ring-spin 1.1s linear infinite;
+}
+.animate-loading-ring-reverse {
+  animation: loading-ring-spin-reverse 1.7s linear infinite;
+}
+.animate-loading-core {
+  animation: loading-core-pulse 1.1s ease-in-out infinite;
 }
 
 /* App-wide "Digital World" backdrop — a soft, low-contrast glowing-gate/floating-islands

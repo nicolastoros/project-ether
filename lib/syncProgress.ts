@@ -65,12 +65,13 @@ export function syncProgressToServer(): void {
       }),
       dungeonHighestStageCleared: dungeon.highestStageCleared,
       dungeonPerfectStages: serializeStageStars(dungeon.stageStars),
-      currencies: { 
-        gold: currencies.gold, 
-        gems: currencies.gems, 
+      currencies: {
+        gold: currencies.gold,
+        gems: currencies.gems,
         sealCoins: currencies.sealCoins,
+        lacrima: currencies.lacrima ?? 0,
         energy: currencies.energy,
-        lastEnergyTickAt: currencies.lastEnergyTickAt 
+        lastEnergyTickAt: currencies.lastEnergyTickAt
       },
       dailyEventAttempts: profile.dailyEventAttempts,
       dailyEventAttemptsDate: profile.dailyEventAttemptsDate,
@@ -78,6 +79,8 @@ export function syncProgressToServer(): void {
       dailyShopPurchasesDate: profile.dailyShopPurchasesDate,
       weeklyShopPurchases: profile.weeklyShopPurchases,
       weeklyShopPurchasesDate: profile.weeklyShopPurchasesDate,
+      dailyChallengeAttempts: profile.dailyChallengeAttempts,
+      dailyChallengeAttemptsDate: profile.dailyChallengeAttemptsDate,
       dailyTasksState: {
         date: dailyTasksDate,
         tasks: Object.fromEntries(dailyTasks.map((t) => [t.id, { progress: t.progress, claimed: t.claimed }])),
@@ -156,6 +159,22 @@ export function grantTamerEquipmentOnServer(itemId: string): void {
     headers: { "Content-Type": "application/json" },
     keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
     body: JSON.stringify({ itemId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  }));
+}
+
+/** Submits one Overclock fight's total damage as this week's attempt — the server computes the
+ * current week id/boss itself (see lib/overclock.ts), never trusts a client-sent one, and only
+ * keeps it if it beats the player's existing best that week. Fire-and-forget, same shape as every
+ * other *OnServer function here; the real-time UI update is the local submitOverclockScore store
+ * action, called separately right alongside this one. */
+export function submitOverclockScoreOnServer(damage: number): void {
+  trackPending(fetch("/api/overclock/submit-score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    body: JSON.stringify({ damage }),
   }).catch(() => {
     // Non-fatal — see grantCreatureOnServer's comment above.
   }));
@@ -243,6 +262,19 @@ export function grantTamerAvatarOnServer(tamerId: string): void {
     headers: { "Content-Type": "application/json" },
     keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
     body: JSON.stringify({ tamerId }),
+  }).catch(() => {
+    // Non-fatal — see grantCreatureOnServer's comment above.
+  }));
+}
+
+/** Persists the player's chosen profile picture — see AVATAR_CATALOG in lib/gameData.ts and the
+ * Profile modal, which calls this right after the matching client-side store.setAvatar(). */
+export function setAvatarOnServer(avatarKey: string): void {
+  trackPending(fetch("/api/user/avatar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true, // survives a navigation/reload right after — see syncProgressToServer's comment above.
+    body: JSON.stringify({ avatarKey }),
   }).catch(() => {
     // Non-fatal — see grantCreatureOnServer's comment above.
   }));

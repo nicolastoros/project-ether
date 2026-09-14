@@ -1,6 +1,6 @@
 import type { Creature, Rarity } from "@/types/game";
 
-// Survival's player stats are their own separate scale (hp:100, damage:18, ...) from Digimon
+// Survival's player stats are their own separate scale (hp:100, damage:18, ...) from Creature
 // baseStats (hp:500-1000+) — this maps a chosen creature's rarity+level onto a multiplier over
 // that separate scale, rather than trying to import baseStats directly. HP/damage scale with the
 // full multiplier (where rarity should visibly matter for run difficulty); speed/pickup radius

@@ -29,6 +29,8 @@ const GALLANTKNIGHT = findBase("cr-gallantknight");
 const EMPERORTOISE = findBase("cr-emperortoise");
 const OMEGA = findBase("cr-omega");
 const ABADDO = findBase("cr-abaddo");
+const HABAKIRI = findBase("cr-habakiri");
+const MAGNAGOLD = findBase("cr-magnagold");
 
 // Damps enemy HP/ATK/DEF below the raw per-stage growth curve, tapering gradually across all 8
 // stages instead of a cliff after stage 2 — smooths out what used to be a late-game difficulty
@@ -116,6 +118,10 @@ const WORLD_2_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   15: [SILVER_DRAGON, WARGEK],
 };
 
+/** Chapter 3's fixed enemy line-up, area by area (20 areas): the same Gale Sprite/Wargek/
+ * Firefex/Starweaver cast that used to fill the old 12-stage World 3 stretches out with an extra
+ * rotation for pacing, then Habakiri — the shadow entity born from Chapter 2's world-collision
+ * scarring — joins at area 19 and takes over as the area-20 boss, fitting "The Devourer Awakens". */
 const WORLD_3_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   1: [GALE_SPRITE, GALE_SPRITE],
   2: [GALE_SPRITE, WARGEK],
@@ -123,14 +129,26 @@ const WORLD_3_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   4: [WARGEK, WARGEK],
   5: [GALE_SPRITE, WARGEK],
   6: [WARGEK, FIREFEX],
-  7: [FIREFEX, FIREFEX],
-  8: [WARGEK, FIREFEX],
-  9: [FIREFEX, STARWEAVER],
-  10: [STARWEAVER, FIREFEX],
-  11: [STARWEAVER, STARWEAVER],
-  12: [STARWEAVER, FIREFEX],
+  7: [FIREFEX, WARGEK],
+  8: [FIREFEX, FIREFEX],
+  9: [WARGEK, FIREFEX],
+  10: [FIREFEX, STARWEAVER],
+  11: [STARWEAVER, FIREFEX],
+  12: [STARWEAVER, STARWEAVER],
+  13: [FIREFEX, STARWEAVER],
+  14: [STARWEAVER, STARWEAVER],
+  15: [STARWEAVER, FIREFEX],
+  16: [FIREFEX, STARWEAVER],
+  17: [STARWEAVER, STARWEAVER],
+  18: [STARWEAVER, FIREFEX],
+  19: [FIREFEX, HABAKIRI],
+  20: [HABAKIRI, STARWEAVER],
 };
 
+/** Chapter 4's fixed enemy line-up, area by area (15 areas) — same shape as Chapters 1/2's own
+ * templates: Blitzfire/CrimsonGuardian open, Goldak/Poseidon escalate mid-chapter (Poseidon
+ * already an LR), and Magnagold — a corrupted Royal Knight vanguard, first foreshadowed by
+ * Chapter 1's finale — joins at area 14 and closes out area 15 as "The Golden Guardian's Wrath". */
 const WORLD_4_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   1: [BLITZFIRE, BLITZFIRE],
   2: [BLITZFIRE, CRIMSON_GUARDIAN],
@@ -144,6 +162,9 @@ const WORLD_4_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
   10: [POSEIDON, GOLDAK],
   11: [POSEIDON, POSEIDON],
   12: [POSEIDON, GOLDAK],
+  13: [GOLDAK, POSEIDON],
+  14: [POSEIDON, MAGNAGOLD],
+  15: [MAGNAGOLD, POSEIDON],
 };
 
 const WORLD_5_ENEMY_TEMPLATES: Record<number, [Creature, Creature]> = {
@@ -179,15 +200,14 @@ export function getStageEnemyTeam(
 ): [Creature, Creature] | null {
   const templates = ENEMY_TEMPLATES_BY_WORLD[stage.world]?.[stage.worldStageNumber];
   if (!templates) return null;
-  // Chapters 1 and 2 (worlds 1-2) derive their boss position from real chapter content — see
-  // lib/campaignChapters.ts. Worlds 3-5 are still dormant (no Chapter 3-4 content yet) and keep
-  // their previous fixed boss positions directly since they aren't backed by a CampaignChapter
-  // entry.
+  // Chapters 1-4 (worlds 1-4) derive their boss position from real chapter content — see
+  // lib/campaignChapters.ts. World 5 is still dormant (no Chapter 5 content yet) and keeps its
+  // previous fixed boss position directly since it isn't backed by a CampaignChapter entry.
   const isBoss = (
     (stage.world === 1 && isFinalAreaOfChapter(1, stage.worldStageNumber)) ||
     (stage.world === 2 && isFinalAreaOfChapter(2, stage.worldStageNumber)) ||
-    (stage.world === 3 && stage.worldStageNumber === 12) ||
-    (stage.world === 4 && stage.worldStageNumber === 12) ||
+    (stage.world === 3 && isFinalAreaOfChapter(3, stage.worldStageNumber)) ||
+    (stage.world === 4 && isFinalAreaOfChapter(4, stage.worldStageNumber)) ||
     (stage.world === 5 && stage.worldStageNumber === 14)
   );
   const tierMult = TIER_STAT_MULTIPLIERS[stage.tier ?? "Easy"];

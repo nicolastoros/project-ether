@@ -4,7 +4,7 @@ const credentials = require('./project-scrappy-intelic-a7055d2d24a2.json');
 const bq = new BigQuery({ credentials, projectId: credentials.project_id });
 
 async function run() {
-  console.log("Resetting all users' digimons to level 1...");
+  console.log("Resetting all users' creatures to level 1...");
   await bq.query({
     query: `
       UPDATE \`project-scrappy-intelic.project_ether.user_creatures\`

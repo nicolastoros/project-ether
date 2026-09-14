@@ -116,6 +116,15 @@ export function CreatureSprite({ creature, className, spin = false, direction: f
         .replace("Tempest Wingstorm", "The_creature_plants_its_feet_firmly_and_spreads_it")
         .replace("Radiant Blade Rush", "sword_attack")
         .replace("Elysian Judgment", "final_elysium")
+        // Overclock's 3 weekly bosses (lib/overclock.ts) keep their literal on-disk folder names
+        // (special_attack1/special_attack2) instead of a one-off auto-caption, since their assets
+        // were already delivered with that convention.
+        .replace("Neon Blade", "special_attack1")
+        .replace("Overload Purge", "special_attack2")
+        .replace("Sovereign Smite", "special_attack1")
+        .replace("Imperial Decree", "special_attack2")
+        .replace("Infernal Claw", "special_attack1")
+        .replace("Draconic Cataclysm", "special_attack2")
     : "stand_animation";
 
   const folder = creature.spriteFolder?.replace("stand_animation", animName);

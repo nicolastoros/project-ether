@@ -36,6 +36,20 @@ export function thisWeekStartDateString(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** "YYYY-MM-DD" of this week's most recent Friday (local time) — Overclock's own reset boundary
+ * (its weekly leaderboard resets Friday 00:00, not Monday like every other weekly system in this
+ * game), same "changes once a week" boundary-string idea as thisWeekStartDateString above. See
+ * lib/overclock.ts's currentOverclockWeekId. */
+export function thisOverclockWeekStartDateString(): string {
+  const d = new Date();
+  const dayOfWeek = d.getDay(); // 0 = Sunday .. 6 = Saturday
+  const daysSinceFriday = (dayOfWeek + 2) % 7; // Friday(5) -> 0, Saturday(6) -> 1, Sunday(0) -> 2, ...
+  d.setDate(d.getDate() - daysSinceFriday);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 /** Formats a TamerEquipment piece's percent stat bonuses (e.g. "+2% HP · +1% ATK") — shared by
  * the Tamer page and Inventory's Equipment tab so both list a piece's bonus the same way. */
 export function formatTamerStatBonus(bonus?: TamerEquipment["statBonus"]): string | null {

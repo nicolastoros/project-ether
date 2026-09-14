@@ -20,7 +20,9 @@ export function GameGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.replace("/");
+      // "/" is the marketing landing now — someone bouncing off an expired session on a game
+      // route wants the login form back, not the pitch (see app/play/page.tsx).
+      router.replace("/play");
     }
   }, [status, router]);
 
@@ -117,7 +119,7 @@ export function GameGate({ children }: { children: ReactNode }) {
         const config = await res.json();
         if (config.isBanned) {
           await signOut({ redirect: false });
-          router.replace("/");
+          router.replace("/play");
           return;
         }
         if (config.maintenanceMode) router.replace("/maintenance");

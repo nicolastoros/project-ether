@@ -1,6 +1,36 @@
-import type { Creature, TamerEquipment } from "@/types/game";
-import { TAMER_CATALOG } from "@/lib/gameData";
+import type { Creature, TamerEquipment, TamerSetEffect } from "@/types/game";
+import { TAMER_CATALOG, TAMER_EQUIPMENT_CATALOG, TAMER_SET_EFFECTS } from "@/lib/gameData";
 import { getDailyGuildBuff, getGuildBuffValue } from "@/lib/guildBuffs";
+
+/** A set's TAMER_SET_EFFECTS entry activates only once every piece of that set is simultaneously
+ * EQUIPPED — mixing in just some pieces (or owning the rest unequipped) never counts. `equippedGear`
+ * must already be pre-filtered to equipped-only pieces, same as every call site already does
+ * before calling applyTamerBuffs (see the equippedGearIds pattern in BattleScreen.tsx/
+ * RaidBattleScreen.tsx/tamer/page.tsx). */
+export function getActiveTamerSetEffects(equippedGear: TamerEquipment[]): TamerSetEffect[] {
+  const equippedIdsBySet = new Map<string, Set<string>>();
+  for (const gear of equippedGear) {
+    if (!equippedIdsBySet.has(gear.setName)) equippedIdsBySet.set(gear.setName, new Set());
+    equippedIdsBySet.get(gear.setName)!.add(gear.id);
+  }
+
+  const active: TamerSetEffect[] = [];
+  for (const [setName, equippedIds] of equippedIdsBySet) {
+    const effect = TAMER_SET_EFFECTS[setName];
+    if (!effect) continue;
+    const totalPieces = TAMER_EQUIPMENT_CATALOG.filter((g) => g.setName === setName).length;
+    if (equippedIds.size >= totalPieces) active.push(effect);
+  }
+  return active;
+}
+
+/** Wind's "EXP +100%" Set Effect — a progression multiplier, not a combat stat, so it can't live
+ * in applyTamerBuffs' percent pipeline below. Callers multiply their own EXP reward by
+ * `1 + this` right alongside their existing first-clear/event multipliers (see BattleScreen.tsx/
+ * RaidBattleScreen.tsx's victory-reward blocks). */
+export function getTamerExpMultiplierBonus(equippedGear: TamerEquipment[]): number {
+  return getActiveTamerSetEffects(equippedGear).reduce((sum, e) => sum + (e.expMultiplierBonus ?? 0), 0);
+}
 
 /** Clones a creature's baseStats scaled up by the Tamer's gear + avatar buffs — same clone-and-
  * adjust shape as lib/campaignEnemies.ts's scaleForStage, just for the player side instead of
@@ -37,6 +67,25 @@ export function applyTamerBuffs(
     ctPercent += gear.statBonus?.ct ?? 0;
   }
 
+  // Full-set Set Effects (Aqua's Crit Rate, Thunder/Ice's ATK portion) fold into the same percent
+  // pipeline as per-piece statBonus above — Wind's EXP bonus and Thunder/Ice's Skill Damage bonus
+  // are handled separately (getTamerExpMultiplierBonus / skillDamageMult below), since neither
+  // maps onto a percent stat here.
+  const activeSetEffects = getActiveTamerSetEffects(tamerInventory);
+  for (const effect of activeSetEffects) {
+    hpPercent += effect.statBonus?.hp ?? 0;
+    atkPercent += effect.statBonus?.atk ?? 0;
+    defPercent += effect.statBonus?.def ?? 0;
+    spdPercent += effect.statBonus?.spd ?? 0;
+    dpPercent += effect.statBonus?.dp ?? 0;
+    asPercent += effect.statBonus?.as ?? 0;
+    htPercent += effect.statBonus?.ht ?? 0;
+    cdPercent += effect.statBonus?.cd ?? 0;
+    scdPercent += effect.statBonus?.scd ?? 0;
+    ctPercent += effect.statBonus?.ct ?? 0;
+  }
+  const skillDamageMult = 1 + activeSetEffects.reduce((sum, e) => sum + (e.skillDamageBonus ?? 0), 0);
+
   const avatar = TAMER_CATALOG.find((t) => t.id === tamerId);
   if (avatar) {
     hpPercent += avatar.buffs.hpPercent ?? 0;
@@ -62,7 +111,8 @@ export function applyTamerBuffs(
     htPercent === 0 &&
     cdPercent === 0 &&
     scdPercent === 0 &&
-    ctPercent === 0
+    ctPercent === 0 &&
+    skillDamageMult === 1
   ) {
     return creature;
   }
@@ -125,5 +175,6 @@ export function applyTamerBuffs(
       scd: (creature.baseStats.scd ?? 0) + finalTamerScd,
       ct: (creature.baseStats.ct ?? 0) + finalTamerCt,
     },
+    skillDamageMult,
   };
 }

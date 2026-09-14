@@ -6,7 +6,6 @@ import type {
   Currencies,
   DailyTask,
   DungeonProgress,
-  Equipment,
   OwnedInventoryItem,
   TamerEquipment,
   TamerSlotType,
@@ -30,12 +29,12 @@ import {
   pickWeightedTrainingItemId,
   SHOP_LISTINGS,
   STARTER_CREATURES,
-  STARTER_EQUIPMENT,
   TAMER_EQUIPMENT_CATALOG,
 } from "@/lib/gameData";
 import { partyPower } from "@/lib/power";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 import { thisWeekStartDateString, todayDateString } from "@/lib/utils";
+import { currentOverclockWeekId } from "@/lib/overclock";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -105,6 +104,18 @@ function ensureFreshWeeklyShopPurchases(
   const thisWeek = thisWeekStartDateString();
   if (purchasesDate === thisWeek) return { purchases, date: thisWeek };
   return { purchases: {}, date: thisWeek };
+}
+
+/** Same reset-on-stale-date pattern as ensureFreshShopPurchases, for RaidEvent.dailyAttemptLimit
+ * (Events > Challenge, e.g. Scarlet Inferno's 2-attempts-shared-between-Hard-and-Super pool) —
+ * keyed by event id so multiple daily-limited events can't stomp on each other's counts. */
+function ensureFreshDailyChallengeAttempts(
+  attempts: Record<string, number>,
+  attemptsDate: string
+): { attempts: Record<string, number>; date: string } {
+  const today = todayDateString();
+  if (attemptsDate === today) return { attempts, date: today };
+  return { attempts: {}, date: today };
 }
 
 function applyExpGain(creature: Creature, gained: number): Creature {
@@ -206,12 +217,51 @@ function reconcileCreatureProgress(serverCreature: Creature, localCreature: Crea
   };
 }
 
+type OwnedCreature = AccountBundle["creatures"][number];
+
+/** A confirmed live bug (see the "Konfo" investigation) created two user_creatures rows for the
+ * same creatureId on 13 accounts — almost always from a double-fired grant (e.g. a gacha pull's
+ * Summon button has no in-flight guard, so a fast double-tap fires two grants a few ms apart).
+ * Left undeduped, this array feeding straight into Creature[] gave every consumer (the store,
+ * reconcileCreatureProgress, syncProgressToServer sending it right back) two objects sharing one
+ * id — reconcileCreatureProgress's `new Map(creatures.map(c => [c.id, c]))` in particular silently
+ * keeps only the LAST one for a repeated key, so whichever duplicate happened to sort last (DB
+ * order, not progress) won every reconcile, visibly reverting levels and Hidden Potential. Collapse
+ * duplicates here, at the one place both hydrateFromServer and refreshFromServer funnel through,
+ * so nothing downstream ever sees more than one entry per creatureId again. Keeps the
+ * higher-progress row's level/exp/superAttackLevel/awakenLevel (never averaged or field-mixed, same
+ * reasoning as reconcileCreatureProgress below), the union of both rows' potentialNodes (a node
+ * either side unlocked stays unlocked), the larger copies count, and hub-team/party placement from
+ * whichever row actually carries it. */
+function dedupeOwnedCreatures(creatures: OwnedCreature[]): OwnedCreature[] {
+  const byId = new Map<string, OwnedCreature>();
+  for (const owned of creatures) {
+    const existing = byId.get(owned.creatureId);
+    if (!existing) {
+      byId.set(owned.creatureId, owned);
+      continue;
+    }
+    const score = (c: OwnedCreature) =>
+      c.level * 1_000_000 + c.exp + c.potentialNodes.length * 1_000 + c.superAttackLevel * 100;
+    const winner = score(owned) >= score(existing) ? owned : existing;
+    const loser = winner === owned ? existing : owned;
+    byId.set(owned.creatureId, {
+      ...winner,
+      potentialNodes: Array.from(new Set([...winner.potentialNodes, ...loser.potentialNodes])),
+      copies: Math.max(winner.copies, loser.copies),
+      isInHubTeam: winner.isInHubTeam || loser.isInHubTeam,
+      partySlot: winner.partySlot ?? loser.partySlot,
+    });
+  }
+  return Array.from(byId.values());
+}
+
 /** Shared server-bundle → store-fields mapping used by both hydrateFromServer (fresh sign-in,
  * full reset) and refreshFromServer (an already-open session picking up server-side changes) —
  * see their respective doc comments on GameState for how the two differ. */
 function bundleToStateFields(bundle: AccountBundle) {
   const creatureCatalogById = new Map(STARTER_CREATURES.map((c) => [c.id, c]));
-  const creatures = bundle.creatures
+  const creatures = dedupeOwnedCreatures(bundle.creatures)
     .map((owned): Creature | null => {
       const base = creatureCatalogById.get(owned.creatureId);
       if (!base) return null;
@@ -235,7 +285,6 @@ function bundleToStateFields(bundle: AccountBundle) {
           def: awakenedBase.def + 2 * (owned.level - 1) + pot.def,
           spd: awakenedBase.spd + 1 * (owned.level - 1) + pot.spd,
         },
-        equipment: {},
         copies: owned.copies,
         superAttackLevel: owned.superAttackLevel,
         potentialNodes: owned.potentialNodes || [],
@@ -243,15 +292,6 @@ function bundleToStateFields(bundle: AccountBundle) {
       };
     })
     .filter((c): c is Creature => c !== null);
-
-  const equipmentCatalogById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
-  const inventory = bundle.equipment
-    .map((owned): Equipment | null => {
-      const base = equipmentCatalogById.get(owned.equipmentId);
-      if (!base) return null;
-      return { ...base, enhancementLevel: owned.enhancementLevel, equippedTo: owned.equippedTo ?? undefined };
-    })
-    .filter((e): e is Equipment => e !== null);
 
   const hubTeamIds = bundle.creatures.filter((c) => c.isInHubTeam).map((c) => c.creatureId);
   const partyCreatureIds: (string | null)[] = [null, null];
@@ -286,7 +326,14 @@ function bundleToStateFields(bundle: AccountBundle) {
       dailyShopPurchasesDate: bundle.profile.dailyShopPurchasesDate || "",
       weeklyShopPurchases: bundle.profile.weeklyShopPurchases || {},
       weeklyShopPurchasesDate: bundle.profile.weeklyShopPurchasesDate || "",
+      dailyChallengeAttempts: bundle.profile.dailyChallengeAttempts || {},
+      dailyChallengeAttemptsDate: bundle.profile.dailyChallengeAttemptsDate || "",
       hasReceivedStarterGifts: bundle.profile.hasReceivedStarterGifts || false,
+      // bundle.overclock is a separate top-level field (backed by its own overclock_scores row
+      // for the current week), not nested under bundle.profile like everything above — see
+      // AccountBundle's own comment.
+      overclockBestDamage: bundle.overclock?.bestDamage ?? 0,
+      overclockWeekId: bundle.overclock?.weekId ?? "",
     },
     currencies: {
       ...bundle.currencies,
@@ -296,7 +343,6 @@ function bundleToStateFields(bundle: AccountBundle) {
     creatures,
     partyCreatureIds,
     hubTeamIds,
-    inventory,
     tamerInventory,
     ownedItems,
     ownedTamerIds: bundle.ownedTamerIds.length ? bundle.ownedTamerIds : ["tamer1"],
@@ -372,23 +418,26 @@ interface GameState {
   activeCreatureId: string;
   partyCreatureIds: (string | null)[];
   hubTeamIds: string[];
-  inventory: Equipment[];
   /** Tamer gear owned by the player — unlike creature Equipment, there's no separate "equipped"
    * step yet: each slot has at most one obtainable item so far, so owning a piece means wearing
    * it. See types/game.ts's TamerEquipment comment. */
   tamerInventory: TamerEquipment[];
   equippedTamerGear: Partial<Record<TamerSlotType, string>>;
-  /** Generic collectible items (Consumable/Quest/Evolution/Skin/Crafting) — Equipment stays in
-   * `inventory` above. Quantities stack per item id via OwnedInventoryItem.quantity. */
+  /** Generic collectible items (Consumable/Quest/Evolution/Skin/Crafting). Quantities stack per
+   * item id via OwnedInventoryItem.quantity. */
   ownedItems: OwnedInventoryItem[];
   /** True once an item lands in `ownedItems` that the player hasn't opened Inventory to see yet —
    * drives the notification dot on the Inventory nav link. */
   hasUnseenInventory: boolean;
   hasUnseenCampaign: boolean;
   hasUnseenTamer: boolean;
+  /** Drives the pulsing NewBadge on the Sidebar/TopStatusBar avatar chip — true for every account
+   * (new or existing) until they actually open the Profile modal once, since avatar customization
+   * is new to everyone, not just fresh signups. */
+  hasUnseenProfile: boolean;
   pendingGuildInvitesCount: number;
   teamPresets: { id: string; name: string; creatureIds: string[]; mode: "campaign" | "raid" }[];
-  /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Digimon in battle. */
+  /** Which TAMER_CATALOG avatar is currently worn — its buffs apply to every Creature in battle. */
   equippedTamerId: string;
   ownedTamerIds: string[];
   activeExpeditions: ActiveExpedition[];
@@ -477,6 +526,10 @@ interface GameState {
   toggleHubTeamMember: (creatureId: string) => void;
   gainCreatureExp: (creatureId: string, amount: number) => void;
   gainProfileExp: (amount: number) => void;
+  /** Client-side half of picking a profile picture — pair with syncProgress.ts's
+   * setAvatarOnServer(avatarKey) to persist it. Doesn't validate avatarKey (the Profile modal only
+   * ever passes an AVATAR_CATALOG key); the server route validates independently anyway. */
+  setAvatar: (avatarKey: string) => void;
   /** Adds a catalog creature to the collection at its default level, or — if already owned —
    * increments its dupe count instead (creature ids are unique per account, but duplicates are
    * tracked via Creature.copies rather than being rejected; a future "overlock" system will spend
@@ -498,13 +551,14 @@ interface GameState {
   spendGems: (amount: number) => boolean;
   addSealCoins: (amount: number) => void;
   spendSealCoins: (amount: number) => boolean;
+  addLacrima: (amount: number) => void;
+  /** Records one Overclock fight's total damage as this week's local best (optimistic — the real
+   * persistence is the separate submitOverclockScoreOnServer call) — resets first if the locally
+   * stored best belongs to a past week, same "ensureFresh" pattern as consumeChallengeAttempt. */
+  submitOverclockScore: (damage: number) => void;
   spendEnergy: (amount: number) => boolean;
   regenEnergy: (amount: number) => void;
   tickEnergy: () => void;
-
-  equipItem: (creatureId: string, equipmentId: string) => void;
-  unequipItem: (creatureId: string, equipmentId: string) => void;
-  enhanceEquipment: (equipmentId: string) => void;
 
   equipTamerGear: (itemId: string) => void;
   unequipTamerGear: (slot: TamerSlotType) => void;
@@ -523,6 +577,7 @@ interface GameState {
   markInventorySeen: () => void;
   markCampaignSeen: () => void;
   markTamerSeen: () => void;
+  markProfileSeen: () => void;
   joinGuildLocally: (guildData: any) => void;
   /** Removes `quantity` of an owned item (Inventory's "Use" action, or a Shop sale) — false if
    * fewer than `quantity` are owned. */
@@ -562,6 +617,11 @@ interface GameState {
    * ORB_EVENTS) — false (no-op) if this event has already used all `maxAttempts` this week.
    * Resets automatically the first time it's called after local Monday. */
   consumeEventAttempt: (eventId: string, maxAttempts: number) => boolean;
+  /** Spends one of today's attempts for an Events > Challenge event with a
+   * RaidEvent.dailyAttemptLimit (e.g. Scarlet Inferno — Hard and Super share the same pool) —
+   * false (no-op) if this event has already used all `maxAttempts` today. Resets automatically the
+   * first time it's called after local midnight. */
+  consumeChallengeAttempt: (eventId: string, maxAttempts: number) => boolean;
 }
 
 export const useGameStore = create<GameState>()(
@@ -572,6 +632,7 @@ export const useGameStore = create<GameState>()(
         gold: 0,
         gems: 0,
         sealCoins: 0,
+        lacrima: 0,
         energy: 82,
         energyMax: 240,
         energyRegenMinutes: 1,
@@ -581,13 +642,13 @@ export const useGameStore = create<GameState>()(
       activeCreatureId: STARTER_CREATURES[0].id,
       partyCreatureIds: STARTER_CREATURES.slice(0, 2).map((c) => c.id),
       hubTeamIds: STARTER_CREATURES.slice(0, HUB_TEAM_SIZE).map((c) => c.id),
-      inventory: STARTER_EQUIPMENT,
       tamerInventory: [],
       equippedTamerGear: {},
       ownedItems: [],
       hasUnseenInventory: false,
       hasUnseenCampaign: true,
       hasUnseenTamer: true,
+      hasUnseenProfile: true,
       pendingGuildInvitesCount: 0,
       teamPresets: [],
       equippedTamerId: "tamer1",
@@ -682,6 +743,7 @@ export const useGameStore = create<GameState>()(
             gold: 0,
             gems: 0,
             sealCoins: 0,
+            lacrima: 0,
             energy: 0,
             energyMax: 240,
             energyRegenMinutes: 1,
@@ -691,13 +753,13 @@ export const useGameStore = create<GameState>()(
           activeCreatureId: "",
           partyCreatureIds: [null, null],
           hubTeamIds: [],
-          inventory: [],
           tamerInventory: [],
           equippedTamerGear: {},
           ownedItems: [],
           hasUnseenInventory: false,
           hasUnseenCampaign: true,
           hasUnseenTamer: true,
+          hasUnseenProfile: true,
           equippedTamerId: "tamer1",
           ownedTamerIds: ["tamer1"],
           activeExpeditions: [],
@@ -877,6 +939,9 @@ export const useGameStore = create<GameState>()(
       gainProfileExp: (amount) => {
         set((state) => ({ profile: applyProfileExpGain(state.profile, amount) }));
       },
+      setAvatar: (avatarKey) => {
+        set((state) => ({ profile: { ...state.profile, avatarKey } }));
+      },
 
       grantCreature: (creatureId, quantity = 1) => {
         const { creatures } = get();
@@ -951,6 +1016,26 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
+      addLacrima: (amount) =>
+        set((state) => ({
+          currencies: { ...state.currencies, lacrima: (state.currencies.lacrima ?? 0) + amount },
+        })),
+
+      submitOverclockScore: (damage) => {
+        const weekId = currentOverclockWeekId();
+        set((state) => {
+          const isStale = state.profile.overclockWeekId !== weekId;
+          const currentBest = isStale ? 0 : state.profile.overclockBestDamage ?? 0;
+          return {
+            profile: {
+              ...state.profile,
+              overclockBestDamage: Math.max(currentBest, damage),
+              overclockWeekId: weekId,
+            },
+          };
+        });
+      },
+
       addSealCoins: (amount) =>
         set((state) => ({
           currencies: { ...state.currencies, sealCoins: state.currencies.sealCoins + amount },
@@ -1003,48 +1088,6 @@ export const useGameStore = create<GameState>()(
           return state;
         }),
 
-      equipItem: (creatureId, equipmentId) =>
-        set((state) => {
-          const item = state.inventory.find((eq) => eq.id === equipmentId);
-          if (!item) return state;
-          return {
-            inventory: state.inventory.map((eq) =>
-              eq.id === equipmentId ? { ...eq, equippedTo: creatureId } : eq
-            ),
-            creatures: state.creatures.map((c) =>
-              c.id === creatureId
-                ? { ...c, equipment: { ...c.equipment, [item.slot]: equipmentId } }
-                : c
-            ),
-          };
-        }),
-
-      unequipItem: (creatureId, equipmentId) =>
-        set((state) => {
-          const item = state.inventory.find((eq) => eq.id === equipmentId);
-          if (!item) return state;
-          return {
-            inventory: state.inventory.map((eq) =>
-              eq.id === equipmentId ? { ...eq, equippedTo: undefined } : eq
-            ),
-            creatures: state.creatures.map((c) => {
-              if (c.id !== creatureId) return c;
-              const nextEquipment = { ...c.equipment };
-              delete nextEquipment[item.slot];
-              return { ...c, equipment: nextEquipment };
-            }),
-          };
-        }),
-
-      enhanceEquipment: (equipmentId) =>
-        set((state) => ({
-          inventory: state.inventory.map((eq) =>
-            eq.id === equipmentId && eq.enhancementLevel < 10
-              ? { ...eq, enhancementLevel: eq.enhancementLevel + 1 }
-              : eq
-          ),
-        })),
-
       equipTamerGear: (itemId) => set((state) => {
         const item = state.tamerInventory.find((t) => t.id === itemId);
         if (!item) return state;
@@ -1072,13 +1115,30 @@ export const useGameStore = create<GameState>()(
         const { tamerInventory, currencies } = get();
         if (tamerInventory.some((t) => t.id === itemId)) return false;
         const item = TAMER_EQUIPMENT_CATALOG.find((t) => t.id === itemId);
-        if (!item || item.source.kind !== "craft") return false;
-        if (currencies.sealCoins < item.source.sealCoinCost) return false;
-        set({
-          currencies: { ...currencies, sealCoins: currencies.sealCoins - item.source.sealCoinCost },
-          tamerInventory: [...tamerInventory, item],
-        });
-        return true;
+        if (!item) return false;
+        if (item.source.kind === "craft") {
+          if (currencies.sealCoins < item.source.sealCoinCost) return false;
+          set({
+            currencies: { ...currencies, sealCoins: currencies.sealCoins - item.source.sealCoinCost },
+            tamerInventory: [...tamerInventory, item],
+          });
+          return true;
+        }
+        if (item.source.kind === "craft-item") {
+          // Check every currency is affordable BEFORE consuming any of them — otherwise a piece
+          // needing 2 currencies (e.g. Aqua's Blue + Purple Chipsets) could spend the first one and
+          // then fail on the second, silently eating the player's chipsets for nothing.
+          const { ownedItems } = get();
+          const ownedQuantityById = new Map(ownedItems.map((o) => [o.itemId, o.quantity]));
+          const affordable = item.source.costs.every((cost) => (ownedQuantityById.get(cost.itemId) ?? 0) >= cost.quantity);
+          if (!affordable) return false;
+          for (const cost of item.source.costs) {
+            get().consumeItem(cost.itemId, cost.quantity);
+          }
+          set((s) => ({ tamerInventory: [...s.tamerInventory, item] }));
+          return true;
+        }
+        return false;
       },
 
       grantItem: (itemId, quantity = 1) => {
@@ -1097,6 +1157,7 @@ export const useGameStore = create<GameState>()(
       markInventorySeen: () => set({ hasUnseenInventory: false }),
       markCampaignSeen: () => set({ hasUnseenCampaign: false }),
       markTamerSeen: () => set({ hasUnseenTamer: false }),
+      markProfileSeen: () => set({ hasUnseenProfile: false }),
       joinGuildLocally: (guildData) => set({ guild: guildData }),
 
       consumeItem: (itemId, quantity = 1) => {
@@ -1380,6 +1441,31 @@ export const useGameStore = create<GameState>()(
         return true;
       },
 
+      consumeChallengeAttempt: (eventId, maxAttempts) => {
+        const state = get();
+        const { attempts, date } = ensureFreshDailyChallengeAttempts(
+          state.profile.dailyChallengeAttempts ?? {},
+          state.profile.dailyChallengeAttemptsDate ?? ""
+        );
+        const currentAttempts = attempts[eventId] || 0;
+        if (currentAttempts >= maxAttempts) {
+          set((s) => ({ profile: { ...s.profile, dailyChallengeAttempts: attempts, dailyChallengeAttemptsDate: date } }));
+          return false;
+        }
+
+        set((s) => ({
+          profile: {
+            ...s.profile,
+            dailyChallengeAttemptsDate: date,
+            dailyChallengeAttempts: {
+              ...attempts,
+              [eventId]: currentAttempts + 1,
+            },
+          },
+        }));
+        return true;
+      },
+
       tickMissionProgress: (taskId, amount = 1) =>
         set((state) => {
           const { tasks, date, bonusClaimed } = ensureFreshDailyTasks(state.dailyTasks, state.dailyTasksDate, state.dailyBonusClaimed);
@@ -1508,7 +1594,6 @@ export const useGameStore = create<GameState>()(
               // added (this one was, for a session), so keep it in sync with types/game.ts.
               ultimateSkill: base.ultimateSkill,
               animationFrames: base.animationFrames,
-              equipment: {},
               copies: 1,
               superAttackLevel: 1,
               potentialNodes: [],
@@ -1520,7 +1605,6 @@ export const useGameStore = create<GameState>()(
               // Not saved.expToNextLevel — see expToNextLevelForLevel's doc comment.
               expToNextLevel: expToNextLevelForLevel(saved.level),
               baseStats: saved.baseStats,
-              equipment: saved.equipment,
               copies: saved.copies,
               superAttackLevel: saved.superAttackLevel ?? 1,
               potentialNodes: saved.potentialNodes ?? [],
@@ -1528,18 +1612,6 @@ export const useGameStore = create<GameState>()(
             };
           })
           .filter((c): c is Creature => c !== undefined);
-
-        // Same rule as creatures above: only equipment this account actually owns is
-        // kept, refreshed by id from the current content definitions. Real accounts
-        // don't own any starter gear yet (equipment isn't wired up server-side), so
-        // this intentionally stays empty for them instead of showing demo items.
-        const catalogEquipmentById = new Map(STARTER_EQUIPMENT.map((e) => [e.id, e]));
-        merged.inventory = (persisted.inventory ?? []).map((saved) => {
-          const item = catalogEquipmentById.get(saved.id);
-          return item
-            ? { ...item, enhancementLevel: saved.enhancementLevel, equippedTo: saved.equippedTo }
-            : saved;
-        });
 
         // Tamer gear has no per-owner mutable fields (no level/exp) — just re-resolve each
         // owned id against the current catalog, dropping any that no longer exist.
@@ -1565,9 +1637,22 @@ export const useGameStore = create<GameState>()(
           merged.equippedTamerGear = loadedGear;
         }
 
-        // Defends against a pre-sealCoins localStorage snapshot, where persisted.currencies
-        // exists but has no sealCoins field at all (would otherwise merge in as undefined).
-        merged.currencies = { ...merged.currencies, sealCoins: merged.currencies.sealCoins ?? 0 };
+        // Defends against a pre-sealCoins/pre-lacrima localStorage snapshot, where
+        // persisted.currencies exists but is missing one or both fields entirely (would otherwise
+        // merge in as undefined).
+        merged.currencies = {
+          ...merged.currencies,
+          sealCoins: merged.currencies.sealCoins ?? 0,
+          lacrima: merged.currencies.lacrima ?? 0,
+        };
+        // Same defensive reasoning, for a pre-Overclock localStorage snapshot's profile.
+        if (merged.profile) {
+          merged.profile = {
+            ...merged.profile,
+            overclockBestDamage: merged.profile.overclockBestDamage ?? 0,
+            overclockWeekId: merged.profile.overclockWeekId ?? "",
+          };
+        }
 
         // Generic items, same re-resolve-by-id rule as tamerInventory above — drop any id that
         // no longer exists in ITEM_CATALOG.

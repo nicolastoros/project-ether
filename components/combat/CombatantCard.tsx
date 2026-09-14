@@ -7,6 +7,7 @@ import type { BattleCombatant, HitInfo } from "@/lib/combat";
 import type { StatusEffectType } from "@/types/game";
 import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { SegmentedHpBar } from "@/components/ui/SegmentedHpBar";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,9 @@ interface CombatantCardProps {
    * above the party, so players lunge up ({x:0,y:-1}) and the boss lunges down. Magnitude is
    * ignored — only the direction matters, the component normalizes it. */
   lungeVector?: { x: number; y: number };
+  /** Overclock's own boss HP bar — a visibly segmented "100 bars" bar (components/ui/
+   * SegmentedHpBar.tsx) instead of the plain ProgressBar every other fight uses. */
+  segmentedHp?: boolean;
 }
 
 export function CombatantCard({
@@ -70,6 +74,7 @@ export function CombatantCard({
   size = "md",
   isCastingUltimate = false,
   lungeVector,
+  segmentedHp = false,
 }: CombatantCardProps) {
   const { creature } = combatant;
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
@@ -169,16 +174,28 @@ export function CombatantCard({
     // clickable; everything else here (bars, badges, floating numbers) was already inert.
     <div className="pointer-events-none flex flex-col items-center gap-1.5">
       <div className={cn("w-full flex flex-col items-center gap-1", barWidth)}>
-        <ProgressBar
-          percent={hpPercent}
-          color="hp"
-          label={
-            <span className="truncate w-full flex gap-1">
-              <span className="text-gold">Lv.{creature.level}</span> <span className="text-white">{creature.name}</span>
-            </span>
-          }
-          innerText={`${combatant.currentHp}/${combatant.maxHp}`}
-        />
+        {segmentedHp ? (
+          <SegmentedHpBar
+            percent={hpPercent}
+            label={
+              <span className="truncate w-full flex gap-1">
+                <span className="text-gold">Lv.{creature.level}</span> <span className="text-white">{creature.name}</span>
+              </span>
+            }
+            innerText={`${combatant.currentHp}/${combatant.maxHp}`}
+          />
+        ) : (
+          <ProgressBar
+            percent={hpPercent}
+            color="hp"
+            label={
+              <span className="truncate w-full flex gap-1">
+                <span className="text-gold">Lv.{creature.level}</span> <span className="text-white">{creature.name}</span>
+              </span>
+            }
+            innerText={`${combatant.currentHp}/${combatant.maxHp}`}
+          />
+        )}
         <ProgressBar percent={resonancePercent} color="resonance" />
       </div>
 

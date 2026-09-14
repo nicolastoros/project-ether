@@ -1,4 +1,4 @@
-import type { Creature, Skill, StatusEffectType } from "@/types/game";
+import type { Creature, LrPassive, LrPassiveCondition, Skill, StatusEffectType } from "@/types/game";
 import { getPotentialBonuses } from "./hiddenPotential";
 
 export type BattleSide = "player" | "enemy";
@@ -15,6 +15,16 @@ export interface BattleCombatant {
   /** Turns remaining for each active status — absent/0 means unafflicted. See applyAction()'s
    * status-resolution block for exactly how each type behaves. */
   statusEffects: Partial<Record<StatusEffectType, number>>;
+  // LR passive buffs (see applyLrPassives) — separate from statBuffs above, which is only ever
+  // self-cast from a skill. Multiple LR passives on the same side can stack onto the same target
+  // (multiplicative for atk/def, additive for evasion), so this tracks the combined result rather
+  // than which passive(s) caused it. passiveDoubleHitChance never expires (no LR passive that
+  // grants it is currently turn-limited) — passiveTurnsLeft only ever governs the other three.
+  passiveAtkMult: number;
+  passiveDefMult: number;
+  passiveEvasionBonus: number;
+  passiveDoubleHitChance: number;
+  passiveTurnsLeft: number | null;
   /** Resonance — the blue energy skills spend, regenerating on the combatant's own turn. */
   resonance: number;
   resonanceMax: number;
@@ -116,7 +126,58 @@ export function createCombatant(creature: Creature, side: BattleSide, index: num
     resonanceMax: RESONANCE_MAX,
     telegraphedSkill: null,
     isAlive: true,
+    passiveAtkMult: 1,
+    passiveDefMult: 1,
+    passiveEvasionBonus: 0,
+    passiveDoubleHitChance: 0,
+    passiveTurnsLeft: null,
   };
+}
+
+function creatureMatchesLrPassiveCondition(creature: Creature, cond: LrPassiveCondition): boolean {
+  const unrestricted = !cond.elements && !cond.rarities && !cond.categories;
+  if (unrestricted) return true;
+  if (cond.elements?.includes(creature.element)) return true;
+  if (cond.rarities?.includes(creature.rarity)) return true;
+  if (cond.categories?.some((cat) => creature.categories?.includes(cat))) return true;
+  return false;
+}
+
+export interface LrPassiveActivation {
+  creature: Creature;
+  passive: LrPassive;
+}
+
+/** Applies every combatant's Creature.lrPassive to its own side (never the opposing side — an
+ * enemy Poseidon buffs the enemy team, not the player's) and returns which ones actually fired,
+ * for the Dokkan-style activation banner. Call this once, right after buildInitialCombatants,
+ * before the first turn — passives are always-on for the whole battle from turn one, not
+ * conditionally triggered later. */
+export function applyLrPassives(combatants: BattleCombatant[]): {
+  combatants: BattleCombatant[];
+  activations: LrPassiveActivation[];
+} {
+  const next = combatants.map((c) => ({ ...c }));
+  const activations: LrPassiveActivation[] = [];
+  for (const source of next) {
+    const passive = source.creature.lrPassive;
+    if (!passive) continue;
+    activations.push({ creature: source.creature, passive });
+    for (const target of next) {
+      if (target.side !== source.side) continue;
+      if (!creatureMatchesLrPassiveCondition(target.creature, passive.appliesTo)) continue;
+      if (passive.effect === "atk-buff") target.passiveAtkMult *= 1 + passive.percent / 100;
+      else if (passive.effect === "def-buff") target.passiveDefMult *= 1 + passive.percent / 100;
+      else if (passive.effect === "evasion-buff") target.passiveEvasionBonus += passive.percent;
+      else if (passive.effect === "double-hit-chance") {
+        target.passiveDoubleHitChance = Math.max(target.passiveDoubleHitChance, passive.percent);
+      }
+      if (passive.turns !== undefined) {
+        target.passiveTurnsLeft = target.passiveTurnsLeft === null ? passive.turns : Math.max(target.passiveTurnsLeft, passive.turns);
+      }
+    }
+  }
+  return { combatants: next, activations };
 }
 
 /** Picks `count` distinct random creatures from the pool, excluding the given ids. */
@@ -160,6 +221,11 @@ export function calcDamage(
     // 5% more damage per SA level, plus flat bonus from potential
     finalPower = power * (1 + (saLevel - 1) * 0.05) + atkStats.sa * 10;
   }
+  // Thunder/Ice Tamer Set Effect ("Skill Damage +20%") — a flat multiplier on the move's own
+  // power, distinct from atkMultiplier (which scales the ATK stat instead). Set transiently by
+  // lib/tamerBuffs.ts's applyTamerBuffs before battle; absent/1 for every enemy and for a player
+  // creature without that set fully equipped.
+  finalPower *= attacker.skillDamageMult ?? 1;
 
   const atkScale = (atkStats.atk * atkMultiplier) / 100;
   const raw = finalPower * atkScale;
@@ -262,24 +328,46 @@ export function applyAction(
     const isSuperAttack = skill.id === actor.creature.skills[0]?.id; // SA is skill 1
     const targetStats = getEffectiveStats(target.creature);
 
-    // Check Evasion
-    if (Math.random() * 100 < targetStats.evasion) {
+    // Check Evasion — Hidden Potential's own evasion plus any active LR passive bonus
+    // (Magnagold's Draconic Power), which is why this reads target.passiveEvasionBonus and not
+    // just targetStats.evasion alone.
+    if (Math.random() * 100 < targetStats.evasion + target.passiveEvasionBonus) {
       logs.push({ id: nextLogId(), message: `${target.creature.name} evaded the attack!`, kind: "info" });
       return;
     }
 
-    const atkMult = actor.statBuffs?.multiplier ?? 1;
-    const defMult = target.statBuffs?.multiplier ?? 1;
+    const atkMult = (actor.statBuffs?.multiplier ?? 1) * actor.passiveAtkMult;
+    const defMult = (target.statBuffs?.multiplier ?? 1) * target.passiveDefMult;
 
-    const { dmg, isCrit } = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
-    target.currentHp = Math.max(0, target.currentHp - dmg);
-    target.guarding = false;
-    hits.push({ uid: target.uid, amount: dmg, isCrit, isHeal: false });
-    logs.push({
-      id: nextLogId(),
-      kind: "attack",
-      message: `${actor.creature.name} uses ${skill.name} on ${target.creature.name} for ${dmg} damage.`,
-    });
+    const landHit = (): boolean => {
+      const { dmg, isCrit } = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
+      target.currentHp = Math.max(0, target.currentHp - dmg);
+      target.guarding = false;
+      hits.push({ uid: target.uid, amount: dmg, isCrit, isHeal: false });
+      logs.push({
+        id: nextLogId(),
+        kind: "attack",
+        message: `${actor.creature.name} uses ${skill.name} on ${target.creature.name} for ${dmg} damage.`,
+      });
+
+      if (target.currentHp === 0 && target.isAlive) {
+        target.isAlive = false;
+        logs.push({ id: nextLogId(), kind: "defeat", message: `${target.creature.name} was defeated!` });
+        return false;
+      }
+      return true;
+    };
+
+    const targetSurvived = landHit();
+
+    // Dark Emperor (Abaddo's LR passive) — a genuinely separate second hit with its own damage
+    // roll, not a flat multiplier, landing in the same action rather than granting an extra turn
+    // (safer than touching the turn-advance loop both BattleScreen.tsx and RaidBattleScreen.tsx
+    // own copies of, for the same "attacks twice" flavor).
+    if (targetSurvived && actor.passiveDoubleHitChance > 0 && Math.random() * 100 < actor.passiveDoubleHitChance) {
+      logs.push({ id: nextLogId(), kind: "info", message: `Dark Emperor triggers — ${actor.creature.name} strikes again!` });
+      landHit();
+    }
 
     if (skill.name === "Holy Judgment" && Math.random() < 0.15) {
       applyStatus(target, "paralysis", 2);
@@ -296,11 +384,6 @@ export function applyAction(
         confusion: `${target.creature.name} is thrown into confusion!`,
       };
       logs.push({ id: nextLogId(), kind: "info", message: statusMsg[inflicts.status] });
-    }
-
-    if (target.currentHp === 0 && target.isAlive) {
-      target.isAlive = false;
-      logs.push({ id: nextLogId(), kind: "defeat", message: `${target.creature.name} was defeated!` });
     }
   };
 
@@ -360,6 +443,19 @@ export function applyAction(
   if (actor.statBuffs) {
     actor.statBuffs.turnsLeft--;
     if (actor.statBuffs.turnsLeft <= 0) actor.statBuffs = null;
+  }
+
+  // LR passive atk/def/evasion buffs count down on the buffed combatant's own turns, same as
+  // statBuffs above — passiveDoubleHitChance is deliberately excluded (see the BattleCombatant
+  // comment: no LR passive that grants it is turn-limited on the current roster).
+  if (actor.passiveTurnsLeft !== null) {
+    actor.passiveTurnsLeft--;
+    if (actor.passiveTurnsLeft <= 0) {
+      actor.passiveAtkMult = 1;
+      actor.passiveDefMult = 1;
+      actor.passiveEvasionBonus = 0;
+      actor.passiveTurnsLeft = null;
+    }
   }
 
   return { combatants: list, logs, hits };

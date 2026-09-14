@@ -4,6 +4,7 @@ import { QuickActions } from "@/components/hub/QuickActions";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
 import { MobileHeroHub } from "@/components/hub/MobileHeroHub";
 import { HubHeroCarousel } from "@/components/hub/HubHeroCarousel";
+import { HubStartButton } from "@/components/hub/HubStartButton";
 
 export default function HubPage() {
   return (
@@ -19,6 +20,10 @@ export default function HubPage() {
 
       <div className="hidden lg:block">
         <HubHeroCarousel />
+
+        <div className="mt-4">
+          <HubStartButton />
+        </div>
 
         <div className="mt-4 grid grid-cols-3 items-start gap-4">
           <div className="col-span-2 space-y-4">

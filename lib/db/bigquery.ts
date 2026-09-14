@@ -4,6 +4,14 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { GACHA_CREATURE_POOL, STARTER_CREATURES, applyAwakenBump } from "@/lib/gameData";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 import { creaturePower } from "@/lib/power";
+import {
+  currentOverclockWeekId,
+  getOverclockBossForWeekId,
+  previousOverclockWeekId,
+  OVERCLOCK_REWARD_CHIPSET_AMOUNT,
+  OVERCLOCK_REWARD_CHIPSET_ITEM_IDS,
+  OVERCLOCK_REWARD_LACRIMA_BY_RANK,
+} from "@/lib/overclock";
 
 const PROJECT_ID = process.env.BIGQUERY_PROJECT_ID ?? "project-scrappy-intelic";
 const DATASET = process.env.BIGQUERY_DATASET ?? "project_ether";
@@ -185,17 +193,29 @@ export interface AccountBundle {
     dailyShopPurchasesDate?: string;
     weeklyShopPurchases?: Record<string, number>;
     weeklyShopPurchasesDate?: string;
+    /** Events > Challenge daily attempt counters (e.g. Scarlet Inferno's shared Hard+Super pool)
+     * — see RaidEvent.dailyAttemptLimit in lib/raidBosses.ts and consumeChallengeAttempt in
+     * lib/store.ts. Same shape/reset-cadence as dailyEventAttempts above, just a separate field
+     * since that one was repurposed to weekly a while back. */
+    dailyChallengeAttempts?: Record<string, number>;
+    dailyChallengeAttemptsDate?: string;
     hasReceivedStarterGifts?: boolean;
   };
   currencies: {
     gold: number;
     gems: number;
     sealCoins: number;
+    /** Premium currency — see types/game.ts's Currencies.lacrima comment. This is its first real
+     * DB column; previously always read 0/undefined since nothing granted or spent it yet. */
+    lacrima: number;
     energy: number;
     energyMax: number;
     energyRegenMinutes: number;
     lastEnergyTickAt: number;
   };
+  /** This account's best single-run damage against the *current* week's Overclock boss, if any —
+   * see lib/overclock.ts. Null when they haven't attempted this week yet. */
+  overclock: { bestDamage: number; weekId: string } | null;
   dungeon: {
     highestStageCleared: number;
     currentWave: number;
@@ -219,11 +239,6 @@ export interface AccountBundle {
     superAttackLevel: number;
     potentialNodes: string[];
     awakenLevel: number;
-  }[];
-  equipment: {
-    equipmentId: string;
-    enhancementLevel: number;
-    equippedTo: string | null;
   }[];
   tamerEquipment: { itemId: string }[];
   items: { itemId: string; quantity: number }[];
@@ -284,7 +299,6 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     currencyResult,
     dungeonResult,
     creatureResult,
-    equipmentResult,
     tamerResult,
     itemsResult,
     tamerAvatarResult,
@@ -292,17 +306,18 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
     guildResult,
     invitesResult,
     formationsResult,
+    overclockResult,
   ] = await Promise.all([
       bq().query({
         query: `
-        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_shop_purchases, daily_shop_purchases_date, weekly_shop_purchases, weekly_shop_purchases_date, daily_missions_state, achievements, has_received_starter_gifts
+        SELECT id, username, display_name, title, avatar_key, level, exp, exp_to_next_level, is_admin, daily_event_attempts, daily_event_attempts_date, daily_shop_purchases, daily_shop_purchases_date, weekly_shop_purchases, weekly_shop_purchases_date, daily_challenge_attempts, daily_challenge_attempts_date, daily_missions_state, achievements, has_received_starter_gifts
         FROM ${table("users")} WHERE id = @userId LIMIT 1
       `,
         params: { userId },
       }),
       bq().query({
         query: `
-        SELECT gold, gems, seal_coins, energy, energy_max, energy_regen_minutes, UNIX_MILLIS(last_energy_tick_at) as last_energy_tick_at
+        SELECT gold, gems, seal_coins, lacrima, energy, energy_max, energy_regen_minutes, UNIX_MILLIS(last_energy_tick_at) as last_energy_tick_at
         FROM ${table("user_currencies")} WHERE user_id = @userId LIMIT 1
       `,
         params: { userId },
@@ -318,13 +333,6 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
         query: `
         SELECT creature_id, level, exp, exp_to_next_level, hp, atk, def, spd, is_in_hub_team, party_slot, copies, potential_nodes, super_attack_level, awaken_level
         FROM ${table("user_creatures")} WHERE user_id = @userId ORDER BY acquired_at
-      `,
-        params: { userId },
-      }),
-      bq().query({
-        query: `
-        SELECT equipment_id, enhancement_level, equipped_to
-        FROM ${table("user_equipment")} WHERE user_id = @userId ORDER BY acquired_at
       `,
         params: { userId },
       }),
@@ -384,6 +392,13 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       `,
         params: { userId },
       }),
+      bq().query({
+        query: `
+        SELECT best_damage, week_id
+        FROM ${table("overclock_scores")} WHERE user_id = @userId AND week_id = @weekId LIMIT 1
+      `,
+        params: { userId, weekId: currentOverclockWeekId() },
+      }),
     ]);
 
   const userRow = userResult[0][0];
@@ -391,7 +406,6 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const currencyRow = currencyResult[0][0];
   const dungeonRow = dungeonResult[0][0];
   const creatureRows = creatureResult[0];
-  const equipmentRows = equipmentResult[0];
   const tamerRows = tamerResult[0];
   const itemsRows = itemsResult[0];
   const tamerAvatarRows = tamerAvatarResult[0];
@@ -399,6 +413,7 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
   const guildRow = guildResult[0][0];
   const pendingGuildInvitesCount = invitesResult[0][0]?.count || 0;
   const formationRows = formationsResult[0];
+  const overclockRow = overclockResult[0][0];
 
   if (userRow.is_admin) {
     const ownedIds = new Set(creatureRows.map((row: any) => row.creature_id));
@@ -488,6 +503,8 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       dailyShopPurchasesDate: userRow.daily_shop_purchases_date || "",
       weeklyShopPurchases: userRow.weekly_shop_purchases ? JSON.parse(userRow.weekly_shop_purchases) : {},
       weeklyShopPurchasesDate: userRow.weekly_shop_purchases_date || "",
+      dailyChallengeAttempts: userRow.daily_challenge_attempts ? JSON.parse(userRow.daily_challenge_attempts) : {},
+      dailyChallengeAttemptsDate: userRow.daily_challenge_attempts_date || "",
       hasReceivedStarterGifts: Boolean(userRow.has_received_starter_gifts),
     },
     currencies: currencyRow
@@ -495,12 +512,14 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
           gold: currencyRow.gold,
           gems: currencyRow.gems,
           sealCoins: currencyRow.seal_coins ?? 0,
+          lacrima: currencyRow.lacrima ?? 0,
           energy: currencyRow.energy,
           energyMax: currencyRow.energy_max,
           energyRegenMinutes: currencyRow.energy_regen_minutes,
           lastEnergyTickAt: currencyRow.last_energy_tick_at,
         }
-      : { gold: 0, gems: 0, sealCoins: 0, energy: 0, energyMax: 240, energyRegenMinutes: 1, lastEnergyTickAt: Date.now() },
+      : { gold: 0, gems: 0, sealCoins: 0, lacrima: 0, energy: 0, energyMax: 240, energyRegenMinutes: 1, lastEnergyTickAt: Date.now() },
+    overclock: overclockRow ? { bestDamage: overclockRow.best_damage, weekId: overclockRow.week_id } : null,
     dungeon: dungeonRow
       ? {
           highestStageCleared: dungeonRow.highest_stage_cleared,
@@ -526,11 +545,6 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       superAttackLevel: row.super_attack_level ?? 1,
       potentialNodes: row.potential_nodes ? row.potential_nodes.split(",") : [],
       awakenLevel: row.awaken_level ?? 0,
-    })),
-    equipment: equipmentRows.map((row) => ({
-      equipmentId: row.equipment_id,
-      enhancementLevel: row.enhancement_level,
-      equippedTo: row.equipped_to ?? null,
     })),
     tamerEquipment: tamerRows.map((row) => ({ itemId: row.item_id })),
     items: itemsRows.map((row) => ({ itemId: row.item_id, quantity: row.quantity })),
@@ -581,13 +595,15 @@ export async function syncPlayerProgress(
     /** Wasn't synced at all before — gold/gems/sealCoins earned in a session only ever lived in
      * the browser, silently reverting to whatever was last written at account-creation time on
      * the next fresh hydrate. */
-    currencies?: { gold: number; gems: number; sealCoins: number; energy: number; lastEnergyTickAt: number };
+    currencies?: { gold: number; gems: number; sealCoins: number; lacrima: number; energy: number; lastEnergyTickAt: number };
     dailyEventAttempts?: Record<string, number>;
     dailyEventAttemptsDate?: string;
     dailyShopPurchases?: Record<string, number>;
     dailyShopPurchasesDate?: string;
     weeklyShopPurchases?: Record<string, number>;
     weeklyShopPurchasesDate?: string;
+    dailyChallengeAttempts?: Record<string, number>;
+    dailyChallengeAttemptsDate?: string;
     items?: { itemId: string; quantity: number }[];
     /** Whole-blob overwrite of users.daily_missions_state — see AccountBundle.dailyMissionsState's
      * comment. The client always sends its full current dailyTasks snapshot (not a delta), same
@@ -616,6 +632,8 @@ export async function syncPlayerProgress(
         ${opts.dailyShopPurchasesDate ? ', daily_shop_purchases_date = @dailyShopPurchasesDate' : ''}
         ${opts.weeklyShopPurchases ? ', weekly_shop_purchases = @weeklyShopPurchases' : ''}
         ${opts.weeklyShopPurchasesDate ? ', weekly_shop_purchases_date = @weeklyShopPurchasesDate' : ''}
+        ${opts.dailyChallengeAttempts ? ', daily_challenge_attempts = @dailyChallengeAttempts' : ''}
+        ${opts.dailyChallengeAttemptsDate ? ', daily_challenge_attempts_date = @dailyChallengeAttemptsDate' : ''}
         ${opts.dailyTasksState ? ', daily_missions_state = @dailyTasksState' : ''}
         WHERE id = @userId
       `,
@@ -630,6 +648,8 @@ export async function syncPlayerProgress(
         ...(opts.dailyShopPurchasesDate && { dailyShopPurchasesDate: opts.dailyShopPurchasesDate }),
         ...(opts.weeklyShopPurchases && { weeklyShopPurchases: JSON.stringify(opts.weeklyShopPurchases) }),
         ...(opts.weeklyShopPurchasesDate && { weeklyShopPurchasesDate: opts.weeklyShopPurchasesDate }),
+        ...(opts.dailyChallengeAttempts && { dailyChallengeAttempts: JSON.stringify(opts.dailyChallengeAttempts) }),
+        ...(opts.dailyChallengeAttemptsDate && { dailyChallengeAttemptsDate: opts.dailyChallengeAttemptsDate }),
         ...(opts.dailyTasksState && { dailyTasksState: JSON.stringify(opts.dailyTasksState) }),
       },
     }),
@@ -735,7 +755,7 @@ export async function syncPlayerProgress(
       bq().query({
         query: `
           UPDATE ${table("user_currencies")}
-          SET gold = @gold, gems = @gems, seal_coins = @sealCoins, energy = @energy, last_energy_tick_at = TIMESTAMP_MILLIS(@lastEnergyTickAt), updated_at = CURRENT_TIMESTAMP()
+          SET gold = @gold, gems = @gems, seal_coins = @sealCoins, lacrima = @lacrima, energy = @energy, last_energy_tick_at = TIMESTAMP_MILLIS(@lastEnergyTickAt), updated_at = CURRENT_TIMESTAMP()
           WHERE user_id = @userId
         `,
         params: { userId, ...opts.currencies },
@@ -1773,6 +1793,15 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<vo
   });
 }
 
+/** Persists the player's chosen profile picture — see AVATAR_CATALOG in lib/gameData.ts. Caller
+ * (the API route) already validates avatarKey against that catalog before this runs. */
+export async function setUserAvatar(userId: string, avatarKey: string): Promise<void> {
+  await bq().query({
+    query: `UPDATE ${table("users")} SET avatar_key = @avatarKey, updated_at = CURRENT_TIMESTAMP() WHERE id = @userId`,
+    params: { userId, avatarKey },
+  });
+}
+
 /** Only ever called with at least one of the three fields set (enforced by the API route) — built
  * dynamically so an omitted field never passes an untyped null param, same reasoning as
  * syncPlayerProgress's dungeon-state UPDATE above. */
@@ -2089,4 +2118,230 @@ export async function claimDailyLoginForUser(
   const items = getDailyLoginRewardItems(dayOfMonth);
   await grantItemsToUser(userId, items);
   return items;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Overclock — weekly ranked boss (see lib/overclock.ts for the boss rotation/week-id helpers).
+// No cron infrastructure exists in this project (verified — no vercel.json, no scheduler), so the
+// leaderboard snapshot and the top-3 reward payout are both computed lazily, the first time
+// anyone's read happens to land after the relevant window has passed — the exact same "ensureFresh
+// on read" philosophy every other daily/weekly reset in this codebase already uses client-side.
+// ---------------------------------------------------------------------------------------------
+
+const OVERCLOCK_SNAPSHOT_REFRESH_MS = 2 * 60 * 60 * 1000; // 2 hours
+const OVERCLOCK_LEADERBOARD_SIZE = 100;
+
+export interface OverclockLeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  displayName: string;
+  damage: number;
+}
+
+export interface OverclockHistoryEntry {
+  weekId: string;
+  bossId: string;
+  bossName: string;
+  bestDamage: number;
+  rank: number | null;
+}
+
+/** Adds (not sets) to a user's Lacrima balance — Lacrima's first real mutator now that it has a
+ * DB column, mirroring the additive shape of grantItemToUser rather than setUserCurrency's
+ * absolute-set shape (that one's for admin/debug tools; reward payouts should never clobber a
+ * balance the player may have earned more of since). */
+export async function addLacrimaToUser(userId: string, amount: number): Promise<void> {
+  await bq().query({
+    query: `UPDATE ${table("user_currencies")} SET lacrima = lacrima + @amount, updated_at = CURRENT_TIMESTAMP() WHERE user_id = @userId`,
+    params: { userId, amount },
+  });
+}
+
+/** Records one fight's damage as this user's best for the week, if it beats their existing best
+ * (or they have none yet this week) — same MERGE/GREATEST upsert shape as every other "only ever
+ * moves up" progress field in this file (e.g. syncPlayerProgress's dungeonHighestStageCleared). */
+export async function submitOverclockScore(userId: string, weekId: string, bossId: string, damage: number): Promise<void> {
+  await bq().query({
+    query: `
+      MERGE ${table("overclock_scores")} AS target
+      USING (SELECT @userId AS user_id, @weekId AS week_id) AS source
+      ON target.user_id = source.user_id AND target.week_id = source.week_id
+      WHEN MATCHED THEN
+        UPDATE SET best_damage = GREATEST(target.best_damage, @damage), updated_at = CURRENT_TIMESTAMP()
+      WHEN NOT MATCHED THEN
+        INSERT (user_id, week_id, boss_id, best_damage, updated_at) VALUES (@userId, @weekId, @bossId, @damage, CURRENT_TIMESTAMP())
+    `,
+    params: { userId, weekId, bossId, damage },
+  });
+}
+
+/** The one-time top-3 payout for a week that just closed — checked (and, the first time, run)
+ * every time anyone reads the CURRENT week's leaderboard, gated by overclock_rewards_granted so it
+ * only ever actually pays out once per week regardless of how many reads race here. Reads straight
+ * from overclock_scores (not the snapshot table) so this is correct even if nobody ever opened the
+ * leaderboard during the week that just ended. */
+async function grantOverclockRewardsIfDue(currentWeekId: string): Promise<void> {
+  const prevWeekId = previousOverclockWeekId(currentWeekId);
+
+  const [alreadyProcessedRows] = await bq().query({
+    query: `SELECT 1 AS x FROM ${table("overclock_rewards_granted")} WHERE week_id = @prevWeekId LIMIT 1`,
+    params: { prevWeekId },
+  });
+  if (alreadyProcessedRows.length > 0) return;
+
+  const [topRows] = await bq().query({
+    query: `
+      SELECT s.user_id, s.best_damage
+      FROM ${table("overclock_scores")} s
+      JOIN ${table("users")} u ON u.id = s.user_id
+      WHERE s.week_id = @prevWeekId AND u.is_admin = false AND u.is_banned = false
+      ORDER BY s.best_damage DESC
+      LIMIT 3
+    `,
+    params: { prevWeekId },
+  });
+
+  if (topRows.length === 0) {
+    // Nobody played that week — write a sentinel so this check short-circuits from now on
+    // instead of re-running the query above on every single leaderboard read forever.
+    await bq().query({
+      query: `INSERT INTO ${table("overclock_rewards_granted")} (week_id, user_id, rank, granted_at) VALUES (@prevWeekId, '__none__', 0, CURRENT_TIMESTAMP())`,
+      params: { prevWeekId },
+    });
+    return;
+  }
+
+  const chipsetGrants = OVERCLOCK_REWARD_CHIPSET_ITEM_IDS.map((itemId) => ({ itemId, quantity: OVERCLOCK_REWARD_CHIPSET_AMOUNT }));
+  for (let i = 0; i < topRows.length; i++) {
+    const rank = (i + 1) as 1 | 2 | 3;
+    const userId = topRows[i].user_id as string;
+    await Promise.all([
+      addLacrimaToUser(userId, OVERCLOCK_REWARD_LACRIMA_BY_RANK[rank]),
+      grantItemsToUser(userId, chipsetGrants),
+      bq().query({
+        query: `INSERT INTO ${table("overclock_rewards_granted")} (week_id, user_id, rank, granted_at) VALUES (@prevWeekId, @userId, @rank, CURRENT_TIMESTAMP())`,
+        params: { prevWeekId, userId, rank },
+      }),
+    ]);
+  }
+}
+
+interface OverclockScoreJoinRow {
+  user_id: string;
+  best_damage: number;
+  username: string;
+  display_name: string | null;
+}
+
+/** Recomputes the leaderboard snapshot for `weekId` from live overclock_scores — sorted in JS
+ * (mirrors getGlobalRanking's own "no SQL LIMIT/ORDER BY, sort in JS" style), then fully replaces
+ * that week's snapshot rows (a delete + reinsert, not a MERGE, since this is a wholesale
+ * recompute, not a per-row upsert). */
+async function computeAndStoreOverclockSnapshot(weekId: string): Promise<{ rankings: OverclockLeaderboardEntry[]; computedAt: number }> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT s.user_id, s.best_damage, u.username, u.display_name
+      FROM ${table("overclock_scores")} s
+      JOIN ${table("users")} u ON u.id = s.user_id
+      WHERE s.week_id = @weekId AND u.is_admin = false AND u.is_banned = false
+    `,
+    params: { weekId },
+  });
+
+  const rankings: OverclockLeaderboardEntry[] = (rows as OverclockScoreJoinRow[])
+    .map((r) => ({ userId: r.user_id, username: r.username, displayName: r.display_name || r.username, damage: r.best_damage }))
+    .sort((a, b) => b.damage - a.damage)
+    .slice(0, OVERCLOCK_LEADERBOARD_SIZE)
+    .map((r, i) => ({ rank: i + 1, ...r }));
+
+  await bq().query({ query: `DELETE FROM ${table("overclock_leaderboard_snapshot")} WHERE week_id = @weekId`, params: { weekId } });
+  if (rankings.length > 0) {
+    await bq().query({
+      query: `
+        INSERT INTO ${table("overclock_leaderboard_snapshot")} (week_id, rank, user_id, username, display_name, damage, computed_at)
+        SELECT @weekId, rank, userId, username, displayName, damage, CURRENT_TIMESTAMP()
+        FROM UNNEST(@rows)
+      `,
+      params: { weekId, rows: rankings },
+      types: { weekId: "STRING", rows: [{ rank: "INT64", userId: "STRING", username: "STRING", displayName: "STRING", damage: "INT64" }] },
+    });
+  }
+  return { rankings, computedAt: Date.now() };
+}
+
+/** The read path for the Overclock pre-battle hub — recomputes the snapshot if it's missing or
+ * more than 2 hours stale (see OVERCLOCK_SNAPSHOT_REFRESH_MS), and along the way grants the
+ * previous week's top-3 rewards exactly once if that hasn't happened yet. `nextUpdateAt` is what
+ * the UI's countdown counts down to. */
+interface OverclockSnapshotRow {
+  rank: number;
+  user_id: string;
+  username: string;
+  display_name: string;
+  damage: number;
+  computed_at: number;
+}
+
+export async function getOverclockLeaderboard(
+  weekId: string
+): Promise<{ rankings: OverclockLeaderboardEntry[]; computedAt: number; nextUpdateAt: number }> {
+  await grantOverclockRewardsIfDue(weekId);
+
+  const [snapRowsRaw] = await bq().query({
+    query: `
+      SELECT rank, user_id, username, display_name, damage, UNIX_MILLIS(computed_at) as computed_at
+      FROM ${table("overclock_leaderboard_snapshot")} WHERE week_id = @weekId ORDER BY rank ASC
+    `,
+    params: { weekId },
+  });
+  const snapRows = snapRowsRaw as OverclockSnapshotRow[];
+
+  const latestComputedAt = snapRows.length > 0 ? Math.max(...snapRows.map((r) => r.computed_at)) : 0;
+  const isStale = Date.now() - latestComputedAt > OVERCLOCK_SNAPSHOT_REFRESH_MS;
+
+  if (snapRows.length === 0 || isStale) {
+    const { rankings, computedAt } = await computeAndStoreOverclockSnapshot(weekId);
+    return { rankings, computedAt, nextUpdateAt: computedAt + OVERCLOCK_SNAPSHOT_REFRESH_MS };
+  }
+
+  const rankings: OverclockLeaderboardEntry[] = snapRows.map((r) => ({
+    rank: r.rank,
+    userId: r.user_id,
+    username: r.username,
+    displayName: r.display_name,
+    damage: r.damage,
+  }));
+  return { rankings, computedAt: latestComputedAt, nextUpdateAt: latestComputedAt + OVERCLOCK_SNAPSHOT_REFRESH_MS };
+}
+
+interface OverclockHistoryRow {
+  week_id: string;
+  boss_id: string;
+  best_damage: number;
+  rank: number | null;
+}
+
+/** Past weeks' results for one player — the pre-battle hub's "previous weeks" strip. Excludes the
+ * current week (that's shown live via AccountBundle.overclock instead). */
+export async function getOverclockHistoryForUser(userId: string, limit = 8): Promise<OverclockHistoryEntry[]> {
+  const [rows] = await bq().query({
+    query: `
+      SELECT s.week_id, s.boss_id, s.best_damage, r.rank
+      FROM ${table("overclock_scores")} s
+      LEFT JOIN ${table("overclock_leaderboard_snapshot")} r ON r.week_id = s.week_id AND r.user_id = s.user_id
+      WHERE s.user_id = @userId AND s.week_id != @currentWeekId
+      ORDER BY s.week_id DESC
+      LIMIT @limit
+    `,
+    params: { userId, currentWeekId: currentOverclockWeekId(), limit },
+    types: { userId: "STRING", currentWeekId: "STRING", limit: "INT64" },
+  });
+  return (rows as OverclockHistoryRow[]).map((r) => ({
+    weekId: r.week_id,
+    bossId: r.boss_id,
+    bossName: getOverclockBossForWeekId(r.week_id).name,
+    bestDamage: r.best_damage,
+    rank: r.rank ?? null,
+  }));
 }

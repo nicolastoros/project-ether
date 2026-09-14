@@ -32,7 +32,9 @@ export default function MaintenancePage() {
           <button
             onClick={async () => {
               await signOut({ redirect: false });
-              router.replace("/");
+              // "/" is the marketing landing now — a just-logged-out player wants the login form
+              // back, not the pitch (see app/play/page.tsx).
+              router.replace("/play");
             }}
             className="text-xs text-zinc-500 transition-colors hover:text-foreground"
           >

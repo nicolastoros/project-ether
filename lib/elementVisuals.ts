@@ -21,6 +21,19 @@ export const ELEMENT_GRADIENT: Record<Element, string> = {
   Neutral: "from-slate-400/80 via-slate-300/55 to-transparent",
 };
 
+/** Filename color prefix for this element's Orb icons (public/assets/objects/orbs/<color>[_size]_orb.png)
+ * — e.g. HiddenPotentialScreen's orb costs/balances, matching ExtraTab.tsx's own local copy of
+ * this same mapping for the Hidden Training event rewards. */
+export const ELEMENT_ORB_COLOR: Record<Element, string> = {
+  Fire: "red",
+  Water: "blue",
+  Nature: "green",
+  Light: "yellow",
+  Dark: "purple",
+  Electric: "cyan",
+  Neutral: "gray",
+};
+
 /** Bolder, full-bleed version of ELEMENT_GRADIENT for hero/banner surfaces. */
 export const ELEMENT_HERO_GRADIENT: Record<Element, string> = {
   Fire: "from-orange-200 via-amber-100 to-rose-50",

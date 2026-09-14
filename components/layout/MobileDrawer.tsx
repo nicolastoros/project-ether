@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -61,6 +62,33 @@ export function MobileDrawer() {
                   <ul className="space-y-0.5">
                     {group.items.map(({ href, label, icon: Icon }) => {
                       const isActive = pathname.startsWith(href);
+
+                      // Same branded-button treatment as Sidebar.tsx's own "/start" special case —
+                      // it's the door into every game mode, not just another row in this list.
+                      if (href === "/start") {
+                        return (
+                          <li key={href}>
+                            <Link href={href} onClick={closeDrawer} className="relative block px-2.5 py-2">
+                              <motion.div
+                                animate={{
+                                  scale: [1, 1.035, 1],
+                                  filter: [
+                                    "drop-shadow(0 0 4px rgba(255,184,77,0.5))",
+                                    "drop-shadow(0 0 16px rgba(255,184,77,0.85))",
+                                    "drop-shadow(0 0 4px rgba(255,184,77,0.5))",
+                                  ],
+                                }}
+                                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Image src="/assets/ui/start_button.png" alt="Start" width={2172} height={724} className="h-auto w-full" />
+                              </motion.div>
+                              {hasUnseenCampaign && <NewBadge className="-right-1 -top-1" />}
+                            </Link>
+                          </li>
+                        );
+                      }
+
                       return (
                         <li key={href}>
                           <Link
@@ -75,7 +103,7 @@ export function MobileDrawer() {
                           >
                             <div className="relative">
                               <Icon className="h-4 w-4 shrink-0" />
-                              {((href === "/tamer" && hasUnseenTamer) || (href === "/campaign" && hasUnseenCampaign) || (href === "/guild" && pendingGuildInvitesCount > 0)) && (
+                              {((href === "/tamer" && hasUnseenTamer) || (href === "/guild" && pendingGuildInvitesCount > 0)) && (
                                 <NewBadge className="-right-2 -top-2" />
                               )}
                             </div>
@@ -95,7 +123,9 @@ export function MobileDrawer() {
                   closeDrawer();
                   await signOut({ redirect: false });
                   logout();
-                  router.replace("/");
+                  // "/" is the marketing landing now — a just-logged-out player wants the login
+                  // form back, not the pitch (see app/play/page.tsx).
+                  router.replace("/play");
                 }}
                 className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs text-zinc-600 transition-colors hover:bg-arcade-panel-light hover:text-red-500"
               >

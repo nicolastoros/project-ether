@@ -26,9 +26,9 @@ export function CreatureShowcase() {
   // Briefly true right after login/registration, before the account bundle finishes loading.
   if (!creature) return null;
 
-  // The Tamer stays put here no matter which Digimon is active below (swapping active creature
+  // The Tamer stays put here no matter which creature is active below (swapping active creature
   // via the hub-team row, or leveling/evolving it) — it's the constant "partner" pairing, not
-  // tied to a specific Digimon.
+  // tied to a specific creature.
   const equippedTamer = TAMER_CATALOG.find((t) => t.id === equippedTamerId) ?? TAMER_CATALOG[0];
 
   return (
@@ -56,7 +56,7 @@ export function CreatureShowcase() {
           ELEMENT_GRADIENT[creature.element]
         )}
       >
-        {/* Taller than the Digimon's h-32 box below — the Tamer is the player's own avatar and
+        {/* Taller than the creature's h-32 box below — the Tamer is the player's own avatar and
             should read as the more prominent figure in the scene, not a same-size sidekick. */}
         <div className="flex h-44 w-44 shrink-0 items-center justify-center">
           <TamerSprite
