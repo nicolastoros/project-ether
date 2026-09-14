@@ -12,7 +12,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
-import { cn, formatNumber, todayDateString } from "@/lib/utils";
+import { cn, formatNumber, thisWeekStartDateString } from "@/lib/utils";
 import { useSyncGate } from "@/lib/useSyncGate";
 
 const MAX_PARTY = 4;
@@ -77,8 +77,8 @@ export function ChallengeTab() {
           // keep tapping Rematch forever on your first Ticket). If none are left, drop all the way
           // back to the boss list (not just the picker — see onExit's own comment) so the
           // "No Tickets left today" banner is what the player actually sees.
-          if (selectedEvent?.dailyAttemptLimit !== undefined) {
-            if (!consumeChallengeAttempt(selectedEvent.id, selectedEvent.dailyAttemptLimit)) {
+          if (selectedEvent?.weeklyAttemptLimit !== undefined) {
+            if (!consumeChallengeAttempt(selectedEvent.id, selectedEvent.weeklyAttemptLimit)) {
               setFightingBoss(null);
               setPickingBoss(null);
               setPlayerIds([]);
@@ -145,12 +145,13 @@ export function ChallengeTab() {
     const eventBosses = RAID_BOSSES.filter((b) => selectedEvent.bossIds.includes(b.id));
     // Same "don't trust the raw stored count, re-check the date first" rule as every other daily/
     // weekly attempt counter in this app (see ExtraTab's identical comment) — otherwise this would
-    // show yesterday's leftover count instead of today's fresh one until an attempt is actually made.
-    const attemptsUsedToday =
-      selectedEvent.dailyAttemptLimit !== undefined && profile.dailyChallengeAttemptsDate === todayDateString()
+    // show last week's leftover count instead of this week's fresh one until an attempt is
+    // actually made.
+    const attemptsUsedThisWeek =
+      selectedEvent.weeklyAttemptLimit !== undefined && profile.dailyChallengeAttemptsDate === thisWeekStartDateString()
         ? profile.dailyChallengeAttempts?.[selectedEvent.id] ?? 0
         : 0;
-    const attemptsLeft = selectedEvent.dailyAttemptLimit !== undefined ? selectedEvent.dailyAttemptLimit - attemptsUsedToday : null;
+    const attemptsLeft = selectedEvent.weeklyAttemptLimit !== undefined ? selectedEvent.weeklyAttemptLimit - attemptsUsedThisWeek : null;
     const outOfAttempts = attemptsLeft !== null && attemptsLeft <= 0;
 
     return (
@@ -179,8 +180,8 @@ export function ChallengeTab() {
             )}
           >
             {outOfAttempts
-              ? "No Tickets left today — come back tomorrow"
-              : `${attemptsLeft}/${selectedEvent.dailyAttemptLimit} Tickets left today (shared across every tier below)`}
+              ? "No Tickets left this week — come back after the weekly reset"
+              : `${attemptsLeft}/${selectedEvent.weeklyAttemptLimit} Tickets left this week (shared across every tier below)`}
           </div>
         )}
 
@@ -229,8 +230,8 @@ export function ChallengeTab() {
                 className="w-full sm:w-32 shrink-0 z-10 mt-2 sm:mt-0"
                 disabled={energy < boss.staminaCost || outOfAttempts}
                 onClick={() => {
-                  if (selectedEvent.dailyAttemptLimit !== undefined) {
-                    if (!consumeChallengeAttempt(selectedEvent.id, selectedEvent.dailyAttemptLimit)) return;
+                  if (selectedEvent.weeklyAttemptLimit !== undefined) {
+                    if (!consumeChallengeAttempt(selectedEvent.id, selectedEvent.weeklyAttemptLimit)) return;
                   }
                   setPickingBoss(boss);
                   setPlayerIds([]);

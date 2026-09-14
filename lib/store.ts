@@ -106,16 +106,18 @@ function ensureFreshWeeklyShopPurchases(
   return { purchases: {}, date: thisWeek };
 }
 
-/** Same reset-on-stale-date pattern as ensureFreshShopPurchases, for RaidEvent.dailyAttemptLimit
- * (Events > Challenge, e.g. Scarlet Inferno's 2-attempts-shared-between-Hard-and-Super pool) —
- * keyed by event id so multiple daily-limited events can't stomp on each other's counts. */
-function ensureFreshDailyChallengeAttempts(
+/** Weekly counterpart to ensureFreshShopPurchases/ensureFreshWeeklyEventAttempts, for
+ * RaidEvent.weeklyAttemptLimit (Events > Challenge, e.g. Scarlet Inferno's 3-attempts-a-week pool
+ * shared between Hard and Super) — keyed by event id so multiple weekly-limited events can't stomp
+ * on each other's counts. Was genuinely daily (2/day) until it turned out to be far too easy to
+ * farm a full armor set that way; 3/week is the intentionally tighter replacement. */
+function ensureFreshWeeklyChallengeAttempts(
   attempts: Record<string, number>,
   attemptsDate: string
 ): { attempts: Record<string, number>; date: string } {
-  const today = todayDateString();
-  if (attemptsDate === today) return { attempts, date: today };
-  return { attempts: {}, date: today };
+  const thisWeek = thisWeekStartDateString();
+  if (attemptsDate === thisWeek) return { attempts, date: thisWeek };
+  return { attempts: {}, date: thisWeek };
 }
 
 function applyExpGain(creature: Creature, gained: number): Creature {
@@ -617,10 +619,10 @@ interface GameState {
    * ORB_EVENTS) — false (no-op) if this event has already used all `maxAttempts` this week.
    * Resets automatically the first time it's called after local Monday. */
   consumeEventAttempt: (eventId: string, maxAttempts: number) => boolean;
-  /** Spends one of today's attempts for an Events > Challenge event with a
-   * RaidEvent.dailyAttemptLimit (e.g. Scarlet Inferno — Hard and Super share the same pool) —
-   * false (no-op) if this event has already used all `maxAttempts` today. Resets automatically the
-   * first time it's called after local midnight. */
+  /** Spends one of this week's attempts for an Events > Challenge event with a
+   * RaidEvent.weeklyAttemptLimit (e.g. Scarlet Inferno — Hard and Super share the same pool) —
+   * false (no-op) if this event has already used all `maxAttempts` this week. Resets automatically
+   * the first time it's called after local Monday. */
   consumeChallengeAttempt: (eventId: string, maxAttempts: number) => boolean;
 }
 
@@ -1443,7 +1445,7 @@ export const useGameStore = create<GameState>()(
 
       consumeChallengeAttempt: (eventId, maxAttempts) => {
         const state = get();
-        const { attempts, date } = ensureFreshDailyChallengeAttempts(
+        const { attempts, date } = ensureFreshWeeklyChallengeAttempts(
           state.profile.dailyChallengeAttempts ?? {},
           state.profile.dailyChallengeAttemptsDate ?? ""
         );

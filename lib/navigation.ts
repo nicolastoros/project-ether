@@ -86,9 +86,11 @@ export function getNavGroups(isAdmin: boolean): NavGroup[] {
   return isAdmin ? [...NAV_GROUPS, ADMIN_NAV_GROUP] : NAV_GROUPS;
 }
 
+// "/party" used to be a 4th slot here but never had a real route behind it — a permanent dead
+// link on mobile's bottom bar. Removed rather than repointed; BottomNav.tsx's flex-1 items and
+// the trailing Menu button both reflow fine with 3.
 export const BOTTOM_NAV_ITEMS: NavItem[] = [
   { href: "/hub", label: "Hub", icon: Castle },
   { href: "/campaign", label: "Campaign", icon: Map },
   { href: "/gacha", label: "Summon", icon: Sparkles },
-  { href: "/party", label: "Party", icon: Users },
 ];

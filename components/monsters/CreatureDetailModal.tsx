@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, ChevronDown, Gauge, Star, X } from "lucide-react";
+import { ArrowUp, ChevronDown, Flame, Gauge, Sparkles, Star, X } from "lucide-react";
 import type { Creature, Skill } from "@/types/game";
 import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { HUB_TEAM_SIZE, useGameStore } from "@/lib/store";
@@ -183,6 +183,55 @@ export function CreatureDetailModal({
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* LR-exclusive powers — same gold (Ultimate) / neon-blue (Passive) color language
+                  as the actual in-battle banners (UltimateAttackIntro.tsx / LrPassiveIntro.tsx)
+                  and the landing page's own showcase, so a player recognizes these as "the same
+                  thing that pops up mid-battle" rather than a new visual language to learn. Shown
+                  directly (not behind a toggle) — this is a headline reason to own an LR, not a
+                  footnote like the regular skill list below. */}
+              {(creature.lrPassive || creature.ultimateSkill) && (
+                <div className="mt-3 space-y-2">
+                  {creature.lrPassive && (
+                    <div className="relative overflow-hidden rounded-2xl border-2 border-sky-400/60 bg-gradient-to-b from-[#030913] via-[#0a2547] to-[#030913] p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-sky-300 bg-black/70 shadow-[0_0_10px_rgba(56,189,248,0.7)]">
+                          <Sparkles className="h-4 w-4 text-sky-300" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-sky-300">LR Passive</p>
+                          <p className="truncate text-sm font-bold text-white">{creature.lrPassive.name}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[11px] leading-snug text-sky-100/80">{creature.lrPassive.description}</p>
+                    </div>
+                  )}
+                  {creature.ultimateSkill && (
+                    <div className="relative overflow-hidden rounded-2xl border-2 border-gold-bright/60 bg-gradient-to-b from-[#1a1206] via-black to-black p-3">
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,_rgba(255,184,77,0.16)_0%,_transparent_70%)]" />
+                      <div className="relative flex items-center gap-2">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-gold-bright bg-black/70 shadow-[0_0_10px_rgba(255,184,77,0.7)]">
+                          <Flame className="h-4 w-4 text-gold-bright" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-gold-bright/80">Ultimate Attack</p>
+                          <p
+                            className="truncate text-sm font-bold text-transparent"
+                            style={{
+                              backgroundImage: "linear-gradient(180deg, #ffffff 0%, var(--color-gold-bright) 55%, var(--color-gold-ink) 100%)",
+                              WebkitBackgroundClip: "text",
+                              backgroundClip: "text",
+                            }}
+                          >
+                            {creature.ultimateSkill.name}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="relative mt-2 text-[11px] leading-snug text-amber-100/80">{creature.ultimateSkill.description}</p>
+                    </div>
+                  )}
                 </div>
               )}
 

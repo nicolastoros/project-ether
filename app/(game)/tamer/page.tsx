@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Lock, Check, Pause, RotateCw, Copy } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { ITEM_CATALOG, TAMER_EQUIPMENT_CATALOG, TAMER_CATALOG, TAMER_SET_EFFECTS, DUNGEON_STAGES } from "@/lib/gameData";
-import { grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
+import { consumeItemOnServer, grantTamerEquipmentOnServer, syncProgressToServer } from "@/lib/syncProgress";
 import { getActiveTamerSetEffects } from "@/lib/tamerBuffs";
 import type { TamerAvatar, TamerEquipment, TamerSlotType } from "@/types/game";
 import { GlowPanel } from "@/components/ui/GlowPanel";
@@ -97,6 +97,19 @@ export default function TamerPage() {
     const crafted = craftTamerEquipment(itemId);
     if (crafted) {
       grantTamerEquipmentOnServer(itemId);
+      // craftTamerEquipment (lib/store.ts) already deducted these costs from local ownedItems —
+      // but that's local-only. Every other spend flow in this game (Gacha, Shop, Hidden Potential,
+      // Awaken) pairs its local consumeItem with a consumeItemOnServer call for exactly this
+      // reason; crafting was the one place missing it, so the chipset cost never actually left
+      // user_items server-side — a fresh hydrate (new session, another device, just reloading)
+      // silently restored the "spent" chipsets, making every craft here effectively free after the
+      // first page reload. Confirmed live on a real account.
+      const catalogItem = TAMER_EQUIPMENT_CATALOG.find((t) => t.id === itemId);
+      if (catalogItem?.source.kind === "craft-item") {
+        for (const cost of catalogItem.source.costs) {
+          consumeItemOnServer(cost.itemId, cost.quantity);
+        }
+      }
       tickMissionProgress("task-enhance");
       syncProgressToServer();
     }

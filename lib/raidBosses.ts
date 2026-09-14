@@ -394,10 +394,12 @@ export interface RaidEvent {
   description: string;
   bannerImage: string | null;
   bossIds: string[];
-  /** Total attempts per local day, shared across every boss in this event (starting any of them
-   * consumes from the same pool) — see consumeChallengeAttempt in lib/store.ts. Undefined means
-   * unlimited (still gated by staminaCost like every other raid boss). */
-  dailyAttemptLimit?: number;
+  /** Total attempts per local week (resets Monday), shared across every boss in this event
+   * (starting any of them consumes from the same pool) — see consumeChallengeAttempt/
+   * ensureFreshWeeklyChallengeAttempts in lib/store.ts. Undefined means unlimited (still gated by
+   * staminaCost like every other raid boss). Was 2/day; too easy to farm a full armor set that
+   * way, tightened to 3/week. */
+  weeklyAttemptLimit?: number;
 }
 
 // Lives here (not app/(game)/raid/page.tsx) so the Hub's hero carousel can feature these
@@ -450,41 +452,41 @@ export const CHALLENGE_EVENTS: RaidEvent[] = [
   {
     id: "event-crimson-set",
     name: "Scarlet Inferno! Crimson Armor Forge",
-    description: "2 attempts a day, shared between Hard and Super. Win Blue Chipsets to craft Crimson armor in the Shop.",
+    description: "3 attempts a week, shared between Hard and Super. Win Blue Chipsets to craft Crimson armor in the Shop.",
     bannerImage: "/assets/events/crimson_set.png",
     bossIds: ["raid-crimson-trial-hard", "raid-crimson-trial-super"],
-    dailyAttemptLimit: 2,
+    weeklyAttemptLimit: 3,
   },
   {
     id: "event-aqua-set",
     name: "Surging Tides! Aqua Armor Forge",
-    description: "2 attempts a day, shared between Hard and Super — both harder than Scarlet Inferno's own tiers. Win Blue + Purple Chipsets to craft Aqua armor in the Shop.",
+    description: "3 attempts a week, shared between Hard and Super — both harder than Scarlet Inferno's own tiers. Win Blue + Purple Chipsets to craft Aqua armor in the Shop.",
     bannerImage: "/assets/events/aqua_set.png",
     bossIds: ["raid-aqua-trial-hard", "raid-aqua-trial-super"],
-    dailyAttemptLimit: 2,
+    weeklyAttemptLimit: 3,
   },
   {
     id: "event-wind-set",
     name: "Raging Gales! Wind Armor Forge",
-    description: "2 attempts a day, shared between Hard and Super — homologous to Aqua Trial in cost, rewards, and difficulty. Win Blue + Purple Chipsets to craft Wind armor in the Shop.",
+    description: "3 attempts a week, shared between Hard and Super — homologous to Aqua Trial in cost, rewards, and difficulty. Win Blue + Purple Chipsets to craft Wind armor in the Shop.",
     bannerImage: "/assets/events/wind_set.png",
     bossIds: ["raid-wind-trial-hard", "raid-wind-trial-super"],
-    dailyAttemptLimit: 2,
+    weeklyAttemptLimit: 3,
   },
   {
     id: "event-thunder-set",
     name: "Thunderclap Fury! Thunder Armor Forge",
-    description: "2 attempts a day, shared between Super and Super2 — no Hard tier, both harder than every other set's own tiers. Win Blue + Purple + Green Chipsets to craft Thunder armor in the Shop.",
+    description: "3 attempts a week, shared between Super and Super2 — no Hard tier, both harder than every other set's own tiers. Win Blue + Purple + Green Chipsets to craft Thunder armor in the Shop.",
     bannerImage: "/assets/events/thunder_set.png",
     bossIds: ["raid-thunder-trial-super", "raid-thunder-trial-super2"],
-    dailyAttemptLimit: 2,
+    weeklyAttemptLimit: 3,
   },
   {
     id: "event-ice-set",
     name: "Subzero Cataclysm! Ice Armor Forge",
-    description: "2 attempts a day, shared between Super and Super2 — homologous to Thunderclap Fury in cost, rewards, and difficulty. Win Blue + Purple + Green Chipsets to craft Ice armor in the Shop.",
+    description: "3 attempts a week, shared between Super and Super2 — homologous to Thunderclap Fury in cost, rewards, and difficulty. Win Blue + Purple + Green Chipsets to craft Ice armor in the Shop.",
     bannerImage: "/assets/events/ice_set.png",
     bossIds: ["raid-ice-trial-super", "raid-ice-trial-super2"],
-    dailyAttemptLimit: 2,
+    weeklyAttemptLimit: 3,
   },
 ];

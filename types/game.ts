@@ -318,10 +318,13 @@ export interface UserProfile {
    * see lib/store.ts's ensureFreshWeeklyShopPurchases. */
   weeklyShopPurchases?: Record<string, number>;
   weeklyShopPurchasesDate?: string;
-  /** Events > Challenge daily attempt counters, keyed by event id (e.g. "event-crimson-set") —
-   * enforces RaidEvent.dailyAttemptLimit. Genuinely daily (unlike dailyEventAttempts above, which
-   * was repurposed to weekly) — resets at local midnight, see lib/store.ts's
-   * ensureFreshDailyChallengeAttempts. */
+  /** Events > Challenge attempt counters, keyed by event id (e.g. "event-crimson-set") — enforces
+   * RaidEvent.weeklyAttemptLimit. Field/DB column names kept as "daily*" (avoids a migration for a
+   * rename with zero behavior change) even though this resets weekly, not daily — repurposed the
+   * same way dailyEventAttempts above was for Orb Training: 2/day (too easy to farm a full armor
+   * set) became 3/week. See lib/store.ts's ensureFreshWeeklyChallengeAttempts for where "fresh" is
+   * actually decided; anything reading this Record directly must run that same weekly-boundary
+   * check itself first (see ChallengeTab.tsx). */
   dailyChallengeAttempts?: Record<string, number>;
   dailyChallengeAttemptsDate?: string;
   hasReceivedStarterGifts?: boolean;

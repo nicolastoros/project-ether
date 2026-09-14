@@ -193,10 +193,10 @@ export interface AccountBundle {
     dailyShopPurchasesDate?: string;
     weeklyShopPurchases?: Record<string, number>;
     weeklyShopPurchasesDate?: string;
-    /** Events > Challenge daily attempt counters (e.g. Scarlet Inferno's shared Hard+Super pool)
-     * — see RaidEvent.dailyAttemptLimit in lib/raidBosses.ts and consumeChallengeAttempt in
-     * lib/store.ts. Same shape/reset-cadence as dailyEventAttempts above, just a separate field
-     * since that one was repurposed to weekly a while back. */
+    /** Events > Challenge attempt counters (e.g. Scarlet Inferno's shared Hard+Super pool) — see
+     * RaidEvent.weeklyAttemptLimit in lib/raidBosses.ts and consumeChallengeAttempt in
+     * lib/store.ts. Field kept "daily*"-named but resets weekly, same repurposing dailyEventAttempts
+     * above already went through (2/day was too easy to farm a full armor set; 3/week replaced it). */
     dailyChallengeAttempts?: Record<string, number>;
     dailyChallengeAttemptsDate?: string;
     hasReceivedStarterGifts?: boolean;
