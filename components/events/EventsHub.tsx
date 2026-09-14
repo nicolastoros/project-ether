@@ -6,12 +6,14 @@ import { cn } from "@/lib/utils";
 import { ExtraTab } from "./ExtraTab";
 import { ChallengeTab } from "./ChallengeTab";
 import { ExtremeBattlesTab } from "./ExtremeBattlesTab";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const TABS = [
-  { id: "extra", label: "Extra" },
-  { id: "challenge", label: "Challenge" },
-  { id: "extreme", label: "Extreme Battles" },
-] as const;
+  { id: "extra", labelKey: "events.tab_extra" },
+  { id: "challenge", labelKey: "events.tab_challenge" },
+  { id: "extreme", labelKey: "events.tab_extreme" },
+] as const satisfies { id: string; labelKey: TranslationKey }[];
 
 type TabId = (typeof TABS)[number]["id"];
 
@@ -29,6 +31,7 @@ function isTabId(value: string | null): value is TabId {
  * carousel slides (HubHeroCarousel.tsx/MobileHeroHub.tsx) and the Raid Battle quick-action tile
  * can deep-link straight into Extreme Battles instead of dropping the player on Extra. */
 export function EventsHub() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab");
@@ -42,18 +45,18 @@ export function EventsHub() {
   return (
     <div className="space-y-4">
       <div className="flex gap-1.5 sm:gap-2">
-        {TABS.map((t) => (
+        {TABS.map((tabDef) => (
           <button
-            key={t.id}
-            onClick={() => selectTab(t.id)}
+            key={tabDef.id}
+            onClick={() => selectTab(tabDef.id)}
             className={cn(
               "rounded-full border px-4 py-1.5 font-arcade text-xs uppercase tracking-wide transition-colors sm:px-5 sm:py-2 sm:text-sm",
-              tab === t.id
+              tab === tabDef.id
                 ? "border-gold bg-gold text-white"
                 : "border-arcade-border bg-arcade-panel-light text-zinc-600 hover:text-foreground"
             )}
           >
-            {t.label}
+            {t(tabDef.labelKey)}
           </button>
         ))}
       </div>

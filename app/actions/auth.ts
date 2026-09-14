@@ -2,6 +2,15 @@
 
 import bcrypt from "bcryptjs";
 import { BigQuery } from "@google-cloud/bigquery";
+import { TRANSLATIONS, type Language, type TranslationKey } from "@/lib/i18n/translations";
+
+// TRANSLATIONS is plain data (no "use client" needed to read it) — safe to use directly in a
+// server action, which has no store/hook access of its own. The caller (ForgotPasswordPage) passes
+// its own current language along with every call, same idea as any other server action that needs
+// caller-side context it can't otherwise see.
+function tr(language: Language, key: TranslationKey): string {
+  return TRANSLATIONS[language][key];
+}
 
 // Helper to reuse the same BigQuery logic. 
 // Note: We could export `bq()` from `lib/db/bigquery.ts` but for now we'll just instantiate it or use the same pattern.
@@ -27,7 +36,7 @@ function table(name: string) {
   return `\`${PROJECT_ID}.${DATASET}.${name}\``;
 }
 
-export async function getSecretQuestionAction(username: string) {
+export async function getSecretQuestionAction(username: string, language: Language = "en") {
   try {
     const [rows] = await bq().query({
       query: `
@@ -40,22 +49,27 @@ export async function getSecretQuestionAction(username: string) {
     });
 
     if (rows.length === 0) {
-      return { error: "User not found." };
+      return { error: tr(language, "auth.error_user_not_found") };
     }
 
     const question = rows[0].secret_question;
     if (!question) {
-      return { error: "This user does not have a secret question set." };
+      return { error: tr(language, "auth.error_no_secret_question") };
     }
 
     return { question };
   } catch (err) {
     console.error("Error fetching secret question:", err);
-    return { error: "An internal error occurred." };
+    return { error: tr(language, "auth.error_internal") };
   }
 }
 
-export async function resetPasswordWithAnswerAction(username: string, answer: string, newPassword: string) {
+export async function resetPasswordWithAnswerAction(
+  username: string,
+  answer: string,
+  newPassword: string,
+  language: Language = "en"
+) {
   try {
     const [rows] = await bq().query({
       query: `
@@ -68,20 +82,20 @@ export async function resetPasswordWithAnswerAction(username: string, answer: st
     });
 
     if (rows.length === 0) {
-      return { error: "User not found." };
+      return { error: tr(language, "auth.error_user_not_found") };
     }
 
     const user = rows[0];
     if (!user.secret_answer) {
-      return { error: "This user does not have a secret answer set." };
+      return { error: tr(language, "auth.error_no_secret_answer") };
     }
 
     if (user.secret_answer.toLowerCase() !== answer.toLowerCase().trim()) {
-      return { error: "Incorrect secret answer." };
+      return { error: tr(language, "auth.error_incorrect_secret_answer") };
     }
 
     if (newPassword.length < 6) {
-      return { error: "Password must be at least 6 characters." };
+      return { error: tr(language, "auth.error_password_length") };
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -98,6 +112,6 @@ export async function resetPasswordWithAnswerAction(username: string, answer: st
     return { success: true };
   } catch (err) {
     console.error("Error resetting password:", err);
-    return { error: "An internal error occurred." };
+    return { error: tr(language, "auth.error_internal") };
   }
 }

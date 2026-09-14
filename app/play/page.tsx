@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Loader2, Lock, User } from "lucide-react";
 import Link from "next/link";
 import { loadAccountIntoStore } from "@/lib/loadAccount";
+import { useT } from "@/lib/i18n/useT";
 
 // Moved here from the root route ("/") — the root is now the marketing landing page (see
 // app/page.tsx), and its "Play" CTAs point at this route instead. Every internal "back to login"
@@ -20,6 +21,7 @@ export default function PlayPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   // Single source of truth for "authenticated -> load account, then go to /hub": covers both a
   // fresh sign-in below and a user who lands here already logged in (e.g. hits the back button).
@@ -46,7 +48,7 @@ export default function PlayPage() {
     const result = await signIn("credentials", { username, password, redirect: false });
 
     if (!result || result.error) {
-      setError("Incorrect username or password.");
+      setError(t("auth.error_incorrect_login"));
       setSubmitting(false);
       return;
     }
@@ -71,7 +73,7 @@ export default function PlayPage() {
           {/* Clickable logo -> back to the marketing landing ("/") — the standard "click the logo
               to go home" affordance every game client/portal uses (Discord, the Riot client,
               etc.), so a player who wound up here just to browse isn't stuck. */}
-          <Link href="/" aria-label="Back to home" className="inline-block transition-opacity hover:opacity-80">
+          <Link href="/" aria-label={t("auth.back_to_home")} className="inline-block transition-opacity hover:opacity-80">
             <Image
               src="/assets/digital_resonance_transparent.png"
               alt="Digital Resonance"
@@ -82,9 +84,7 @@ export default function PlayPage() {
             />
           </Link>
         </motion.div>
-        <p className="-mt-1 text-xs text-zinc-500 sm:text-sm lg:text-base">
-          Summon. Evolve. Conquer the dungeons.
-        </p>
+        <p className="-mt-1 text-xs text-zinc-500 sm:text-sm lg:text-base">{t("auth.tagline")}</p>
 
         {/* Group shot of the game's own creatures, in battle poses — gives the splash screen the
             game's own key-art feel the logo alone doesn't. public/assets/back_home_1.png already
@@ -111,7 +111,7 @@ export default function PlayPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              placeholder={t("auth.username_placeholder")}
               autoComplete="username"
               required
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -124,7 +124,7 @@ export default function PlayPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
-              placeholder="Password"
+              placeholder={t("auth.password_placeholder")}
               autoComplete="current-password"
               required
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -140,20 +140,20 @@ export default function PlayPage() {
             className="mt-1 flex items-center justify-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-gold-ink shadow-md transition-opacity disabled:opacity-60"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? "Logging in..." : "Log In"}
+            {submitting ? t("auth.logging_in") : t("auth.log_in")}
           </motion.button>
         </form>
 
         <p className="mt-5 max-w-sm text-xs text-zinc-500 lg:text-sm">
-          Don&apos;t have an account yet?{" "}
+          {t("auth.no_account")}{" "}
           <Link href="/register" className="font-semibold text-neon hover:underline">
-            Create your character
+            {t("auth.create_character_link")}
           </Link>
         </p>
         <p className="mt-2 max-w-sm text-xs text-zinc-500 lg:text-sm">
-          Forgot your password?{" "}
+          {t("auth.forgot_password_question")}{" "}
           <Link href="/forgot-password" className="font-semibold text-gold-bright hover:underline">
-            Recover account
+            {t("auth.recover_account_link")}
           </Link>
         </p>
       </div>

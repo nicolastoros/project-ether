@@ -35,6 +35,14 @@ import { CrownIcon } from "@/components/icons/CrownIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { cn, formatTamerStatBonus, thisWeekStartDateString, todayDateString } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import { getItemName } from "@/lib/i18n/itemDescriptions";
+import {
+  getShopListingDescription,
+  getPremiumItemName,
+  getPremiumItemDescription,
+} from "@/lib/i18n/shopDescriptions";
 
 // The Buy grid used to be one long, un-sectioned scroll of every listing. Split into browsable
 // categories (a real marketplace layout) instead — "Featured" catches the two premium/gems-priced
@@ -42,16 +50,27 @@ import { cn, formatTamerStatBonus, thisWeekStartDateString, todayDateString } fr
 // buckets, so nothing silently disappears from the shop. Armor and Exchange aren't derived from
 // SHOP_LISTINGS at all (see below).
 type BuySection = "featured" | "consumables" | "orbs" | "materials";
-const SECTION_TABS: { id: BuySection | "armor" | "exchange" | "premium"; label: string }[] = [
-  { id: "featured", label: "Featured" },
-  { id: "consumables", label: "Consumables" },
-  { id: "orbs", label: "Orbs" },
-  { id: "materials", label: "Materials" },
-  { id: "armor", label: "Armor" },
-  { id: "exchange", label: "Exchange" },
-  { id: "premium", label: "Premium" },
+const SECTION_TABS: { id: BuySection | "armor" | "exchange" | "premium"; labelKey: TranslationKey }[] = [
+  { id: "featured", labelKey: "shop.tab_featured" },
+  { id: "consumables", labelKey: "shop.tab_consumables" },
+  { id: "orbs", labelKey: "shop.tab_orbs" },
+  { id: "materials", labelKey: "shop.tab_materials" },
+  { id: "armor", labelKey: "shop.tab_armor" },
+  { id: "exchange", labelKey: "shop.tab_exchange" },
+  { id: "premium", labelKey: "shop.tab_premium" },
 ];
 type Tab = (typeof SECTION_TABS)[number]["id"] | "sell";
+
+const GEAR_SLOT_LABEL_KEY: Record<string, TranslationKey> = {
+  Hat: "inventory.slot_hat",
+  Shoulders: "inventory.slot_shoulders",
+  Chest: "inventory.slot_chest",
+  Gloves: "inventory.slot_gloves",
+  Legs: "inventory.slot_legs",
+  Shoes: "inventory.slot_shoes",
+  Aura: "inventory.slot_aura",
+  Wings: "inventory.slot_wings",
+};
 
 function categoryOf(listing: ShopListing): BuySection {
   const grants = listing.grants;
@@ -86,14 +105,24 @@ function paginate<T>(items: T[], page: number): { pageItems: T[]; totalPages: nu
   return { pageItems: items.slice(start, start + PAGE_SIZE), totalPages, page: clamped };
 }
 
-function PageNumbers({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+function PageNumbers({
+  page,
+  totalPages,
+  onChange,
+  t,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+  t: ReturnType<typeof useT>;
+}) {
   if (totalPages <= 1) return null;
   return (
     <div className="flex items-center justify-center gap-1.5 pt-1">
       <button
         onClick={() => onChange(Math.max(1, page - 1))}
         disabled={page === 1}
-        aria-label="Previous page"
+        aria-label={t("shop.previous_page")}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-500 transition-colors hover:text-foreground disabled:opacity-40"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
@@ -113,7 +142,7 @@ function PageNumbers({ page, totalPages, onChange }: { page: number; totalPages:
       <button
         onClick={() => onChange(Math.min(totalPages, page + 1))}
         disabled={page === totalPages}
-        aria-label="Next page"
+        aria-label={t("shop.next_page")}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-500 transition-colors hover:text-foreground disabled:opacity-40"
       >
         <ChevronRight className="h-3.5 w-3.5" />
@@ -130,11 +159,12 @@ function EmptyShopState({ label }: { label: string }) {
   );
 }
 
-function listingName(listing: ShopListing): string {
+function listingName(listing: ShopListing, language: "en" | "es"): string {
   const { grants } = listing;
   if (grants.kind === "item") {
     const itemId = grants.itemId;
-    return ITEM_CATALOG.find((i) => i.id === itemId)?.name ?? listing.id;
+    const item = ITEM_CATALOG.find((i) => i.id === itemId);
+    return item ? getItemName(item, language) : listing.id;
   }
   if (grants.kind === "creature") {
     const creatureId = grants.creatureId;
@@ -173,6 +203,8 @@ function ShopPageContent() {
   // same mount-time-only pattern as EventsHub.tsx's own ?tab= link (isTabId there, isShopTab here).
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab");
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const currencies = useGameStore((s) => s.currencies);
   const ownedItems = useGameStore((s) => s.ownedItems);
   const creatures = useGameStore((s) => s.creatures);
@@ -309,7 +341,7 @@ function ShopPageContent() {
     const limitInfo = limitInfoFor(listing);
     const remaining = limitInfo?.remaining ?? Infinity;
     const soldOut = limitInfo !== null && limitInfo.remaining <= 0;
-    const periodLabel = limitInfo?.period === "week" ? "this week" : "today";
+    const periodSuffix = limitInfo?.period === "week" ? t("shop.left_this_week_suffix") : t("shop.left_today_suffix");
     const quantity = listing.grants.kind === "tamer" ? 1 : Math.min(getBuyQuantity(listing.id), Math.max(1, remaining));
     const gold = (listing.price.gold ?? 0) * quantity;
     const gems = (listing.price.gems ?? 0) * quantity;
@@ -319,12 +351,12 @@ function ShopPageContent() {
         <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           <ListingIcon listing={listing} />
         </div>
-        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{listingName(listing)}</p>
+        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{listingName(listing, language)}</p>
         <RarityBadge rarity={listing.rarity} className="sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm" />
-        <p className="text-xs text-zinc-500 sm:text-sm">{listing.description}</p>
+        <p className="text-xs text-zinc-500 sm:text-sm">{getShopListingDescription(listing, language)}</p>
         {limitInfo && (
           <span className={cn("font-arcade text-[10px] uppercase tracking-wide", soldOut ? "text-red-500" : "text-zinc-500")}>
-            {limitInfo.remaining}/{limitInfo.limit} left {periodLabel}
+            {limitInfo.remaining}/{limitInfo.limit}{periodSuffix}
           </span>
         )}
         <span
@@ -376,7 +408,11 @@ function ShopPageContent() {
           disabled={!affordable || busyId === listing.id}
           onClick={() => handleBuy(listing)}
         >
-          {soldOut ? `Sold out ${periodLabel}` : `Buy ${listing.grants.kind !== "tamer" ? quantity : ""}`}
+          {soldOut
+            ? limitInfo?.period === "week"
+              ? t("shop.sold_out_this_week")
+              : t("shop.sold_out_today")
+            : `${t("shop.buy_prefix")} ${listing.grants.kind !== "tamer" ? quantity : ""}`}
         </PixelButton>
       </GlowPanel>
     );
@@ -392,9 +428,9 @@ function ShopPageContent() {
         <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           <ItemIcon item={item} className="h-11 w-11 sm:h-14 sm:w-14 lg:h-16 lg:w-16" />
         </div>
-        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{item.name}</p>
+        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{getItemName(item, language)}</p>
         <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white sm:text-sm">
-          ×{owned} owned
+          ×{owned}{t("inventory.owned_suffix")}
         </span>
         <span className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold text-foreground sm:text-base">
           <GoldCoinIcon className="h-4 w-4 sm:h-5 sm:w-5" /> {gold}
@@ -431,7 +467,7 @@ function ShopPageContent() {
           disabled={owned === 0 || busyId === item.id}
           onClick={() => handleSell(item.id)}
         >
-          Sell {quantity}
+          {t("shop.sell_prefix")}{quantity}
         </PixelButton>
       </GlowPanel>
     );
@@ -451,7 +487,7 @@ function ShopPageContent() {
         <RarityBadge rarity={exchangeCreature.rarity} className="sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm" />
         {copiesOwned > 0 && (
           <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white sm:text-sm">
-            ×{copiesOwned} owned
+            ×{copiesOwned}{t("inventory.owned_suffix")}
           </span>
         )}
         <span className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold text-foreground sm:text-base">
@@ -464,7 +500,7 @@ function ShopPageContent() {
           disabled={!affordable || busyId === exchangeCreature.id}
           onClick={() => handleExchange(exchangeCreature.id)}
         >
-          Redeem
+          {t("shop.redeem")}
         </PixelButton>
       </GlowPanel>
     );
@@ -495,13 +531,15 @@ function ShopPageContent() {
           />
         </div>
         <p className="truncate text-sm font-semibold text-foreground sm:text-base">{gear.name}</p>
-        <p className="text-[10px] uppercase tracking-wide text-zinc-500">{gear.setName} · {gear.slot}</p>
+        <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+          {gear.setName} · {t(GEAR_SLOT_LABEL_KEY[gear.slot] ?? "inventory.slot_hat")}
+        </p>
         <RarityBadge rarity={gear.rarity} className="sm:px-2.5 sm:py-1 sm:text-xs" />
         {formatTamerStatBonus(gear.statBonus) && (
           <p className="text-[10px] font-semibold text-emerald-600">{formatTamerStatBonus(gear.statBonus)}</p>
         )}
         {owned ? (
-          <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white sm:text-sm">Owned</span>
+          <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white sm:text-sm">{t("shop.owned")}</span>
         ) : canCraft ? (
           <>
             <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
@@ -540,12 +578,12 @@ function ShopPageContent() {
               disabled={!affordable || busyId === gear.id}
               onClick={() => handleCraftArmor(gear.id)}
             >
-              Craft
+              {t("shop.craft")}
             </PixelButton>
           </>
         ) : (
           <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-            {gear.source.kind === "campaign-clear" ? "Earned from Campaign" : null}
+            {gear.source.kind === "campaign-clear" ? t("shop.earned_from_campaign") : null}
           </p>
         )}
       </GlowPanel>
@@ -560,10 +598,10 @@ function ShopPageContent() {
         <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-20 sm:w-20 lg:h-24 lg:w-24">
           <Image src={item.icon} alt="" width={64} height={64} className="h-11 w-11 object-contain sm:h-14 sm:w-14" />
         </div>
-        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{item.name}</p>
-        <p className="text-[10px] text-zinc-500">{item.description}</p>
+        <p className="truncate text-sm font-semibold text-foreground sm:text-base">{getPremiumItemName(item, language)}</p>
+        <p className="text-[10px] text-zinc-500">{getPremiumItemDescription(item, language)}</p>
         <PixelButton size="sm" variant="neon" className="w-full mt-1 sm:py-2.5 sm:text-sm" disabled>
-          Coming Soon
+          {t("common.coming_soon")}
         </PixelButton>
       </GlowPanel>
     );
@@ -586,8 +624,8 @@ function ShopPageContent() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">Shop</h1>
-            <p className="mt-1 text-sm text-zinc-600 sm:text-base">Buy items, Tamers, skins, and a few Creatures.</p>
+            <h1 className="font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">{t("shop.title")}</h1>
+            <p className="mt-1 text-sm text-zinc-600 sm:text-base">{t("shop.subtitle")}</p>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <CurrencyPill icon={<GoldCoinIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} value={currencies.gold} />
@@ -608,7 +646,7 @@ function ShopPageContent() {
                     : "border-arcade-border bg-arcade-panel-light text-zinc-600 hover:text-foreground"
                 )}
               >
-                {s.label}
+                {t(s.labelKey)}
               </button>
             ))}
           </div>
@@ -621,34 +659,34 @@ function ShopPageContent() {
                 : "border-arcade-border bg-arcade-panel-light text-zinc-600 hover:text-foreground"
             )}
           >
-            <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Sell
+            <Coins className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {t("shop.tab_sell")}
           </button>
         </div>
 
         {tab === "exchange" && (
           <div className="flex items-center gap-2 rounded-xl border border-arcade-border bg-arcade-panel-light px-4 py-3 text-sm sm:gap-3 sm:px-5 sm:py-4 sm:text-base">
             {exchangeCoinItem && <ItemIcon item={exchangeCoinItem} className="h-6 w-6 sm:h-7 sm:w-7" />}
-            <span className="font-semibold text-foreground">{exchangeCoinBalance} Exchange Coins</span>
-            <span className="text-zinc-500">— each creature below costs {EXCHANGE_COST}</span>
+            <span className="font-semibold text-foreground">{exchangeCoinBalance}{t("shop.exchange_coins_suffix")}</span>
+            <span className="text-zinc-500">{t("shop.exchange_cost_prefix")}{EXCHANGE_COST}</span>
           </div>
         )}
 
         {tab === "premium" && (
           <div className="rounded-xl border border-neon/40 bg-neon/10 px-4 py-3 text-sm sm:px-5 sm:py-4 sm:text-base">
-            <span className="font-semibold text-foreground">Lacrima — real-money currency.</span>{" "}
-            <span className="text-zinc-500">Purchases aren&apos;t open yet — check back soon.</span>
+            <span className="font-semibold text-foreground">{t("shop.lacrima_title")}</span>{" "}
+            <span className="text-zinc-500">{t("shop.lacrima_subtitle")}</span>
           </div>
         )}
 
         {tab === "sell" ? (
           sellableItems.length === 0 ? (
-            <EmptyShopState label="Nothing sellable yet." />
+            <EmptyShopState label={t("shop.nothing_sellable")} />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
                 {sellPagination.pageItems.map(renderSellCard)}
               </div>
-              <PageNumbers page={sellPagination.page} totalPages={sellPagination.totalPages} onChange={(p) => setPageFor("sell", p)} />
+              <PageNumbers page={sellPagination.page} totalPages={sellPagination.totalPages} onChange={(p) => setPageFor("sell", p)} t={t} />
             </>
           )
         ) : tab === "exchange" ? (
@@ -656,30 +694,30 @@ function ShopPageContent() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
               {exchangePagination.pageItems.map(renderExchangeCard)}
             </div>
-            <PageNumbers page={exchangePagination.page} totalPages={exchangePagination.totalPages} onChange={(p) => setPageFor("exchange", p)} />
+            <PageNumbers page={exchangePagination.page} totalPages={exchangePagination.totalPages} onChange={(p) => setPageFor("exchange", p)} t={t} />
           </>
         ) : tab === "armor" ? (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
               {armorPagination.pageItems.map(renderArmorCard)}
             </div>
-            <PageNumbers page={armorPagination.page} totalPages={armorPagination.totalPages} onChange={(p) => setPageFor("armor", p)} />
+            <PageNumbers page={armorPagination.page} totalPages={armorPagination.totalPages} onChange={(p) => setPageFor("armor", p)} t={t} />
           </>
         ) : tab === "premium" ? (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
               {premiumPagination.pageItems.map(renderPremiumCard)}
             </div>
-            <PageNumbers page={premiumPagination.page} totalPages={premiumPagination.totalPages} onChange={(p) => setPageFor("premium", p)} />
+            <PageNumbers page={premiumPagination.page} totalPages={premiumPagination.totalPages} onChange={(p) => setPageFor("premium", p)} t={t} />
           </>
         ) : buyItems.length === 0 ? (
-          <EmptyShopState label="Nothing in this category yet — check back soon!" />
+          <EmptyShopState label={t("shop.nothing_in_category")} />
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:gap-5">
               {buyPagination.pageItems.map(renderBuyListing)}
             </div>
-            <PageNumbers page={buyPagination.page} totalPages={buyPagination.totalPages} onChange={(p) => setPageFor(tab, p)} />
+            <PageNumbers page={buyPagination.page} totalPages={buyPagination.totalPages} onChange={(p) => setPageFor(tab, p)} t={t} />
           </>
         )}
     </div>

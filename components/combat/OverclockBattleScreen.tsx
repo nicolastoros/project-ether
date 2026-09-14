@@ -27,11 +27,12 @@ import { GlowPanel } from "@/components/ui/GlowPanel";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
-import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
+import { SKILL_TYPE_STYLES, SKILL_TYPE_LABEL_KEY } from "@/components/monsters/CreatureDetailModal";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { CombatantCard } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
+import { useT } from "@/lib/i18n/useT";
 import { cn, formatNumber } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
@@ -61,6 +62,7 @@ interface OverclockBattleScreenProps {
  * lose — see checkEndConditions), and the boss's HP bar is the segmented "100 bars" style
  * (CombatantCard's segmentedHp prop). */
 export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onRematch, onExit }: OverclockBattleScreenProps) {
+  const t = useT();
   const submitOverclockScore = useGameStore((s) => s.submitOverclockScore);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
@@ -307,7 +309,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
           <p className="text-xs text-zinc-500">{boss.name} · 2v1</p>
         </div>
         <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-1.5 text-right">
-          <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">Damage Dealt</p>
+          <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">{t("overclock.damage_dealt")}</p>
           <p className="font-arcade text-sm text-gold-bright">{formatNumber(totalDamageDealt)}</p>
         </div>
       </div>
@@ -379,30 +381,32 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
                 key={entry.id ?? i}
                 className={cn("text-xs sm:text-sm font-semibold", entry.kind === "defeat" ? "text-red-500" : "text-gold-bright")}
               >
-                {entry.message}
+                {t(entry.key, entry.params)}
               </p>
             ))}
           </div>
-          <p className="mt-2 text-[10px] uppercase tracking-widest text-zinc-500 animate-pulse">Tap to continue</p>
+          <p className="mt-2 text-[10px] uppercase tracking-widest text-zinc-500 animate-pulse">{t("common.tap_to_continue")}</p>
         </GlowPanel>
       )}
 
       {!pendingNotice && isPlayerTurn && actor && (
         <GlowPanel className="p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="font-arcade text-[10px] glow-text-gold">{actor.creature.name}&apos;s turn</p>
+            <p className="font-arcade text-[10px] glow-text-gold">
+              {t("battle.turn_prefix")}{actor.creature.name}{t("battle.turn_suffix")}
+            </p>
             {pendingSkill && (
               <button
                 onClick={() => setPendingSkill(null)}
                 className="text-[10px] text-zinc-500 underline underline-offset-2 hover:text-foreground"
               >
-                Cancel target
+                {t("battle.cancel_target")}
               </button>
             )}
           </div>
           {pendingSkill ? (
             <p className="text-xs text-zinc-500">
-              Choose an enemy to hit with <span className="font-semibold text-foreground">{pendingSkill.name}</span>.
+              {t("battle.choose_enemy_with")}<span className="font-semibold text-foreground">{pendingSkill.name}</span>.
             </p>
           ) : (
             <div className="space-y-2">
@@ -434,14 +438,14 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
                               SKILL_TYPE_STYLES[skill.type]
                             )}
                           >
-                            {skill.type}
+                            {t(SKILL_TYPE_LABEL_KEY[skill.type])}
                           </span>
                         </div>
                         {cooldownLeft > 0 && (
-                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-500">{t("battle.cooldown")} {cooldownLeft}t</p>
                         )}
                         {cooldownLeft <= 0 && actor.resonance < cost && (
-                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                         )}
                       </button>
                     );
@@ -468,11 +472,11 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
                         <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
                       </span>
                       <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white">
-                        Ultimate
+                        {t("battle.ultimate_badge")}
                       </span>
                     </div>
                     {!isReady && (
-                      <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
+                      <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                     )}
                   </button>
                 );
@@ -484,12 +488,12 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
 
       {!pendingNotice && !isPlayerTurn && phase === "active" && (
         <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
-          {actor ? `${actor.creature.name} is acting…` : "…"}
+          {actor ? `${actor.creature.name}${t("battle.is_acting_suffix")}` : "…"}
         </p>
       )}
 
       {phase !== "active" && !showResult && (
-        <LoadingOverlay show label={phase === "victory" ? "Boss down! Tallying damage..." : "Calculating results..."} />
+        <LoadingOverlay show label={phase === "victory" ? t("overclock.calculating_damage") : t("battle.calculating_results")} />
       )}
 
       {phase !== "active" && showResult && (
@@ -501,31 +505,29 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
           <GlowPanel accent={phase === "victory" ? "gold" : "none"} className="my-auto w-full max-w-md space-y-5 p-6 text-center sm:max-w-lg sm:p-7">
             <div>
               <h2 className={cn("font-arcade text-lg sm:text-xl", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
-                {phase === "victory" ? "Boss Down!" : "Defeat"}
+                {phase === "victory" ? t("overclock.boss_down") : t("battle.defeat")}
               </h2>
               <p className="mt-1 text-sm text-zinc-500">{boss.name}</p>
             </div>
 
             <div className="rounded-2xl border border-arcade-border bg-arcade-panel-light p-5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Total Damage Dealt</p>
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("overclock.total_damage_dealt")}</p>
               <p className="mt-1 font-arcade text-3xl text-gold-bright sm:text-4xl">{formatNumber(totalDamageDealt)}</p>
               {isNewBest && (
                 <p className="mt-2 font-arcade text-[10px] uppercase tracking-wide text-emerald-500 animate-pulse">
-                  New Weekly Best!
+                  {t("overclock.new_weekly_best")}
                 </p>
               )}
             </div>
-            <p className="text-xs text-zinc-500">
-              This run&apos;s damage was submitted to this week&apos;s Overclock ranking — no gold, EXP, or items here, just the score.
-            </p>
+            <p className="text-xs text-zinc-500">{t("overclock.run_submitted_note")}</p>
 
             <div className="flex gap-2 sm:gap-3">
               <PixelButton variant="ghost" className="flex-1 sm:py-3 sm:text-base" onClick={onRematch}>
                 <RotateCcw className="mr-1 inline h-4 w-4 sm:h-5 sm:w-5" />
-                Rematch
+                {t("battle.rematch")}
               </PixelButton>
               <PixelButton variant="gold" className="flex-1 sm:py-3 sm:text-base" onClick={onExit}>
-                Return to Overclock
+                {t("overclock.return")}
               </PixelButton>
             </div>
           </GlowPanel>

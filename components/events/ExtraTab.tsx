@@ -8,6 +8,7 @@ import { Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn, thisWeekStartDateString } from "@/lib/utils";
 import { useWeeklyResetCountdown } from "@/lib/useResetCountdown";
+import { useT } from "@/lib/i18n/useT";
 
 const orbColorMap: Record<string, string> = {
   Fire: "red",
@@ -26,6 +27,7 @@ const event = ORB_EVENTS[0];
 /** "Extra" tab of the Events hub (see EventsHub.tsx) — training-style events, currently just
  * Hidden Training. Was the whole /events page before Events grew Dokkan-style category tabs. */
 export function ExtraTab() {
+  const t = useT();
   const router = useRouter();
   const profile = useGameStore((s) => s.profile);
   const resetLabel = useWeeklyResetCountdown();
@@ -75,21 +77,21 @@ export function ExtraTab() {
         <div className="flex justify-between items-start">
           <div>
             <h2 className="font-arcade text-lg text-foreground">{event.name}</h2>
-            <p className="text-xs text-zinc-500">{event.description}</p>
+            <p className="text-xs text-zinc-500">{t("extra.hidden_training_description")}</p>
           </div>
           <div className="text-right">
             {/* Was just "Attempts" — 6/6 alone doesn't say WHICH clock it's on, and "Resets in
                 2d 2h" below it reads as a one-off countdown rather than a recurring weekly cadence
                 unless you already know it's weekly. Spelling out "every 7 days" in both lines
                 removes the ambiguity entirely. */}
-            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Attempts / 7 Days</p>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">{t("extra.attempts_per_7_days")}</p>
             <p className={cn("font-mono text-sm font-bold", attemptsLeft > 0 ? "text-green-500" : "text-red-500")}>
               {attemptsLeft}/{event.maxWeeklyAttempts}
             </p>
           </div>
         </div>
         <p className="text-[10px] text-zinc-500 font-mono">
-          {event.maxWeeklyAttempts} attempts every 7 days · Refills in {resetLabel}
+          {event.maxWeeklyAttempts}{t("extra.attempts_refill_prefix")}{resetLabel}
         </p>
       </GlowPanel>
 
@@ -98,7 +100,7 @@ export function ExtraTab() {
           <GlowPanel key={diff.id} accent="none" className="p-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h3 className="font-arcade text-sm text-foreground">{diff.name}</h3>
-              <p className="text-[10px] text-zinc-500 mt-1">Recommended Lv. {diff.recommendedLevel} • Boss: {diff.enemyRarity}</p>
+              <p className="text-[10px] text-zinc-500 mt-1">{t("extra.recommended_lv_prefix")}{diff.recommendedLevel}{t("extra.boss_prefix")}{diff.enemyRarity}</p>
               <div className="flex flex-col gap-1.5 mt-2">
                 {(["small", "medium", "large"] as const).map((size) =>
                   diff.rewardAmount[size] > 0 ? (
@@ -113,7 +115,7 @@ export function ExtraTab() {
                           />
                         ))}
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-300 font-bold">×{diff.rewardAmount[size]} each</span>
+                      <span className="text-[10px] font-mono text-zinc-300 font-bold">×{diff.rewardAmount[size]}{t("extra.each_suffix")}</span>
                     </div>
                   ) : null
                 )}
@@ -128,7 +130,7 @@ export function ExtraTab() {
                 disabled={attemptsLeft <= 0}
                 onClick={() => handleStart(diff)}
               >
-                START
+                {t("extra.start")}
               </PixelButton>
             </div>
           </GlowPanel>

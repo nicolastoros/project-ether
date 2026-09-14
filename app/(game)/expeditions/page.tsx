@@ -14,6 +14,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { formatNumber } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 const MAX_EXPEDITION_PARTY = 6;
 
@@ -41,6 +42,7 @@ interface CollectResult {
 }
 
 export default function ExpeditionsPage() {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const activeExpeditions = useGameStore((s) => s.activeExpeditions);
   const isOnExpedition = useGameStore((s) => s.isOnExpedition);
@@ -61,10 +63,10 @@ export default function ExpeditionsPage() {
   const excludedIds = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
+      if (isOnExpedition(c.id)) map.set(c.id, t("common.badge_on_expedition"));
     }
     return map;
-  }, [creatures, isOnExpedition]);
+  }, [creatures, isOnExpedition, t]);
 
   const selectedPower = useMemo(
     () => partyPower(selectedIds.map((id) => creatures.find((c) => c.id === id)).filter((c): c is (typeof creatures)[number] => Boolean(c))),

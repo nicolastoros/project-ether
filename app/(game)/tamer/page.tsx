@@ -18,9 +18,23 @@ import { EquippedBadge } from "@/components/ui/EquippedBadge";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatTamerStatBonus } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import { getSetEffectDescription } from "@/lib/i18n/itemDescriptions";
 
 // Head-to-toe display order within a set's own grid.
 const SLOT_ORDER: TamerSlotType[] = ["Hat", "Shoulders", "Chest", "Gloves", "Legs", "Shoes", "Aura", "Wings"];
+
+const SLOT_LABEL_KEY: Record<TamerSlotType, TranslationKey> = {
+  Hat: "inventory.slot_hat",
+  Shoulders: "inventory.slot_shoulders",
+  Chest: "inventory.slot_chest",
+  Gloves: "inventory.slot_gloves",
+  Legs: "inventory.slot_legs",
+  Shoes: "inventory.slot_shoes",
+  Aura: "inventory.slot_aura",
+  Wings: "inventory.slot_wings",
+};
 
 // Groups TAMER_EQUIPMENT_CATALOG by setName (Crimson, Aqua, Wind, ...), preserving each set's
 // first-appearance order in the catalog — a real set-aware grouping instead of the old flat
@@ -44,13 +58,13 @@ function groupCatalogBySet(): { setName: string; items: TamerEquipment[] }[] {
 }
 const EQUIPMENT_SETS = groupCatalogBySet();
 
-function campaignClearLabel(stageId: string): string {
+function campaignClearLabel(stageId: string, t: ReturnType<typeof useT>): string {
   const stage = DUNGEON_STAGES.find((s) => s.id === stageId);
-  if (!stage) return "Clear a Campaign stage";
-  return `Clear World ${stage.world}-${stage.worldStageNumber}`;
+  if (!stage) return t("tamer.clear_campaign_stage");
+  return `${t("tamer.clear_world_prefix")}${stage.world}-${stage.worldStageNumber}`;
 }
 
-function formatAvatarBuffs(avatar: TamerAvatar): string[] {
+function formatAvatarBuffs(avatar: TamerAvatar, t: ReturnType<typeof useT>): string[] {
   const lines: string[] = [];
   if (avatar.buffs.hpPercent) lines.push(`+${avatar.buffs.hpPercent}% HP`);
   if (avatar.buffs.atkPercent) lines.push(`+${avatar.buffs.atkPercent}% ATK`);
@@ -63,12 +77,14 @@ function formatAvatarBuffs(avatar: TamerAvatar): string[] {
   if (avatar.buffs.scdPercent) lines.push(`+${avatar.buffs.scdPercent}% SCD`);
   if (avatar.buffs.ctPercent) lines.push(`+${avatar.buffs.ctPercent}% CT`);
   for (const [element, value] of Object.entries(avatar.buffs.elementAtkBonus ?? {})) {
-    lines.push(`+${value}% ATK for ${element} types`);
+    lines.push(`${t("tamer.atk_for_element_prefix")}${value}${t("tamer.atk_for_element_suffix")}${element}${t("tamer.atk_for_element_trail")}`);
   }
   return lines;
 }
 
 export default function TamerPage() {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const equipTamerGear = useGameStore((s) => s.equipTamerGear);
@@ -198,9 +214,9 @@ export default function TamerPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Tamer</h1>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("nav.tamer")}</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Your own gear — separate from your creature&apos;s equipment.
+            {t("tamer.subtitle")}
           </p>
         </div>
         <CurrencyPill icon={<SealCoinIcon className="h-3.5 w-3.5" />} value={sealCoins} />
@@ -212,7 +228,7 @@ export default function TamerPage() {
             <button
               type="button"
               onClick={() => setSpinning((s) => !s)}
-              aria-label={spinning ? "Pause rotation" : "Resume rotation"}
+              aria-label={spinning ? t("tamer.pause_rotation") : t("tamer.resume_rotation")}
               className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel/90 text-zinc-500 shadow-sm transition-colors hover:border-gold hover:text-gold-bright"
             >
               {spinning ? <Pause className="h-3.5 w-3.5" /> : <RotateCw className="h-3.5 w-3.5" />}
@@ -235,15 +251,15 @@ export default function TamerPage() {
               {profile.title} · Lv.{profile.level}
             </p>
             <div className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 shadow-md">
-              <span className="font-arcade text-[9px] text-zinc-400">ID:</span>
+              <span className="font-arcade text-[9px] text-zinc-400">{t("tamer.id_label")}</span>
               <span className="font-arcade text-[10px] text-white">{profile.name}</span>
               <button
                 onClick={handleCopy}
                 className="ml-1 text-zinc-400 hover:text-gold transition-colors"
-                aria-label="Copy Tamer ID"
+                aria-label={t("tamer.copy_id")}
               >
                 {copied ? (
-                  <span className="font-arcade text-[8px] text-emerald-400">COPIED</span>
+                  <span className="font-arcade text-[8px] text-emerald-400">{t("tamer.copied")}</span>
                 ) : (
                   <Copy className="h-3 w-3" />
                 )}
@@ -251,9 +267,9 @@ export default function TamerPage() {
             </div>
           </div>
           <div className="w-full space-y-2 rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
-            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-2 border-b border-arcade-border pb-1">Avatar Buffs</p>
+            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-2 border-b border-arcade-border pb-1">{t("tamer.avatar_buffs")}</p>
             <div className="flex flex-wrap gap-2">
-              {formatAvatarBuffs(equippedTamer).map((line) => (
+              {formatAvatarBuffs(equippedTamer, t).map((line) => (
                 <span key={line} className="text-[10px] sm:text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
                   {line}
                 </span>
@@ -262,7 +278,7 @@ export default function TamerPage() {
           </div>
           
           <div className="w-full rounded-xl border border-arcade-border bg-arcade-panel-light p-4 mt-2">
-            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-3 border-b border-arcade-border pb-2">Total Tamer Amplification</p>
+            <p className="font-arcade text-[10px] sm:text-xs uppercase tracking-wide text-zinc-500 mb-3 border-b border-arcade-border pb-2">{t("tamer.total_amplification")}</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
               <div className="flex justify-between items-center bg-zinc-900 border border-white/5 shadow-inner rounded-md px-3 py-1.5">
                 <span className="font-arcade text-[10px] sm:text-xs text-zinc-300">HP</span>
@@ -320,9 +336,11 @@ export default function TamerPage() {
             return (
               <div key={setName} className="space-y-2">
                 <div className="flex items-center justify-between px-0.5">
-                  <h2 className="font-arcade text-xs uppercase tracking-wide text-foreground">{setName} Set</h2>
+                  <h2 className="font-arcade text-xs uppercase tracking-wide text-foreground">
+                    {t("tamer.set_prefix")}{setName}{t("tamer.set_suffix")}
+                  </h2>
                   <span className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">
-                    {ownedCount}/{items.length} pieces
+                    {ownedCount}/{items.length}{t("tamer.pieces_suffix")}
                   </span>
                 </div>
                 {setEffect && (
@@ -340,8 +358,8 @@ export default function TamerPage() {
                         isSetEffectActive ? "text-gold-ink" : "text-zinc-700"
                       )}
                     >
-                      <span className={isSetEffectActive ? "text-gold-bright" : "text-zinc-500"}>Set Effect:</span>{" "}
-                      {setEffect.description}
+                      <span className={isSetEffectActive ? "text-gold-bright" : "text-zinc-500"}>{t("tamer.set_effect_label")}</span>{" "}
+                      {getSetEffectDescription(setName, setEffect.description, language)}
                     </span>
                     <span
                       className={cn(
@@ -351,7 +369,7 @@ export default function TamerPage() {
                           : "bg-zinc-200 text-zinc-600"
                       )}
                     >
-                      {isSetEffectActive ? "Active" : `${equippedCount}/${items.length} equipped`}
+                      {isSetEffectActive ? t("tamer.active") : `${equippedCount}/${items.length}${t("tamer.equipped_suffix")}`}
                     </span>
                   </div>
                 )}
@@ -369,7 +387,7 @@ export default function TamerPage() {
                             {isEquipped && <EquippedBadge />}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-arcade text-xs font-bold text-foreground">{slot}</p>
+                            <p className="font-arcade text-xs font-bold text-foreground">{t(SLOT_LABEL_KEY[slot])}</p>
                             <p className="truncate text-[9px] text-zinc-500">{owned.name}</p>
                           </div>
                           <RarityBadge rarity={owned.rarity} />
@@ -381,16 +399,16 @@ export default function TamerPage() {
                           {isEquipped ? (
                             <div className="w-full mt-1">
                               <span className="inline-flex items-center gap-1 font-arcade text-[8px] uppercase text-emerald-600 mb-1">
-                                <Check className="h-2.5 w-2.5" /> Equipped
+                                <Check className="h-2.5 w-2.5" /> {t("tamer.equipped")}
                               </span>
                               <PixelButton size="sm" variant="ghost" className="w-full text-[10px] h-7" onClick={() => unequipTamerGear(slot)}>
-                                Unequip
+                                {t("tamer.unequip")}
                               </PixelButton>
                             </div>
                           ) : (
                             <div className="w-full mt-1">
                               <PixelButton size="sm" variant="gold" className="w-full text-[10px] h-7" onClick={() => equipTamerGear(owned.id)}>
-                                Equip
+                                {t("tamer.equip")}
                               </PixelButton>
                             </div>
                           )}
@@ -424,7 +442,7 @@ export default function TamerPage() {
                           <Lock className="absolute h-5 w-5 text-zinc-500" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-arcade text-xs font-bold text-zinc-500">{slot}</p>
+                          <p className="font-arcade text-xs font-bold text-zinc-500">{t(SLOT_LABEL_KEY[slot])}</p>
                           <p className="truncate text-[9px] text-zinc-500">{catalogItem.name}</p>
                           {formatTamerStatBonus(catalogItem.statBonus) && (
                             <p className="mt-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold leading-snug text-zinc-600">
@@ -470,12 +488,12 @@ export default function TamerPage() {
                               onClick={() => handleCraft(catalogItem.id)}
                               className="w-full"
                             >
-                              Craft
+                              {t("tamer.craft")}
                             </PixelButton>
                           </>
                         ) : catalogItem.source.kind === "campaign-clear" ? (
                           <p className="text-[8px] font-semibold uppercase tracking-wide text-zinc-500">
-                            {campaignClearLabel(catalogItem.source.stageId)}
+                            {campaignClearLabel(catalogItem.source.stageId, t)}
                           </p>
                         ) : null}
                       </GlowPanel>

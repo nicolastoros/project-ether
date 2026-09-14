@@ -18,6 +18,7 @@ import { ItemIcon } from "@/components/ui/ItemIcon";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
+import { useT } from "@/lib/i18n/useT";
 
 interface SweepScreenProps {
   stage: DungeonStage;
@@ -27,6 +28,7 @@ interface SweepScreenProps {
 }
 
 export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: SweepScreenProps) {
+  const t = useT();
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -93,31 +95,31 @@ export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: Sweep
 
   // LoadingOverlay is already a fixed, full-viewport overlay — no wrapper needed here.
   if (!showResult) {
-    return <LoadingOverlay show label="Calculating results..." />;
+    return <LoadingOverlay show label={t("battle.calculating_results")} />;
   }
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center p-4">
       <GlowPanel accent="gold" className="w-full max-w-lg p-6 text-center lg:p-10">
         <Sparkles className="mx-auto mb-4 h-12 w-12 text-gold" />
-        <h1 className="font-arcade text-2xl text-gold-bright lg:text-4xl">Auto-Clear Success!</h1>
-        <p className="mt-2 text-sm text-zinc-400">Sector {stage.world}-{stage.worldStageNumber}: {stage.name}</p>
+        <h1 className="font-arcade text-2xl text-gold-bright lg:text-4xl">{t("sweep.auto_clear_success")}</h1>
+        <p className="mt-2 text-sm text-zinc-400">{t("sweep.sector_prefix")}{stage.world}-{stage.worldStageNumber}: {stage.name}</p>
 
         <div className="mt-8 grid grid-cols-2 gap-4">
           <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
             <GoldCoinIcon className="mx-auto h-8 w-8" />
             <p className="mt-2 font-arcade text-lg text-foreground">+{stage.rewardGold}</p>
-            <p className="text-[10px] uppercase text-zinc-500">Gold Earned</p>
+            <p className="text-[10px] uppercase text-zinc-500">{t("sweep.gold_earned")}</p>
           </div>
           <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
             <Zap className="mx-auto h-8 w-8 text-sky-400" />
             <p className="mt-2 font-arcade text-lg text-foreground">+{stage.rewardExp * expMultiplier}</p>
-            <p className="text-[10px] uppercase text-zinc-500">EXP Earned</p>
+            <p className="text-[10px] uppercase text-zinc-500">{t("sweep.exp_earned")}</p>
           </div>
         </div>
 
         <div className="mt-6 text-left">
-          <p className="font-arcade text-xs uppercase text-zinc-500">Drops Received</p>
+          <p className="font-arcade text-xs uppercase text-zinc-500">{t("sweep.drops_received")}</p>
           <div className="mt-3 flex flex-wrap gap-3">
             {sealCoinsDropped > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light p-2 pr-4">
@@ -136,13 +138,13 @@ export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: Sweep
               );
             })}
             {sealCoinsDropped === 0 && itemsDropped.length === 0 && (
-              <p className="text-sm text-zinc-500 italic">No extra drops this time.</p>
+              <p className="text-sm text-zinc-500 italic">{t("sweep.no_extra_drops")}</p>
             )}
           </div>
         </div>
 
         <div className="mt-8 text-left">
-          <p className="font-arcade text-xs uppercase text-zinc-500">Team Progress</p>
+          <p className="font-arcade text-xs uppercase text-zinc-500">{t("sweep.team_progress")}</p>
           <div className="mt-3 flex gap-4">
             {playerCreatures.map((c) => (
               <div key={c.id} className="flex items-center gap-3 rounded-xl border border-arcade-border bg-arcade-panel-light p-3 flex-1">
@@ -159,11 +161,11 @@ export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: Sweep
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           {onResweep && (
             <PixelButton variant="neon" className="w-full py-4 text-lg" onClick={onResweep}>
-              Re-Sweep
+              {t("sweep.re_sweep")}
             </PixelButton>
           )}
           <PixelButton variant="gold" className="w-full py-4 text-lg" onClick={onExit}>
-            Continue
+            {t("sweep.continue")}
           </PixelButton>
         </div>
       </GlowPanel>

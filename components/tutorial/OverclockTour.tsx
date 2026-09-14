@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Swords } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { OVERCLOCK_INTRO_ITEMS, OVERCLOCK_TOUR_SEEN_ID, OVERCLOCK_TOUR_STEPS } from "@/lib/overclockTour";
+import { OVERCLOCK_INTRO_ITEMS, OVERCLOCK_MODAL_TEXT, OVERCLOCK_TOUR_SEEN_ID, OVERCLOCK_TOUR_STEPS } from "@/lib/overclockTour";
 import { FeatureIntroModal } from "./FeatureIntroModal";
 import { CoachmarkTour } from "./CoachmarkTour";
 
@@ -15,6 +15,7 @@ import { CoachmarkTour } from "./CoachmarkTour";
 export function OverclockTour() {
   const seenTutorialTips = useGameStore((s) => s.seenTutorialTips);
   const markTutorialTipSeen = useGameStore((s) => s.markTutorialTipSeen);
+  const language = useGameStore((s) => s.language);
   const [phase, setPhase] = useState<"modal" | "tour" | "done">("modal");
 
   const eligible = !seenTutorialTips.includes(OVERCLOCK_TOUR_SEEN_ID);
@@ -29,14 +30,13 @@ export function OverclockTour() {
     return (
       <FeatureIntroModal
         icon={Swords}
-        title="Overclock"
-        subtitle="A new weekly ranked boss fight"
-        items={OVERCLOCK_INTRO_ITEMS}
-        ctaLabel="Show Me Around"
+        title={OVERCLOCK_MODAL_TEXT[language].title}
+        subtitle={OVERCLOCK_MODAL_TEXT[language].subtitle}
+        items={OVERCLOCK_INTRO_ITEMS[language]}
         onContinue={() => setPhase("tour")}
         onSkip={finish}
       />
     );
   }
-  return <CoachmarkTour steps={OVERCLOCK_TOUR_STEPS} onComplete={finish} />;
+  return <CoachmarkTour steps={OVERCLOCK_TOUR_STEPS[language]} onComplete={finish} />;
 }

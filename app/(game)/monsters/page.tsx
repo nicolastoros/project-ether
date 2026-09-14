@@ -17,18 +17,21 @@ import type { Creature, Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
 import { RARITY_BORDER_CLASS, sortCreaturesByRarity } from "@/lib/gameData";
 import { creaturePower, partyPower } from "@/lib/power";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const ELEMENTS = Object.keys(ELEMENT_ICON) as Element[];
 const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic", "LR"];
 
 type SortKey = "rarity" | "power" | "level" | "name";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "rarity", label: "Rarity" },
-  { value: "power", label: "Power" },
-  { value: "level", label: "Level" },
-  { value: "name", label: "Name" },
-];
+const SORT_OPTION_LABEL_KEY: Record<SortKey, TranslationKey> = {
+  rarity: "monsters.sort_rarity",
+  power: "monsters.sort_power",
+  level: "monsters.sort_level",
+  name: "monsters.sort_name",
+};
+const SORT_OPTIONS: SortKey[] = ["rarity", "power", "level", "name"];
 
 function sortCreatures(creatures: Creature[], sortBy: SortKey): Creature[] {
   if (sortBy === "power") return [...creatures].sort((a, b) => creaturePower(b) - creaturePower(a));
@@ -45,9 +48,10 @@ interface MonsterCardProps {
   hubFull: boolean;
   onSelect: () => void;
   onToggleHubTeam: () => void;
+  t: ReturnType<typeof useT>;
 }
 
-function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onToggleHubTeam }: MonsterCardProps) {
+function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onToggleHubTeam, t }: MonsterCardProps) {
   // Drives both the sprite's turntable spin and a slight lift/scale on the whole card — a real
   // React state (not just a CSS :hover) since CreatureSprite's spin is driven by a JS interval.
   const [hovered, setHovered] = useState(false);
@@ -81,7 +85,9 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
           }}
           disabled={hubFull}
           aria-label={
-            isHubMember ? `Remove ${creature.name} from hub team` : `Add ${creature.name} to hub team`
+            isHubMember
+              ? `${t("monsters.remove_from_hub_team_prefix")}${creature.name}${t("monsters.remove_from_hub_team_suffix")}`
+              : `${t("monsters.add_to_hub_team_prefix")}${creature.name}${t("monsters.add_to_hub_team_suffix")}`
           }
           aria-pressed={isHubMember}
           className={cn(
@@ -107,10 +113,10 @@ function MonsterCard({ creature, isActive, isHubMember, hubFull, onSelect, onTog
         <div className="min-w-0 text-center">
           <div className="flex items-center justify-center gap-1.5">
             <CreatureName creature={creature} className="truncate text-sm font-semibold sm:text-base" />
-            {isActive && <span className="font-arcade text-[8px] text-gold-bright">ACTIVE</span>}
+            {isActive && <span className="font-arcade text-[8px] text-gold-bright">{t("monsters.active")}</span>}
           </div>
           <p className="text-[10px] text-zinc-600">
-            {creature.element} · Stage {creature.stage} · Lv.{creature.level}
+            {creature.element} · {t("creature.stage_label")} {creature.stage} · Lv.{creature.level}
           </p>
           <p className="mt-0.5 flex items-center justify-center gap-1 font-mono text-[11px] font-bold text-gold-bright sm:text-xs">
             <Gauge className="h-3 w-3" />
@@ -154,17 +160,19 @@ function PageArrow({
   direction,
   onClick,
   disabled,
+  t,
 }: {
   direction: "left" | "right";
   onClick: () => void;
   disabled: boolean;
+  t: ReturnType<typeof useT>;
 }) {
   const Icon = direction === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      aria-label={direction === "left" ? "Previous page" : "Next page"}
+      aria-label={direction === "left" ? t("monsters.previous_page") : t("monsters.next_page")}
       className="flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full border border-arcade-border bg-arcade-panel shadow-sm transition-colors hover:border-gold hover:text-gold-bright disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-arcade-border disabled:hover:text-inherit"
     >
       <Icon className="h-5 w-5" />
@@ -175,6 +183,7 @@ function PageArrow({
 
 
 export default function MonstersPage() {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const activeCreatureId = useGameStore((s) => s.activeCreatureId);
   const setActiveCreature = useGameStore((s) => s.setActiveCreature);
@@ -264,6 +273,7 @@ export default function MonstersPage() {
         hubFull={hubFull}
         onSelect={() => setSelected(creature)}
         onToggleHubTeam={() => toggleHubTeamMember(creature.id)}
+        t={t}
       />
     );
   };
@@ -271,18 +281,18 @@ export default function MonstersPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Monsters</h1>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("monsters.title")}</h1>
         <p className="mt-1 text-xs text-zinc-500">
-          {creatures.length} creatures collected. Tap one to view its stats and skills.
+          {creatures.length}{t("monsters.collected_suffix")}
         </p>
         <p className="mt-1 text-[10px] text-zinc-600">
           <Star className="mr-1 inline h-3 w-3 text-gold-bright" />
-          Hub team {hubTeamIds.length}/{HUB_TEAM_SIZE} — your showcase lineup on the Hub screen.
+          {t("monsters.hub_team_prefix")}{hubTeamIds.length}/{HUB_TEAM_SIZE}{t("monsters.hub_team_suffix")}
         </p>
         <p className="mt-1.5 flex items-center gap-1.5 font-arcade text-sm glow-text-gold">
           <Gauge className="h-4 w-4" />
           {totalPower.toLocaleString()}
-          <span className="font-sans text-[10px] font-normal normal-case text-zinc-500">Total Power</span>
+          <span className="font-sans text-[10px] font-normal normal-case text-zinc-500">{t("monsters.total_power")}</span>
         </p>
       </div>
 
@@ -293,20 +303,20 @@ export default function MonstersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search creatures by name..."
+            placeholder={t("monsters.search_placeholder")}
             className="w-full rounded-xl border border-arcade-border bg-arcade-panel-light py-2 pl-9 pr-3 text-xs text-foreground outline-none focus:border-gold"
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">Sort</span>
+          <span className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">{t("monsters.sort")}</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
             className="rounded-xl border border-arcade-border bg-arcade-panel-light px-2.5 py-2 text-xs text-foreground outline-none focus:border-gold"
           >
             {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
+              <option key={opt} value={opt}>
+                {t(SORT_OPTION_LABEL_KEY[opt])}
               </option>
             ))}
           </select>
@@ -324,13 +334,13 @@ export default function MonstersPage() {
               onClick={clearFilters}
               className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500 hover:text-gold-bright"
             >
-              Clear filters
+              {t("monsters.clear_filters")}
             </button>
           )}
         </GlowPanel>
 
         <div className="flex items-start gap-2">
-          <PageArrow direction="left" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0} />
+          <PageArrow direction="left" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={clampedPage === 0} t={t} />
 
           <div className="min-w-0 flex-1 space-y-2">
             {pageCreatures.length > 0 ? (
@@ -344,12 +354,12 @@ export default function MonstersPage() {
               </div>
             ) : (
               <GlowPanel accent="none" className="flex h-40 items-center justify-center text-xs text-zinc-500">
-                No creatures match these filters.
+                {t("monsters.no_match")}
               </GlowPanel>
             )}
             {pageCount > 1 && (
               <p className="text-center font-arcade text-[9px] uppercase tracking-wide text-zinc-500">
-                Page {clampedPage + 1} / {pageCount}
+                {t("monsters.page_prefix")}{clampedPage + 1} / {pageCount}
               </p>
             )}
           </div>
@@ -358,6 +368,7 @@ export default function MonstersPage() {
             direction="right"
             onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             disabled={clampedPage >= pageCount - 1}
+            t={t}
           />
         </div>
 
@@ -388,12 +399,12 @@ export default function MonstersPage() {
         >
           <span className="flex items-center gap-1.5">
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filters
+            {t("monsters.filters")}
             {activeFilterCount > 0 && (
               <span className="rounded-full bg-gold px-1.5 py-0.5 text-[9px] text-white">{activeFilterCount}</span>
             )}
           </span>
-          <span className="text-[10px] text-zinc-500">{filteredCreatures.length} shown</span>
+          <span className="text-[10px] text-zinc-500">{filteredCreatures.length}{t("monsters.shown_suffix")}</span>
         </button>
 
         {filteredCreatures.length > 0 ? (
@@ -402,7 +413,7 @@ export default function MonstersPage() {
           </div>
         ) : (
           <GlowPanel accent="none" className="mt-3 flex h-32 items-center justify-center text-xs text-zinc-500">
-            No creatures match these filters.
+            {t("monsters.no_match")}
           </GlowPanel>
         )}
       </div>
@@ -425,8 +436,8 @@ export default function MonstersPage() {
               className="relative flex max-h-[80vh] w-full flex-col overflow-y-auto rounded-t-3xl border border-arcade-border bg-arcade-panel p-4 shadow-xl"
             >
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-arcade text-xs glow-text-gold">Filters</h2>
-                <button onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters">
+                <h2 className="font-arcade text-xs glow-text-gold">{t("monsters.filters")}</h2>
+                <button onClick={() => setMobileFiltersOpen(false)} aria-label={t("monsters.close_filters")}>
                   <X className="h-5 w-5 text-zinc-500" />
                 </button>
               </div>
@@ -445,10 +456,10 @@ export default function MonstersPage() {
 
               <div className="mt-4 flex gap-2">
                 <PixelButton variant="ghost" size="sm" className="flex-1" onClick={clearFilters}>
-                  Clear
+                  {t("monsters.clear")}
                 </PixelButton>
                 <PixelButton size="sm" className="flex-1" onClick={() => setMobileFiltersOpen(false)}>
-                  Show {filteredCreatures.length}
+                  {t("monsters.show_prefix")}{filteredCreatures.length}
                 </PixelButton>
               </div>
             </motion.div>

@@ -8,6 +8,7 @@ import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { applyAwakenBump, RARITY_BORDER_CLASS, STARTER_CREATURES } from "@/lib/gameData";
 import type { Creature } from "@/types/game";
 import { cn, formatNumber } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 interface TopCreature {
   creatureId: string;
@@ -48,6 +49,7 @@ function displayCreature(tc: TopCreature): Creature | null {
 }
 
 export default function RankingPage() {
+  const t = useT();
   const myUserId = useGameStore((s) => s.profile.id);
   const isAdmin = useGameStore((s) => s.profile.isAdmin);
   const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
@@ -67,26 +69,25 @@ export default function RankingPage() {
     <div className="space-y-4">
       <div>
         <h1 className="flex items-center gap-2 font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">
-          <Trophy className="h-5 w-5 sm:h-6 sm:w-6" /> Global Ranking
+          <Trophy className="h-5 w-5 sm:h-6 sm:w-6" /> {t("ranking.title")}
         </h1>
         <p className="mt-1 text-sm text-zinc-600 sm:text-base">
-          Every Tamer ranked by total power — climb the board by leveling, awakening, and
-          collecting more creatures.
+          {t("ranking.subtitle")}
         </p>
         {isAdmin && (
           <p className="mt-1 text-xs text-zinc-500">
-            Admin accounts aren&apos;t included in the ranking (they start with every creature).
+            {t("ranking.admin_note")}
           </p>
         )}
       </div>
 
       {loading ? (
         <GlowPanel accent="none" className="flex h-40 items-center justify-center text-sm text-zinc-500">
-          Loading ranking...
+          {t("ranking.loading")}
         </GlowPanel>
       ) : !ranking || ranking.length === 0 ? (
         <GlowPanel accent="none" className="flex h-40 items-center justify-center text-sm text-zinc-500">
-          No ranked Tamers yet.
+          {t("ranking.no_ranked_tamers")}
         </GlowPanel>
       ) : (
         <div className="space-y-2.5">
@@ -118,11 +119,11 @@ export default function RankingPage() {
                       {entry.displayName}
                       {isMe && (
                         <span className="shrink-0 rounded-full bg-neon/15 px-1.5 py-0.5 font-arcade text-[9px] text-neon-ink">
-                          YOU
+                          {t("ranking.you")}
                         </span>
                       )}
                     </p>
-                    <p className="truncate text-[11px] text-zinc-500 sm:text-xs">Tamer Lv.{entry.tamerLevel}</p>
+                    <p className="truncate text-[11px] text-zinc-500 sm:text-xs">{t("ranking.tamer_lv_prefix")}{entry.tamerLevel}</p>
                   </div>
 
                   <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -132,7 +133,7 @@ export default function RankingPage() {
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] text-zinc-500 sm:text-[11px]">
                       <PawPrint className="h-3 w-3" />
-                      {entry.creaturesUnlocked} unlocked
+                      {entry.creaturesUnlocked}{t("ranking.unlocked_suffix")}
                     </span>
                   </div>
                 </div>
@@ -140,7 +141,7 @@ export default function RankingPage() {
                 {isTop3 && entry.topCreatures.length > 0 && (
                   <div className="flex items-center gap-2 border-t border-arcade-border/60 pt-2.5 sm:gap-3">
                     <span className="shrink-0 font-arcade text-[9px] uppercase tracking-wide text-zinc-500 sm:text-[10px]">
-                      Strongest
+                      {t("ranking.strongest")}
                     </span>
                     {entry.topCreatures.map((tc) => {
                       const creature = displayCreature(tc);

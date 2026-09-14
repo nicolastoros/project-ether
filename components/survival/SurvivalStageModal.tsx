@@ -12,6 +12,7 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { cn, formatNumber } from "@/lib/utils";
 import { sortCreaturesByRarity } from "@/lib/gameData";
+import { useT } from "@/lib/i18n/useT";
 
 function formatTargetTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -40,6 +41,7 @@ export function SurvivalStageModal({
   onClose,
   onStart,
 }: SurvivalStageModalProps) {
+  const t = useT();
   return (
     <AnimatePresence>
       {stage && (
@@ -61,38 +63,38 @@ export function SurvivalStageModal({
           >
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
 
             <p className="text-[10px] uppercase tracking-wide text-zinc-500">
-              World {stage.world}-{stage.worldStageNumber}
+              {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
             </p>
             <h2 className="text-xl font-bold text-foreground">{stage.name}</h2>
 
             <span className="mt-2 inline-flex items-center rounded-full bg-neon px-2 py-0.5 font-arcade text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
-              Survive {formatTargetTime(stage.targetSeconds)}
+              {t("survival.survive_prefix")}{formatTargetTime(stage.targetSeconds)}
             </span>
 
             <div className="mt-3 grid grid-cols-2 gap-2 text-center">
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
                 <GoldCoinIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{formatNumber(stage.rewardGold)}</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Gold</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500">{t("survival.gold")}</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2">
                 <CrownIcon className="mx-auto h-3.5 w-3.5" />
                 <p className="mt-1 text-xs font-semibold text-foreground">{stage.rewardGems}</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500">Crowns</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500">{t("survival.crowns")}</p>
               </div>
             </div>
 
             {!isLocked && (
               <div className="mt-3">
                 <p className="mb-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                  Choose your creature
+                  {t("survival.choose_creature")}
                 </p>
                 {/* Wraps into a grid instead of scrolling sideways, so widening the modal on
                     larger screens (lg:max-w-2xl above) actually gives every card more room
@@ -126,7 +128,7 @@ export function SurvivalStageModal({
 
             {isLocked ? (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500">
-                <Lock className="h-3.5 w-3.5" /> Clear the previous stage first
+                <Lock className="h-3.5 w-3.5" /> {t("survival.clear_previous_stage")}
               </div>
             ) : (
               <PixelButton
@@ -135,7 +137,7 @@ export function SurvivalStageModal({
                 disabled={!selectedCreatureId}
                 onClick={onStart}
               >
-                {isCleared ? "Replay" : "Start"}
+                {isCleared ? t("survival.replay") : t("survival.start")}
               </PixelButton>
             )}
           </motion.div>

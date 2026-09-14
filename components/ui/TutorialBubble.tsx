@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { TUTORIAL_TIPS } from "@/lib/tutorialTips";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
 /** Mounted once in AppShell.tsx — route-driven, not per-page. Shows the current route's tip (see
@@ -15,8 +16,10 @@ export function TutorialBubble() {
   const pathname = usePathname();
   const seenTutorialTips = useGameStore((s) => s.seenTutorialTips);
   const markTutorialTipSeen = useGameStore((s) => s.markTutorialTipSeen);
+  const language = useGameStore((s) => s.language);
+  const t = useT();
 
-  const tip = TUTORIAL_TIPS[pathname];
+  const tip = TUTORIAL_TIPS[language][pathname];
   const isVisible = Boolean(tip) && !seenTutorialTips.includes(tip.id);
 
   return (
@@ -36,7 +39,7 @@ export function TutorialBubble() {
             // on desktop where there's no bottom nav to clear.
             "bottom-20 inset-x-4 lg:inset-x-auto lg:bottom-6 lg:right-6"
           )}
-          aria-label={`${tip.title} tip — click to dismiss`}
+          aria-label={`${tip.title} ${t("tutorial.tip_dismiss_suffix")}`}
         >
           <span className="absolute right-3 top-3 text-zinc-400">
             <X className="h-3.5 w-3.5" />

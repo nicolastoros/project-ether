@@ -9,6 +9,7 @@ import { X, LogOut } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { useUiStore } from "@/lib/uiStore";
 import { getNavGroups } from "@/lib/navigation";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { NewBadge } from "@/components/ui/NewBadge";
 
@@ -23,6 +24,7 @@ export function MobileDrawer() {
   const isAdmin = useGameStore((s) => s.profile.isAdmin);
   const router = useRouter();
   const navGroups = getNavGroups(isAdmin);
+  const t = useT();
 
   return (
     <AnimatePresence>
@@ -43,10 +45,10 @@ export function MobileDrawer() {
             className="absolute right-0 top-0 flex h-full w-72 max-w-[85%] flex-col border-l border-arcade-border bg-arcade-panel"
           >
             <div className="flex items-center justify-between border-b border-arcade-border px-4 py-3.5">
-              <h2 className="font-arcade text-xs glow-text-gold">Menu</h2>
+              <h2 className="font-arcade text-xs glow-text-gold">{t("common.menu")}</h2>
               <button
                 onClick={closeDrawer}
-                aria-label="Close menu"
+                aria-label={t("common.close_menu")}
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-arcade-border text-zinc-500 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -55,12 +57,12 @@ export function MobileDrawer() {
 
             <nav className="scrollbar-hidden flex-1 overflow-y-auto px-3 py-4">
               {navGroups.map((group) => (
-                <div key={group.title} className="mb-5">
+                <div key={group.titleKey} className="mb-5">
                   <p className="mb-1.5 px-2 font-arcade text-[9px] uppercase tracking-wider text-zinc-600">
-                    {group.title}
+                    {t(group.titleKey)}
                   </p>
                   <ul className="space-y-0.5">
-                    {group.items.map(({ href, label, icon: Icon }) => {
+                    {group.items.map(({ href, labelKey, icon: Icon }) => {
                       const isActive = pathname.startsWith(href);
 
                       // Same branded-button treatment as Sidebar.tsx's own "/start" special case —
@@ -107,7 +109,7 @@ export function MobileDrawer() {
                                 <NewBadge className="-right-2 -top-2" />
                               )}
                             </div>
-                            <span className="truncate">{label}</span>
+                            <span className="truncate">{t(labelKey)}</span>
                           </Link>
                         </li>
                       );
@@ -130,7 +132,7 @@ export function MobileDrawer() {
                 className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs text-zinc-600 transition-colors hover:bg-arcade-panel-light hover:text-red-500"
               >
                 <LogOut className="h-4 w-4" />
-                Log out
+                {t("sidebar.log_out")}
               </button>
             </div>
           </motion.div>

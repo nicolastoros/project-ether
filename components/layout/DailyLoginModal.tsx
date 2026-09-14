@@ -10,6 +10,9 @@ import { ITEM_CATALOG } from "@/lib/gameData";
 import { syncProgressToServer } from "@/lib/syncProgress";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import { getItemName } from "@/lib/i18n/itemDescriptions";
+import type { Language } from "@/lib/i18n/translations";
 
 interface DailyLoginModalProps {
   isOpen: boolean;
@@ -29,8 +32,9 @@ const DAYS_IN_CALENDAR = 30;
 function itemIcon(itemId: string): string | undefined {
   return ITEM_CATALOG.find((i) => i.id === itemId)?.icon;
 }
-function itemName(itemId: string): string {
-  return ITEM_CATALOG.find((i) => i.id === itemId)?.name ?? itemId;
+function itemName(itemId: string, language: Language): string {
+  const item = ITEM_CATALOG.find((i) => i.id === itemId);
+  return item ? getItemName(item, language) : itemId;
 }
 
 /** A 30-day monthly login calendar — every day grants a full spread of Orbs + 5 Mythic Tickets,
@@ -41,6 +45,8 @@ function itemName(itemId: string): string {
  * renders as "missed" once its date is in the past and wasn't claimed, exactly as asked: no
  * catch-up. */
 export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const grantItem = useGameStore((s) => s.grantItem);
   const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<DailyLoginStatus | null>(null);
@@ -74,7 +80,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
       const res = await fetch("/api/user/daily-login/claim", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data.granted) {
-        toast.error(data.granted === false ? "Already claimed today!" : "Couldn't claim right now.");
+        toast.error(data.granted === false ? t("daily_login.already_claimed_today") : t("daily_login.claim_error"));
         setStatus((s) => (s ? { ...s, claimedToday: true, claimedDates: [...s.claimedDates, s.today] } : s));
         return;
       }
@@ -82,7 +88,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
       items.forEach((it) => grantItem(it.itemId, it.quantity));
       syncProgressToServer();
       setStatus((s) => (s ? { ...s, claimedToday: true, claimedDates: [...s.claimedDates, s.today] } : s));
-      toast.success("Daily Login reward claimed!");
+      toast.success(t("daily_login.claim_success"));
     } finally {
       setClaiming(false);
     }
@@ -110,11 +116,11 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
           >
             <div className="flex shrink-0 items-center justify-between border-b border-arcade-border p-3.5 sm:p-5">
               <h2 className="flex items-center gap-2 font-arcade text-sm glow-text-gold sm:text-lg">
-                <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6" /> Daily Login Rewards
+                <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6" /> {t("daily_login.title")}
               </h2>
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-arcade-border text-zinc-500 hover:text-foreground sm:h-9 sm:w-9"
               >
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -122,7 +128,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
             </div>
 
             {loading || !status ? (
-              <p className="py-10 text-center text-sm text-zinc-500">Loading...</p>
+              <p className="py-10 text-center text-sm text-zinc-500">{t("daily_login.loading")}</p>
             ) : (
               <>
                 {/* Only the intro blurb + 30-day grid scroll — the reward/claim footer below is
@@ -131,8 +137,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                     Claim). */}
                 <div className="min-h-0 flex-1 overflow-y-auto p-3.5 pb-3 sm:p-5">
                   <p className="mb-3 text-center text-[11px] text-zinc-500 sm:mb-4 sm:text-sm">
-                    Log in every day for Orbs and Tickets — every 5th day adds a Legendary Ticket bonus.
-                    Miss a day and it&apos;s gone, so don&apos;t skip!
+                    {t("daily_login.intro")}
                   </p>
 
                   <div className="grid grid-cols-6 gap-1.5 sm:gap-3">
@@ -177,7 +182,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                 <div className="shrink-0 border-t border-arcade-border p-3.5 sm:p-5">
                   <div className="rounded-2xl border border-arcade-border bg-arcade-panel-light p-2.5 sm:p-4">
                     <p className="mb-2 text-center font-arcade text-[10px] uppercase tracking-wide text-zinc-500 sm:mb-3 sm:text-xs">
-                      Today&apos;s Reward (Day {status.dayOfMonth}{status.dayOfMonth % 5 === 0 ? " — Bonus!" : ""})
+                      {t("daily_login.today_reward_prefix")}{status.dayOfMonth}{status.dayOfMonth % 5 === 0 ? t("daily_login.today_reward_bonus_suffix") : ""}{t("daily_login.today_reward_suffix")}
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
                       {status.todayReward
@@ -192,13 +197,13 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                               <img src={itemIcon(it.itemId)} alt="" className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
                             )}
                             <span className="text-[11px] font-semibold text-foreground sm:text-xs">
-                              {itemName(it.itemId)} ×{it.quantity}
+                              {itemName(it.itemId, language)} ×{it.quantity}
                             </span>
                           </div>
                         ))}
                       <div className="flex items-center gap-1.5 rounded-full border border-arcade-border bg-arcade-panel px-2.5 py-1 sm:px-3 sm:py-1.5">
                         <span className="text-[11px] font-semibold text-foreground sm:text-xs">
-                          + every Orb type (300 / 150 / 50)
+                          {t("daily_login.every_orb_type")}
                         </span>
                       </div>
                     </div>
@@ -210,7 +215,7 @@ export function DailyLoginModal({ isOpen, onClose }: DailyLoginModalProps) {
                     disabled={status.claimedToday || claiming}
                     onClick={handleClaim}
                   >
-                    {status.claimedToday ? "Claimed for today" : claiming ? "Claiming..." : "Claim Today's Reward"}
+                    {status.claimedToday ? t("daily_login.claimed_for_today") : claiming ? t("daily_login.claiming") : t("daily_login.claim_today")}
                   </PixelButton>
                 </div>
               </>

@@ -7,6 +7,7 @@ import { DIFFICULTY_TIERS, tierStageId } from "@/lib/difficultyTiers";
 import { DUNGEON_STAGES } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 const CHAPTER_LOGOS: Record<number, string> = {
   1: "/assets/ui/chapter1.png",
@@ -22,6 +23,7 @@ interface ChapterListProps {
 /** Top-level Campaign view — a grid of Chapter tiles (chapter_layout.png frame + that chapter's
  * logo), each opening into ChapterAreaList. Replaces the old per-World map. */
 export function ChapterList({ onSelectChapter }: ChapterListProps) {
+  const t = useT();
   const stageStars = useGameStore((s) => s.dungeon.stageStars);
 
   return (
@@ -62,7 +64,7 @@ export function ChapterList({ onSelectChapter }: ChapterListProps) {
               <div className="absolute inset-0 flex items-center justify-center p-6">
                 <Image
                   src={CHAPTER_LOGOS[chapter.chapter]}
-                  alt={`Chapter ${chapter.chapter}`}
+                  alt={`${t("hub.chapter_label")} ${chapter.chapter}`}
                   width={480}
                   height={160}
                   className="max-h-[45%] w-auto max-w-[60%] object-contain drop-shadow-lg"
@@ -71,7 +73,7 @@ export function ChapterList({ onSelectChapter }: ChapterListProps) {
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-white/70">
                 <Lock className="h-6 w-6 lg:h-8 lg:w-8" />
-                <span className="font-arcade text-[10px] uppercase tracking-wide lg:text-xs">Coming Soon</span>
+                <span className="font-arcade text-[10px] uppercase tracking-wide lg:text-xs">{t("common.coming_soon")}</span>
               </div>
             )}
 

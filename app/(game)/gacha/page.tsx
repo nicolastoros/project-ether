@@ -9,6 +9,9 @@ import { SummonRevealModal } from "@/components/gacha/SummonRevealModal";
 import { MenuBannerButton } from "@/components/ui/MenuBannerButton";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import type { Creature, GachaBanner, Rarity } from "@/types/game";
+import { useT } from "@/lib/i18n/useT";
+import { getItemName } from "@/lib/i18n/itemDescriptions";
+import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
 
 /** Pity: guarantees a rarity within N pulls on a given banner currency, so a run of bad luck has
  * a hard ceiling instead of the raw odds letting a player go arbitrarily long empty-handed.
@@ -91,6 +94,8 @@ function rollCreatures(
 }
 
 export default function GachaPage() {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const [activeIndex, setActiveIndex] = useState(0);
   const gems = useGameStore((s) => s.currencies.gems);
   const spendGems = useGameStore((s) => s.spendGems);
@@ -156,8 +161,8 @@ export default function GachaPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Summon</h1>
-        <p className="mt-1 text-xs text-zinc-500">Swipe through the banners and try your luck.</p>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("nav.summon")}</h1>
+        <p className="mt-1 text-xs text-zinc-500">{t("gacha.subtitle")}</p>
       </div>
 
       <div className="mx-auto max-w-lg lg:max-w-3xl">
@@ -165,21 +170,21 @@ export default function GachaPage() {
 
         <div className="mt-3 text-center lg:mt-5">
           <h2 className="text-lg font-bold text-foreground lg:text-2xl">{banner.name}</h2>
-          <p className="text-xs text-zinc-500 lg:text-sm">{banner.tagline}</p>
+          <p className="text-xs text-zinc-500 lg:text-sm">{getGachaBannerTagline(banner.id, banner.tagline, language)}</p>
         </div>
 
         {currencyItem && (
           <div className="mx-auto mt-2 flex w-fit items-center gap-2 rounded-full border border-arcade-border bg-arcade-panel-light px-3 py-1 lg:px-4 lg:py-1.5">
-            <img src={currencyItem.icon} alt={currencyItem.name} className="h-6 w-6 lg:h-7 lg:w-7" />
+            <img src={currencyItem.icon} alt={getItemName(currencyItem, language)} className="h-6 w-6 lg:h-7 lg:w-7" />
             <span className="text-sm font-bold text-foreground lg:text-base">{getCurrencyAmount(banner)}</span>
-            <span className="text-xs text-zinc-500 lg:text-sm">owned</span>
+            <span className="text-xs text-zinc-500 lg:text-sm">{t("gacha.owned")}</span>
           </div>
         )}
 
         {pityInfo && (
           <div className="mx-auto mt-3 max-w-xs lg:max-w-sm">
             <div className="flex items-center justify-between text-xs font-mono text-zinc-500 lg:text-sm">
-              <span>Pity to guaranteed {pityInfo.targetRarity}</span>
+              <span>{t("gacha.pity_prefix")}{pityInfo.targetRarity}</span>
               <span className="font-bold text-gold-bright">{pityCount}/{pityInfo.threshold}</span>
             </div>
             <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full border border-arcade-border bg-arcade-panel-light">
@@ -195,7 +200,7 @@ export default function GachaPage() {
           <MenuBannerButton
             image="/assets/events/summon_button.png"
             hasIcon={false}
-            label="Summon"
+            label={t("nav.summon")}
             disabled={isSummoning || getCurrencyAmount(banner) < banner.singlePullCost}
             onClick={() => handleSummon(1, banner.singlePullCost)}
             caption={
@@ -207,7 +212,7 @@ export default function GachaPage() {
           <MenuBannerButton
             image="/assets/events/summon_button.png"
             hasIcon={false}
-            label="Multi-Summon"
+            label={t("gacha.multi_summon")}
             disabled={isSummoning || getCurrencyAmount(banner) < banner.multiPullCost}
             onClick={() => handleSummon(banner.multiPullCount, banner.multiPullCost)}
             caption={

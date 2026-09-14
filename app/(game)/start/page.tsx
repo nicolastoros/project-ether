@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 // Dokkan-style mode-select hub — the sidebar's "Start" entry (lib/navigation.ts) lands here
 // instead of linking straight into a mode, so new modes join this screen instead of piling up
@@ -28,7 +29,7 @@ const GAME_MODES: GameMode[] = [
   { id: "infinite-tower", src: "/assets/ui/infinite_tower_mode.png", width: 2160, height: 728, href: null, glow: "rgba(96,165,250,0.55)" },
 ];
 
-function ModeCard({ mode }: { mode: GameMode }) {
+function ModeCard({ mode, t }: { mode: GameMode; t: ReturnType<typeof useT> }) {
   const comingSoon = !mode.href;
 
   const card = (
@@ -60,7 +61,7 @@ function ModeCard({ mode }: { mode: GameMode }) {
         {comingSoon && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/35">
             <span className="flex items-center gap-1.5 rounded-full bg-black/80 px-4 py-2 font-arcade text-[10px] uppercase tracking-wide text-white sm:text-xs">
-              <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Coming Soon
+              <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {t("common.coming_soon")}
             </span>
           </div>
         )}
@@ -84,16 +85,17 @@ function ModeCard({ mode }: { mode: GameMode }) {
 }
 
 export default function StartPage() {
+  const t = useT();
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Start</h1>
-        <p className="mt-1 text-xs text-zinc-500">Choose your path.</p>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("nav.start")}</h1>
+        <p className="mt-1 text-xs text-zinc-500">{t("start.subtitle")}</p>
       </div>
 
       <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         {GAME_MODES.map((mode) => (
-          <ModeCard key={mode.id} mode={mode} />
+          <ModeCard key={mode.id} mode={mode} t={t} />
         ))}
       </div>
     </div>

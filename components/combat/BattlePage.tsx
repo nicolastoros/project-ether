@@ -11,6 +11,7 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { TeamSelectScreen } from "./TeamSelectScreen";
 import { BattleScreen } from "./BattleScreen";
 import { SweepScreen } from "./SweepScreen";
+import { useT } from "@/lib/i18n/useT";
 
 interface BattlePageProps {
   stage: DungeonStage;
@@ -25,6 +26,7 @@ interface BattlePageProps {
 }
 
 export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: BattlePageProps) {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const spendEnergy = useGameStore((s) => s.spendEnergy);
   const consumeEventAttempt = useGameStore((s) => s.consumeEventAttempt);
@@ -70,17 +72,17 @@ export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: Batt
               // for a battle that never happened.
               if (stage.eventId) {
                 if (useGameStore.getState().currencies.energy < stage.staminaCost) {
-                  alert("Not enough Energy!");
+                  alert(t("combat.error_not_enough_energy"));
                   return;
                 }
                 if (eventMaxWeeklyAttempts == null || !consumeEventAttempt(stage.eventId, eventMaxWeeklyAttempts)) {
-                  alert("No attempts left for this event this week!");
+                  alert(t("combat.error_no_attempts_left"));
                   return;
                 }
                 spendEnergy(stage.staminaCost);
                 syncProgressToServer();
               } else if (!spendEnergy(stage.staminaCost)) {
-                alert("Not enough stamina!");
+                alert(t("combat.error_not_enough_stamina"));
                 return;
               }
               setIsSweep(sweep);
@@ -114,7 +116,7 @@ export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: Batt
         }} 
         onResweep={() => {
           if (!spendEnergy(stage.staminaCost)) {
-            alert("Not enough stamina to re-sweep!");
+            alert(t("combat.error_not_enough_stamina_resweep"));
             return;
           }
           setBattleKey((k) => k + 1);
@@ -132,11 +134,11 @@ export function BattlePage({ stage, eventEnemies, eventMaxWeeklyAttempts }: Batt
       onRematch={() => {
         if (eventMaxWeeklyAttempts != null && stage.eventId) {
           if (useGameStore.getState().currencies.energy < stage.staminaCost) {
-            alert("Not enough Energy!");
+            alert(t("combat.error_not_enough_energy"));
             return;
           }
           if (!consumeEventAttempt(stage.eventId, eventMaxWeeklyAttempts)) {
-            alert("No attempts left for this event this week!");
+            alert(t("combat.error_no_attempts_left"));
             return;
           }
           spendEnergy(stage.staminaCost);

@@ -1,4 +1,5 @@
 import type { Creature, LrPassive, LrPassiveCondition, Skill, StatusEffectType } from "@/types/game";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { getPotentialBonuses } from "./hiddenPotential";
 
 export type BattleSide = "player" | "enemy";
@@ -84,10 +85,17 @@ function applyStatus(target: BattleCombatant, status: StatusEffectType, turns: n
 
 export type BattleLogKind = "attack" | "heal" | "guard" | "defeat" | "info";
 
+/** `key`+`params` (not a pre-formatted `message`) so the actual display string is resolved by
+ * whichever battle screen renders it, via useT() (lib/i18n/useT.ts) — this file has no React
+ * context to call a hook from, and the same event needs to read in whichever language the player
+ * has picked, not whatever was active when applyAction() happened to run. `params` only ever holds
+ * creature/skill names (kept as-is, untranslated — see useT's {token} substitution) and plain
+ * numbers. */
 export interface BattleLogEntry {
   id: string;
-  message: string;
   kind: BattleLogKind;
+  key: TranslationKey;
+  params?: Record<string, string | number>;
 }
 
 let uidCounter = 0;
@@ -281,7 +289,7 @@ export function applyAction(
 
   if ((actor.statusEffects.sleep ?? 0) > 0) {
     actor.statusEffects.sleep!--;
-    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is fast asleep and cannot move!` });
+    logs.push({ id: nextLogId(), kind: "info", key: "battle.log.sleep", params: { name: actor.creature.name } });
     return { combatants: list, logs, hits };
   }
 
@@ -290,10 +298,10 @@ export function applyAction(
     const poisonDmg = Math.max(1, Math.round(actor.maxHp * 0.08));
     actor.currentHp = Math.max(0, actor.currentHp - poisonDmg);
     hits.push({ uid: actor.uid, amount: poisonDmg, isCrit: false, isHeal: false, isMiss: false });
-    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} takes ${poisonDmg} poison damage!` });
+    logs.push({ id: nextLogId(), kind: "info", key: "battle.log.poison_damage", params: { name: actor.creature.name, amount: poisonDmg } });
     if (actor.currentHp === 0 && actor.isAlive) {
       actor.isAlive = false;
-      logs.push({ id: nextLogId(), kind: "defeat", message: `${actor.creature.name} succumbed to poison!` });
+      logs.push({ id: nextLogId(), kind: "defeat", key: "battle.log.poison_defeat", params: { name: actor.creature.name } });
       return { combatants: list, logs, hits };
     }
   }
@@ -301,7 +309,7 @@ export function applyAction(
   if ((actor.statusEffects.paralysis ?? 0) > 0) {
     actor.statusEffects.paralysis!--;
     if (Math.random() < 0.3) {
-      logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is paralyzed and cannot move!` });
+      logs.push({ id: nextLogId(), kind: "info", key: "battle.log.paralyzed", params: { name: actor.creature.name } });
       return { combatants: list, logs, hits };
     }
   }
@@ -310,10 +318,8 @@ export function applyAction(
   if (actor.side === "enemy" && actor.creature.id === "cr-crimson-paladin") {
     if ((skill.name === "Holy Judgment" || skill.name === "Holy Guardian") && actor.telegraphedSkill?.id !== skill.id) {
       actor.telegraphedSkill = skill;
-      const msg = skill.name === "Holy Judgment"
-        ? `${actor.creature.name} is preparing a devastating attack!`
-        : `${actor.creature.name} is about to grow much stronger!`;
-      logs.push({ id: nextLogId(), kind: "info", message: msg });
+      const key: TranslationKey = skill.name === "Holy Judgment" ? "battle.log.telegraph_attack" : "battle.log.telegraph_buff";
+      logs.push({ id: nextLogId(), kind: "info", key, params: { name: actor.creature.name } });
       return { combatants: list, logs, hits };
     }
   }
@@ -354,12 +360,13 @@ export function applyAction(
       logs.push({
         id: nextLogId(),
         kind: "attack",
-        message: `${actor.creature.name} uses ${skill.name} on ${target.creature.name} for ${dmg} damage.`,
+        key: "battle.log.attack_hit",
+        params: { name: actor.creature.name, skill: skill.name, target: target.creature.name, amount: dmg },
       });
 
       if (target.currentHp === 0 && target.isAlive) {
         target.isAlive = false;
-        logs.push({ id: nextLogId(), kind: "defeat", message: `${target.creature.name} was defeated!` });
+        logs.push({ id: nextLogId(), kind: "defeat", key: "battle.log.defeated", params: { name: target.creature.name } });
         return false;
       }
       return true;
@@ -372,25 +379,25 @@ export function applyAction(
     // (safer than touching the turn-advance loop both BattleScreen.tsx and RaidBattleScreen.tsx
     // own copies of, for the same "attacks twice" flavor).
     if (targetSurvived && actor.passiveDoubleHitChance > 0 && Math.random() * 100 < actor.passiveDoubleHitChance) {
-      logs.push({ id: nextLogId(), kind: "info", message: `Dark Emperor triggers — ${actor.creature.name} strikes again!` });
+      logs.push({ id: nextLogId(), kind: "info", key: "battle.log.dark_emperor", params: { name: actor.creature.name } });
       landHit();
     }
 
     if (skill.name === "Holy Judgment" && Math.random() < 0.15) {
       applyStatus(target, "paralysis", 2);
-      logs.push({ id: nextLogId(), kind: "info", message: `${target.creature.name} was paralyzed by the attack!` });
+      logs.push({ id: nextLogId(), kind: "info", key: "battle.log.target_paralyzed", params: { name: target.creature.name } });
     }
 
     const inflicts = isUltimate ? actor.creature.ultimateSkill?.inflicts : undefined;
     if (inflicts && Math.random() * 100 < inflicts.chance) {
       applyStatus(target, inflicts.status, inflicts.turns);
-      const statusMsg: Record<StatusEffectType, string> = {
-        paralysis: `${target.creature.name} is left paralyzed!`,
-        sleep: `${target.creature.name} is put to sleep!`,
-        poison: `${target.creature.name} is poisoned!`,
-        confusion: `${target.creature.name} is thrown into confusion!`,
+      const statusKey: Record<StatusEffectType, TranslationKey> = {
+        paralysis: "battle.log.status_paralysis",
+        sleep: "battle.log.status_sleep",
+        poison: "battle.log.status_poison",
+        confusion: "battle.log.status_confusion",
       };
-      logs.push({ id: nextLogId(), kind: "info", message: statusMsg[inflicts.status] });
+      logs.push({ id: nextLogId(), kind: "info", key: statusKey[inflicts.status], params: { name: target.creature.name } });
     }
   };
 
@@ -401,7 +408,7 @@ export function applyAction(
   if (confusedMisfire) {
     const misfireTargets = allies; // includes the actor itself
     const target = misfireTargets[Math.floor(Math.random() * misfireTargets.length)];
-    logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} is confused and attacks blindly!` });
+    logs.push({ id: nextLogId(), kind: "info", key: "battle.log.confused_attack", params: { name: actor.creature.name } });
     if (target) strike(target);
   } else if (mode === "choose-enemy") {
     const target = list.find((c) => c.uid === explicitTargetUid && c.isAlive) ?? opponents[0];
@@ -420,7 +427,8 @@ export function applyAction(
       logs.push({
         id: nextLogId(),
         kind: "heal",
-        message: `${actor.creature.name} uses ${skill.name}, healing ${target.creature.name} for ${heal} HP.`,
+        key: "battle.log.heal",
+        params: { name: actor.creature.name, skill: skill.name, target: target.creature.name, amount: heal },
       });
     }
   } else if (mode === "self" && skill.name === "Holy Guardian") {
@@ -428,14 +436,16 @@ export function applyAction(
     logs.push({
       id: nextLogId(),
       kind: "guard",
-      message: `${actor.creature.name} uses ${skill.name}! Stats surged for 3 turns!`,
+      key: "battle.log.stats_surge",
+      params: { name: actor.creature.name, skill: skill.name },
     });
   } else {
     actor.guarding = true;
     logs.push({
       id: nextLogId(),
       kind: "guard",
-      message: `${actor.creature.name} uses ${skill.name} and braces for the next hit.`,
+      key: "battle.log.braces",
+      params: { name: actor.creature.name, skill: skill.name },
     });
   }
 

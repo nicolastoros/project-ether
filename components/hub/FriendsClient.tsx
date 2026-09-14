@@ -12,6 +12,7 @@ import {
   acceptFriendRequestAction,
   rejectFriendRequestAction,
 } from "@/app/actions/friends";
+import { useT } from "@/lib/i18n/useT";
 
 const STATUS_STYLES = {
   Online: "bg-emerald-400",
@@ -28,6 +29,7 @@ export function FriendsClient({
   initialIncoming: DbFriendRequest[];
   initialOutgoing: DbFriendRequest[];
 }) {
+  const t = useT();
   const [tab, setTab] = useState<"friends" | "add" | "requests">("friends");
 
   const [friends, setFriends] = useState(initialFriends);
@@ -126,8 +128,8 @@ export function FriendsClient({
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Friends</h1>
-          <p className="mt-1 text-xs text-zinc-500">{friends.length} friends</p>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("friends.title")}</h1>
+          <p className="mt-1 text-xs text-zinc-500">{friends.length}{t("friends.count_suffix")}</p>
         </div>
       </div>
 
@@ -140,7 +142,7 @@ export function FriendsClient({
             tab === "friends" ? "bg-foreground text-white shadow-sm" : "text-zinc-500 hover:text-foreground hover:bg-black/5"
           )}
         >
-          My Friends
+          {t("friends.tab_my_friends")}
         </button>
         <button
           onClick={() => setTab("add")}
@@ -149,7 +151,7 @@ export function FriendsClient({
             tab === "add" ? "bg-foreground text-white shadow-sm" : "text-zinc-500 hover:text-foreground hover:bg-black/5"
           )}
         >
-          Add Friend
+          {t("friends.tab_add_friend")}
         </button>
         <button
           onClick={() => setTab("requests")}
@@ -158,7 +160,7 @@ export function FriendsClient({
             tab === "requests" ? "bg-foreground text-white shadow-sm" : "text-zinc-500 hover:text-foreground hover:bg-black/5"
           )}
         >
-          Requests
+          {t("friends.tab_requests")}
           {incoming.length > 0 && (
             <span className="absolute right-2 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 font-arcade text-[8px] text-white shadow-sm ring-2 ring-white">
               {incoming.length}
@@ -172,7 +174,7 @@ export function FriendsClient({
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {friends.length === 0 ? (
             <div className="col-span-full py-8 text-center text-sm text-zinc-500">
-              No friends yet. Head to "Add Friend" to find some!
+              {t("friends.no_friends_yet")}
             </div>
           ) : (
             friends.map((friend) => {
@@ -197,12 +199,12 @@ export function FriendsClient({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{friend.display_name}</p>
                     <p className="text-[11px] text-zinc-600">
-                      Lv.{friend.level} {friend.title} · {friend.creature_count} Monsters
+                      {t("friends.lv_prefix")}{friend.level} {friend.title} · {friend.creature_count}{t("friends.monsters_suffix")}
                     </p>
                     <p className="text-[10px] text-zinc-400">@{friend.username}</p>
                   </div>
                   <button
-                    aria-label={`Challenge ${friend.username}`}
+                    aria-label={`${t("friends.challenge_prefix")}${friend.username}`}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:border-gold hover:text-gold-ink hover:bg-orange-50"
                   >
                     <Swords className="h-5 w-5" />
@@ -221,7 +223,7 @@ export function FriendsClient({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by Tamer ID (username)..."
+              placeholder={t("friends.search_placeholder")}
               className="flex-1 rounded-xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm text-foreground shadow-sm placeholder:text-zinc-400 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
             />
             <PixelButton type="submit" size="sm" variant="neon" disabled={isSearching || query.length < 3}>
@@ -242,14 +244,14 @@ export function FriendsClient({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{user.display_name}</p>
                     <p className="text-[11px] text-zinc-600">
-                      Lv.{user.level} {user.title} · {user.creature_count} Monsters
+                      {t("friends.lv_prefix")}{user.level} {user.title} · {user.creature_count}{t("friends.monsters_suffix")}
                     </p>
                     <p className="text-[10px] text-zinc-400">@{user.username}</p>
                   </div>
                   {isFriend ? (
-                    <span className="font-arcade text-[9px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">FRIEND</span>
+                    <span className="font-arcade text-[9px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">{t("friends.friend_badge")}</span>
                   ) : isPending ? (
-                    <span className="font-arcade text-[9px] text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full border border-zinc-200">PENDING</span>
+                    <span className="font-arcade text-[9px] text-zinc-500 bg-zinc-100 px-2 py-1 rounded-full border border-zinc-200">{t("friends.pending_badge")}</span>
                   ) : (
                     <button
                       onClick={() => handleSendRequest(user.user_id)}
@@ -272,10 +274,10 @@ export function FriendsClient({
 
       {tab === "requests" && (
         <div className="space-y-4">
-          <h2 className="font-arcade text-[10px] text-zinc-400 uppercase tracking-wider">Incoming</h2>
+          <h2 className="font-arcade text-[10px] text-zinc-400 uppercase tracking-wider">{t("friends.incoming")}</h2>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {incoming.length === 0 ? (
-              <div className="col-span-full py-4 text-center text-xs text-zinc-600">No incoming requests.</div>
+              <div className="col-span-full py-4 text-center text-xs text-zinc-600">{t("friends.no_incoming_requests")}</div>
             ) : (
               incoming.map((req) => (
                 <GlowPanel key={req.id} accent="none" className="flex items-center gap-3 p-3">

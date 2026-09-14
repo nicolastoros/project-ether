@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,10 +10,14 @@ import { NAV_GROUPS } from "@/lib/navigation";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { RAID_EVENTS } from "@/lib/raidBosses";
+import { getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
+import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
+import { useT } from "@/lib/i18n/useT";
+import type { Language, TranslationKey } from "@/lib/i18n/translations";
 import { cn } from "@/lib/utils";
 
-const COLLECTION_RAIL = NAV_GROUPS.find((g) => g.title === "Collection")?.items ?? [];
-const SOCIAL_RAIL = NAV_GROUPS.find((g) => g.title === "Social")?.items ?? [];
+const COLLECTION_RAIL = NAV_GROUPS.find((g) => g.titleKey === "nav.collection")?.items ?? [];
+const SOCIAL_RAIL = NAV_GROUPS.find((g) => g.titleKey === "nav.social")?.items ?? [];
 
 interface HeroSlide {
   id: string;
@@ -39,39 +43,43 @@ const CROP_POSITION_OVERRIDES: Record<string, string> = {
   welcome: "center 30%",
 };
 
-const HERO_SLIDES: HeroSlide[] = [
-  {
-    id: "welcome",
-    image: "/assets/ui/home_1.png",
-    label: "Welcome Back",
-    title: "Welcome back, Summoner",
-    subtitle: "Your creatures await orders in the city hub.",
-    href: "/campaign",
-    objectPosition: CROP_POSITION_OVERRIDES.welcome,
-    fit: "cover",
-  },
-  ...GACHA_BANNERS.map((b) => ({
-    id: b.id,
-    image: b.bannerImage,
-    label: "Summon",
-    title: b.name,
-    subtitle: b.tagline,
-    href: "/gacha",
-    objectPosition: CROP_POSITION_OVERRIDES[b.id] ?? DEFAULT_CROP_POSITION,
-    fit: "cover" as const,
-  })),
-  ...RAID_EVENTS.filter((e): e is typeof e & { bannerImage: string } => Boolean(e.bannerImage)).map((e) => ({
-    id: e.id,
-    image: e.bannerImage,
-    label: "Raid Event",
-    title: e.id === "event-crimson" ? null : e.name,
-    subtitle: e.description,
-    // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
-    href: "/events?tab=extreme",
-    objectPosition: "center",
-    fit: "contain" as const,
-  })),
-];
+// Function (not a module-level constant) so it can be rebuilt per-language inside the component —
+// see HubHeroCarousel.tsx's identical buildSlides.
+function buildHeroSlides(t: (key: TranslationKey) => string, language: Language): HeroSlide[] {
+  return [
+    {
+      id: "welcome",
+      image: "/assets/ui/home_1.png",
+      label: t("hub.welcome_back_label"),
+      title: t("hub.welcome_back_title"),
+      subtitle: t("hub.welcome_back_subtitle"),
+      href: "/campaign",
+      objectPosition: CROP_POSITION_OVERRIDES.welcome,
+      fit: "cover",
+    },
+    ...GACHA_BANNERS.map((b) => ({
+      id: b.id,
+      image: b.bannerImage,
+      label: t("nav.summon"),
+      title: b.name,
+      subtitle: getGachaBannerTagline(b.id, b.tagline, language),
+      href: "/gacha",
+      objectPosition: CROP_POSITION_OVERRIDES[b.id] ?? DEFAULT_CROP_POSITION,
+      fit: "cover" as const,
+    })),
+    ...RAID_EVENTS.filter((e): e is typeof e & { bannerImage: string } => Boolean(e.bannerImage)).map((e) => ({
+      id: e.id,
+      image: e.bannerImage,
+      label: t("hub.raid_event_label"),
+      title: e.id === "event-crimson" ? null : e.name,
+      subtitle: getRaidEventDescription(e, language),
+      // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
+      href: "/events?tab=extreme",
+      objectPosition: "center",
+      fit: "contain" as const,
+    })),
+  ];
+}
 
 const SLIDE_DURATION_MS = 5500;
 
@@ -117,7 +125,10 @@ function RailButton({ label, icon: Icon, href, onClick, badge }: RailButtonProps
 export function MobileHeroHub() {
   const dailyTasks = useGameStore((s) => s.dailyTasks);
   const [missionsOpen, setMissionsOpen] = useState(false);
-  const hasClaimableMission = dailyTasks.some((t) => t.progress >= t.target && !t.claimed);
+  const hasClaimableMission = dailyTasks.some((task) => task.progress >= task.target && !task.claimed);
+  const t = useT();
+  const language = useGameStore((s) => s.language);
+  const HERO_SLIDES = useMemo(() => buildHeroSlides(t, language), [t, language]);
 
   // Rotates through the welcome art, every active Summon banner, and every raid event that has
   // art — same "always be pointing somewhere" idea as the desktop HubHeroCarousel, so the screen
@@ -127,7 +138,7 @@ export function MobileHeroHub() {
     if (HERO_SLIDES.length <= 1) return;
     const id = setInterval(() => setSlideIndex((i) => (i + 1) % HERO_SLIDES.length), SLIDE_DURATION_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [HERO_SLIDES.length]);
   const slide = HERO_SLIDES[slideIndex];
 
   return (
@@ -195,7 +206,7 @@ export function MobileHeroHub() {
             <button
               key={s.id}
               onClick={() => setSlideIndex(i)}
-              aria-label={`Go to slide ${i + 1}`}
+              aria-label={t("hub.go_to_slide", { n: i + 1 })}
               className={cn(
                 "h-1.5 rounded-full transition-all",
                 i === slideIndex ? "w-5 bg-gold" : "w-1.5 bg-white/50"
@@ -207,12 +218,12 @@ export function MobileHeroHub() {
 
       <div className="absolute left-3 top-3 z-10 flex flex-col gap-2">
         {COLLECTION_RAIL.map((item) => (
-          <RailButton key={item.href} {...item} />
+          <RailButton key={item.href} href={item.href} icon={item.icon} label={t(item.labelKey)} />
         ))}
       </div>
       <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
         {SOCIAL_RAIL.map((item) => (
-          <RailButton key={item.href} {...item} />
+          <RailButton key={item.href} href={item.href} icon={item.icon} label={t(item.labelKey)} />
         ))}
         <RailButton
           label="Missions"

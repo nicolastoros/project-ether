@@ -11,8 +11,10 @@ import { SurvivalGame } from "@/components/survival/SurvivalGame";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import type { Creature } from "@/types/game";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 export function SurvivalHome() {
+  const t = useT();
   const highestCleared = useGameStore((s) => s.survivalHighestStageCleared);
   const creatures = useGameStore((s) => s.creatures);
   const activeCreatureId = useGameStore((s) => s.activeCreatureId);
@@ -46,8 +48,8 @@ export function SurvivalHome() {
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="shrink-0">
-        <h1 className="font-arcade text-lg glow-text-neon">Survival Mode</h1>
-        <p className="text-xs text-zinc-500">Pick a stage — survive until the target time to clear it.</p>
+        <h1 className="font-arcade text-lg glow-text-neon">{t("survival.title")}</h1>
+        <p className="text-xs text-zinc-500">{t("survival.subtitle")}</p>
       </div>
 
       {/* Mobile: full-width pill row, unchanged. */}
@@ -64,7 +66,7 @@ export function SurvivalHome() {
                 : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-foreground"
             )}
           >
-            World {w.world}
+            {t("battle.world_label")} {w.world}
             {!w.isAvailable && <Lock className="ml-1 inline h-3 w-3 align-[-1px]" />}
           </button>
         ))}
@@ -91,7 +93,7 @@ export function SurvivalHome() {
                 />
               )}
               <span className="relative z-10 inline-flex items-center gap-1.5">
-                World {w.world}
+                {t("battle.world_label")} {w.world}
                 {!w.isAvailable && <Lock className="h-3 w-3" />}
               </span>
             </button>
@@ -110,7 +112,7 @@ export function SurvivalHome() {
         ) : (
           <GlowPanel accent="none" className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
             <Lock className="h-8 w-8 text-zinc-400" />
-            <p className="font-arcade text-xs text-zinc-500">World {world.world} — Coming soon</p>
+            <p className="font-arcade text-xs text-zinc-500">{t("battle.world_label")} {world.world}{t("survival.coming_soon_suffix")}</p>
           </GlowPanel>
         )}
       </div>

@@ -14,6 +14,8 @@ import { ItemIcon } from "@/components/ui/ItemIcon";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { cn, formatNumber, thisWeekStartDateString } from "@/lib/utils";
 import { useSyncGate } from "@/lib/useSyncGate";
+import { getRaidBossDescription, getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
+import { useT } from "@/lib/i18n/useT";
 
 const MAX_PARTY = 4;
 
@@ -45,6 +47,8 @@ export function ChallengeTab() {
   const spendEnergy = useGameStore((s) => s.spendEnergy);
   const profile = useGameStore((s) => s.profile);
   const consumeChallengeAttempt = useGameStore((s) => s.consumeChallengeAttempt);
+  const language = useGameStore((s) => s.language);
+  const t = useT();
 
   const [selectedEvent, setSelectedEvent] = useState<RaidEvent | null>(null);
   const [pickingBoss, setPickingBoss] = useState<RaidBoss | null>(null);
@@ -56,10 +60,10 @@ export function ChallengeTab() {
   const excludedIds = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
+      if (isOnExpedition(c.id)) map.set(c.id, t("common.badge_on_expedition"));
     }
     return map;
-  }, [creatures, isOnExpedition]);
+  }, [creatures, isOnExpedition, t]);
 
   if (fightingBoss) {
     const playerCreatures = playerIds
@@ -110,10 +114,12 @@ export function ChallengeTab() {
       <div className="space-y-3">
         <div>
           <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← Back
+             ← {t("common.back")}
           </button>
           <h1 className={cn("font-arcade text-lg", tierColorClass(pickingBoss.id))}>{pickingBoss.name}</h1>
-          <p className="text-xs text-zinc-500">Choose up to {maxPartySize} creatures for this trial.</p>
+          <p className="text-xs text-zinc-500">
+            {t("battle.choose_up_to_prefix")}{maxPartySize}{t("battle.choose_up_to_suffix")}
+          </p>
         </div>
         <MultiCreaturePicker
           creatures={creatures}
@@ -127,7 +133,7 @@ export function ChallengeTab() {
               return [...prev, id];
             })
           }
-          confirmLabel="Start Trial"
+          confirmLabel={t("battle.start_trial")}
           confirmDisabled={playerIds.length === 0 || energy < pickingBoss.staminaCost}
           onConfirm={() =>
             runGated(() => {
@@ -158,10 +164,10 @@ export function ChallengeTab() {
       <div className="space-y-4">
         <div>
           <button onClick={() => setSelectedEvent(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← Back to Events
+             ← {t("common.back_to_events")}
           </button>
           <h1 className="font-arcade text-lg glow-text-gold">{selectedEvent.name}</h1>
-          <p className="mt-1 text-xs text-zinc-500">{selectedEvent.description}</p>
+          <p className="mt-1 text-xs text-zinc-500">{getRaidEventDescription(selectedEvent, language)}</p>
         </div>
 
         {selectedEvent.bannerImage && (
@@ -180,8 +186,8 @@ export function ChallengeTab() {
             )}
           >
             {outOfAttempts
-              ? "No Tickets left this week — come back after the weekly reset"
-              : `${attemptsLeft}/${selectedEvent.weeklyAttemptLimit} Tickets left this week (shared across every tier below)`}
+              ? t("battle.no_tickets_week")
+              : t("battle.tickets_left_week", { left: attemptsLeft ?? 0, max: selectedEvent.weeklyAttemptLimit ?? 0 })}
           </div>
         )}
 
@@ -190,19 +196,19 @@ export function ChallengeTab() {
             <GlowPanel key={boss.id} accent="gold" className="flex flex-col sm:flex-row gap-4 p-4 items-center relative overflow-hidden bg-arcade-panel-light/80 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
               <div className="min-w-0 flex-1 text-center sm:text-left z-10">
                 <p className={cn("font-arcade text-sm font-bold", tierColorClass(boss.id))}>{boss.name}</p>
-                <p className="text-xs text-zinc-400 mt-1">{boss.description}</p>
+                <p className="text-xs text-zinc-400 mt-1">{getRaidBossDescription(boss, language)}</p>
 
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1 text-xs text-zinc-500 mt-2">
                   <span className="inline-flex items-center gap-1 font-arcade">
-                    <Zap className="h-3 w-3 text-neon" /> {boss.staminaCost} STAMINA
+                    <Zap className="h-3 w-3 text-neon" /> {boss.staminaCost} {t("battle.stamina_label")}
                   </span>
                   <span className="inline-flex items-center gap-1 font-arcade">
-                    <GoldCoinIcon className="h-3 w-3" /> {formatNumber(boss.rewardGold)} GOLD
+                    <GoldCoinIcon className="h-3 w-3" /> {formatNumber(boss.rewardGold)} {t("battle.gold_label")}
                   </span>
                   {boss.creatureIds && (
                     <span className={cn("inline-flex items-center gap-1 font-arcade", allMythic(boss.creatureIds) && "text-red-600")}>
                       {boss.creatureIds.length}v{boss.creatureIds.length}
-                      {allMythic(boss.creatureIds) && " · ALL MYTHIC"}
+                      {allMythic(boss.creatureIds) && ` · ${t("battle.all_mythic")}`}
                     </span>
                   )}
                 </div>
@@ -237,7 +243,7 @@ export function ChallengeTab() {
                   setPlayerIds([]);
                 }}
               >
-                {outOfAttempts ? "No Tickets" : "Challenge"}
+                {outOfAttempts ? t("battle.no_tickets_short") : t("battle.challenge_button")}
               </PixelButton>
             </GlowPanel>
           ))}
@@ -249,10 +255,8 @@ export function ChallengeTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Set Trials</h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          Win a trial for a chance at that set&apos;s Tamer gear pieces. More sets forge soon!
-        </p>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("challenge.set_trials_title")}</h1>
+        <p className="mt-1 text-xs text-zinc-500">{t("challenge.set_trials_subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -292,7 +296,7 @@ export function ChallengeTab() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 bg-black/60">
                     <Lock className="h-5 w-5 text-zinc-300" />
                   </div>
-                  <span className="font-arcade text-[10px] uppercase tracking-wide text-zinc-300">Coming Soon</span>
+                  <span className="font-arcade text-[10px] uppercase tracking-wide text-zinc-300">{t("common.coming_soon")}</span>
                 </div>
               )}
 

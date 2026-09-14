@@ -13,6 +13,7 @@ import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { ItemIcon } from "@/components/ui/ItemIcon";
+import { useT } from "@/lib/i18n/useT";
 import { cn, formatNumber, xpPercent } from "@/lib/utils";
 
 export interface CreatureResultEntry {
@@ -92,15 +93,18 @@ export function BattleResultScreen({
   stars,
   tamerResult,
   bonusLines = [],
-  defeatMessage = "Your team was defeated. Give it another shot!",
+  defeatMessage,
   onRematch,
   exitHref,
   onExitClick,
   exitLabel,
   nextHref,
-  nextLabel = "Next Area",
+  nextLabel,
 }: BattleResultScreenProps) {
   const [showKoSplash, setShowKoSplash] = useState(phase === "victory");
+  const t = useT();
+  const resolvedDefeatMessage = defeatMessage ?? t("battle.defeat_message_team");
+  const resolvedNextLabel = nextLabel ?? t("battle.next_area");
 
   // No auto-dismiss — the player decides when to move on, via a click/tap anywhere on the
   // overlay (see the button below) or Escape.
@@ -124,7 +128,7 @@ export function BattleResultScreen({
         // behind the K.O. logo, same "victory flash over the arena" feel as the reference shot,
         // instead of cutting to a blank screen.
         className="fixed inset-0 z-50 flex cursor-pointer flex-col items-center justify-center overflow-hidden border-0 bg-black/55 backdrop-blur-[2px]"
-        aria-label="Continue"
+        aria-label={t("common.continue")}
       >
         <motion.span
           initial={{ scale: 0, opacity: 0.9 }}
@@ -148,7 +152,7 @@ export function BattleResultScreen({
         >
           <ChevronDown className="h-6 w-6 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" strokeWidth={3} />
           <span className="font-arcade text-[9px] uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-            Tap to continue
+            {t("common.tap_to_continue")}
           </span>
         </motion.div>
       </motion.button>
@@ -167,7 +171,7 @@ export function BattleResultScreen({
       >
         <div>
           <h2 className={cn("font-arcade text-lg sm:text-xl lg:text-2xl", phase === "victory" ? "glow-text-gold" : "text-zinc-500")}>
-            {phase === "victory" ? "Victory!" : "Defeat"}
+            {phase === "victory" ? t("battle.victory") : t("battle.defeat")}
           </h2>
           <p className="mt-1 text-sm text-zinc-500 sm:text-base lg:text-lg">{title}</p>
         </div>
@@ -234,7 +238,7 @@ export function BattleResultScreen({
 
             {tamerResult && (
               <div className="text-left">
-                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">Tamer</p>
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">{t("nav.tamer")}</p>
                 <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-3 sm:p-4">
                   <div className="flex items-center justify-between gap-2">
                     {tamerResult.levelAfter > tamerResult.levelBefore ? (
@@ -256,7 +260,7 @@ export function BattleResultScreen({
                       className="mt-2"
                     />
                   ) : (
-                    <p className="mt-2 font-arcade text-xs uppercase text-gold-bright sm:text-sm">Max level</p>
+                    <p className="mt-2 font-arcade text-xs uppercase text-gold-bright sm:text-sm">{t("sidebar.max_level")}</p>
                   )}
                 </div>
               </div>
@@ -264,7 +268,7 @@ export function BattleResultScreen({
 
             {creatureResults.length > 0 && (
               <div className="text-left">
-                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">Team Result</p>
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500 sm:text-sm">{t("battle.team_result")}</p>
                 <div className="space-y-2 sm:space-y-3">
                   {creatureResults.map(({ creature, expGained, levelBefore, levelAfter, exp, expToNextLevel }) => {
                     const leveledUp = levelAfter > levelBefore;
@@ -293,7 +297,7 @@ export function BattleResultScreen({
                           {levelAfter < MAX_LEVEL ? (
                             <ProgressBar percent={xpPercent(exp, expToNextLevel)} color="exp" className="mt-1.5" />
                           ) : (
-                            <p className="mt-1.5 font-arcade text-[10px] uppercase text-gold-bright sm:text-xs">Max level</p>
+                            <p className="mt-1.5 font-arcade text-[10px] uppercase text-gold-bright sm:text-xs">{t("sidebar.max_level")}</p>
                           )}
                         </div>
                       </div>
@@ -304,14 +308,14 @@ export function BattleResultScreen({
             )}
           </>
         ) : (
-          <p className="text-sm text-zinc-500 sm:text-base">{defeatMessage}</p>
+          <p className="text-sm text-zinc-500 sm:text-base">{resolvedDefeatMessage}</p>
         )}
 
         <div className="flex flex-col gap-2 sm:gap-3">
           <div className="flex gap-2 sm:gap-3">
             <PixelButton variant="ghost" className="flex-1 sm:py-3 sm:text-base" onClick={onRematch}>
               <RotateCcw className="mr-1 inline h-4 w-4 sm:h-5 sm:w-5" />
-              Rematch
+              {t("battle.rematch")}
             </PixelButton>
             {exitHref ? (
               <Link href={exitHref} className="flex-1" onClick={onExitClick}>
@@ -329,7 +333,7 @@ export function BattleResultScreen({
           {nextHref && (
             <Link href={nextHref} className="block" onClick={onExitClick}>
               <PixelButton variant="gold" className="w-full sm:py-3.5 sm:text-base">
-                {nextLabel}
+                {resolvedNextLabel}
               </PixelButton>
             </Link>
           )}

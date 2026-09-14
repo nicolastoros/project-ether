@@ -16,6 +16,7 @@ import { CrownIcon } from "@/components/icons/CrownIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { cn, xpPercent } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
  * profile_img art (see AVATAR_CATALOG in lib/gameData.ts) — tapping a thumbnail applies it
  * immediately, same "tap to equip" instant-apply feel as Tamer gear, not a separate confirm step. */
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
+  const t = useT();
   const profile = useGameStore((s) => s.profile);
   const currencies = useGameStore((s) => s.currencies);
   const creatures = useGameStore((s) => s.creatures);
@@ -102,11 +104,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-arcade-border bg-arcade-panel shadow-xl"
           >
             <div className="flex items-center justify-between border-b border-arcade-border p-5">
-              <h2 className="flex items-center gap-2 font-arcade text-lg glow-text-gold">My Profile</h2>
+              <h2 className="flex items-center gap-2 font-arcade text-lg glow-text-gold">{t("profile.my_profile")}</h2>
               <button
                 onClick={onClose}
                 disabled={settling}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-arcade-border text-zinc-500 hover:text-foreground disabled:opacity-40"
               >
                 <X className="h-5 w-5" />
@@ -132,7 +134,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       className="mt-2"
                     />
                   ) : (
-                    <p className="mt-2 font-arcade text-[10px] uppercase tracking-wide text-gold-bright">Max level</p>
+                    <p className="mt-2 font-arcade text-[10px] uppercase tracking-wide text-gold-bright">{t("sidebar.max_level")}</p>
                   )}
                 </div>
               </div>
@@ -146,34 +148,34 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
               {/* Stats */}
               <div>
-                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500">Stats</p>
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500">{t("profile.stats")}</p>
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   <StatCard
                     icon={<Sparkles className="h-5 w-5" />}
-                    label="Creatures Owned"
+                    label={t("profile.creatures_owned")}
                     value={`${creatures.length}/${STARTER_CREATURES.length}`}
                   />
                   <StatCard
                     icon={<Trophy className="h-5 w-5" />}
-                    label="Achievements"
+                    label={t("profile.achievements")}
                     value={`${achievements.length}/${ACHIEVEMENTS.length}`}
                   />
                   <StatCard
                     icon={<Map className="h-5 w-5" />}
-                    label="Campaign Stages Cleared"
+                    label={t("profile.campaign_stages_cleared")}
                     value={`${dungeon.highestStageCleared}/${DUNGEON_STAGES.length}`}
                   />
                   <StatCard
                     icon={<Shield className="h-5 w-5" />}
-                    label="Guild"
-                    value={guild ? `${guild.name} · Lv.${guild.level}` : "No Guild"}
+                    label={t("profile.guild")}
+                    value={guild ? `${guild.name} · Lv.${guild.level}` : t("profile.no_guild")}
                   />
                 </div>
               </div>
 
               {/* Avatar picker */}
               <div>
-                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500">Change Profile Picture</p>
+                <p className="mb-2 font-arcade text-xs uppercase tracking-wide text-zinc-500">{t("profile.change_profile_picture")}</p>
                 <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
                   {AVATAR_CATALOG.map((avatar) => {
                     const isSelected = avatar.key === profile.avatarKey;
@@ -204,7 +206,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               </div>
             </div>
           </motion.div>
-          <LoadingOverlay show={settling} label="Saving profile picture..." />
+          <LoadingOverlay show={settling} label={t("profile.saving_profile_picture")} />
         </div>
       )}
     </AnimatePresence>,

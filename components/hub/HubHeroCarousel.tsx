@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { RAID_EVENTS } from "@/lib/raidBosses";
+import { getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
+import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
+import { useT } from "@/lib/i18n/useT";
+import { useGameStore } from "@/lib/store";
+import type { Language, TranslationKey } from "@/lib/i18n/translations";
 import { cn } from "@/lib/utils";
 
 interface HeroSlide {
@@ -44,38 +49,42 @@ const HOME_BANNER_OVERRIDES: Record<string, string> = {};
 
 // Real content we already have — no placeholder slides. Skips RAID_EVENTS entries with no
 // bannerImage (Elder Dragon's Awakening) since there's no art to show for them here.
-const SLIDES: HeroSlide[] = [
-  {
-    id: "welcome",
-    image: "/assets/ui/portada.png",
-    label: "Welcome Back",
-    title: "Welcome back, Summoner",
-    subtitle: "Your creatures await orders in the city hub.",
-    href: "/campaign",
-    objectPosition: DEFAULT_CROP_POSITION,
-  },
-  ...GACHA_BANNERS.map((b) => ({
-    id: b.id,
-    image: HOME_BANNER_OVERRIDES[b.id] ?? b.bannerImage,
-    label: "Summon",
-    title: b.name,
-    subtitle: b.tagline,
-    href: "/gacha",
-    objectPosition: CROP_POSITION_OVERRIDES[b.id] ?? DEFAULT_CROP_POSITION,
-  })),
-  ...RAID_EVENTS.filter((e): e is typeof e & { bannerImage: string } => Boolean(e.bannerImage)).map((e) => ({
-    id: e.id,
-    image: HOME_BANNER_OVERRIDES[e.id] ?? e.bannerImage,
-    label: "Raid Event",
-    // evento_crimson_home_banner.jpg already has "CRIMSON DIVINE POWER" painted in as a big
-    // logo — showing the title text too would just duplicate it right on top.
-    title: e.id === "event-crimson" ? null : e.name,
-    subtitle: e.description,
-    // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
-    href: "/events?tab=extreme",
-    objectPosition: CROP_POSITION_OVERRIDES[e.id] ?? DEFAULT_CROP_POSITION,
-  })),
-];
+// A function (not a module-level constant) so it can be recomputed per-language inside the
+// component.
+function buildSlides(t: (key: TranslationKey) => string, language: Language): HeroSlide[] {
+  return [
+    {
+      id: "welcome",
+      image: "/assets/ui/portada.png",
+      label: t("hub.welcome_back_label"),
+      title: t("hub.welcome_back_title"),
+      subtitle: t("hub.welcome_back_subtitle"),
+      href: "/campaign",
+      objectPosition: DEFAULT_CROP_POSITION,
+    },
+    ...GACHA_BANNERS.map((b) => ({
+      id: b.id,
+      image: HOME_BANNER_OVERRIDES[b.id] ?? b.bannerImage,
+      label: t("nav.summon"),
+      title: b.name,
+      subtitle: getGachaBannerTagline(b.id, b.tagline, language),
+      href: "/gacha",
+      objectPosition: CROP_POSITION_OVERRIDES[b.id] ?? DEFAULT_CROP_POSITION,
+    })),
+    ...RAID_EVENTS.filter((e): e is typeof e & { bannerImage: string } => Boolean(e.bannerImage)).map((e) => ({
+      id: e.id,
+      image: HOME_BANNER_OVERRIDES[e.id] ?? e.bannerImage,
+      label: t("hub.raid_event_label"),
+      // evento_crimson_home_banner.jpg already has "CRIMSON DIVINE POWER" painted in as a big
+      // logo — showing the title text too would just duplicate it right on top.
+      title: e.id === "event-crimson" ? null : e.name,
+      subtitle: getRaidEventDescription(e, language),
+      // Raid Battle lives in Events' "Extreme Battles" tab now — see ExtremeBattlesTab.tsx.
+      href: "/events?tab=extreme",
+      objectPosition: CROP_POSITION_OVERRIDES[e.id] ?? DEFAULT_CROP_POSITION,
+    })),
+  ];
+}
 
 const SLIDE_DURATION_MS = 5500;
 
@@ -85,12 +94,15 @@ const SLIDE_DURATION_MS = 5500;
 export function HubHeroCarousel() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const t = useT();
+  const language = useGameStore((s) => s.language);
+  const SLIDES = useMemo(() => buildSlides(t, language), [t, language]);
 
   useEffect(() => {
     if (paused || SLIDES.length <= 1) return;
     const id = setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), SLIDE_DURATION_MS);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, SLIDES.length]);
 
   const slide = SLIDES[index];
 
@@ -140,7 +152,7 @@ export function HubHeroCarousel() {
             <button
               key={s.id}
               onClick={() => setIndex(i)}
-              aria-label={`Go to slide ${i + 1}`}
+              aria-label={t("hub.go_to_slide", { n: i + 1 })}
               className={cn(
                 "h-1.5 rounded-full transition-all",
                 i === index ? "w-5 bg-gold" : "w-1.5 bg-white/50 hover:bg-white/80"

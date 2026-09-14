@@ -5,17 +5,21 @@ import { ACHIEVEMENTS } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import { getAchievementName, getAchievementDescription } from "@/lib/i18n/achievementDescriptions";
 
 export default function TrophiesPage() {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const unlocked = useGameStore((s) => s.achievements);
   const unlockedCount = ACHIEVEMENTS.filter((a) => unlocked.includes(a.id)).length;
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Trophies</h1>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("trophies.title")}</h1>
         <p className="mt-1 text-xs text-zinc-500">
-          {unlockedCount}/{ACHIEVEMENTS.length} unlocked
+          {unlockedCount}/{ACHIEVEMENTS.length}{t("trophies.unlocked_suffix")}
         </p>
       </div>
 
@@ -46,9 +50,9 @@ export default function TrophiesPage() {
                 )}
               </div>
               <p className={cn("text-sm font-semibold", isUnlocked ? "text-foreground" : "text-zinc-500")}>
-                {achievement.name}
+                {getAchievementName(achievement, language)}
               </p>
-              <p className="text-[11px] leading-snug text-zinc-500">{achievement.description}</p>
+              <p className="text-[11px] leading-snug text-zinc-500">{getAchievementDescription(achievement, language)}</p>
             </GlowPanel>
           );
         })}

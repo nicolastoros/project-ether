@@ -22,6 +22,7 @@ export function WhatsNewTour() {
   const hasReceivedStarterGifts = useGameStore((s) => s.profile.hasReceivedStarterGifts);
   const seenTutorialTips = useGameStore((s) => s.seenTutorialTips);
   const markTutorialTipSeen = useGameStore((s) => s.markTutorialTipSeen);
+  const language = useGameStore((s) => s.language);
   const [phase, setPhase] = useState<"modal" | "tour" | "done">("modal");
 
   const eligible = pathname === "/hub" && hasReceivedStarterGifts && !seenTutorialTips.includes(WHATS_NEW_SEEN_ID);
@@ -36,5 +37,5 @@ export function WhatsNewTour() {
   if (phase === "modal") {
     return <WhatsNewModal onContinue={() => setPhase("tour")} onSkip={finish} />;
   }
-  return <CoachmarkTour steps={WHATS_NEW_TOUR_STEPS} onComplete={finish} />;
+  return <CoachmarkTour steps={WHATS_NEW_TOUR_STEPS[language]} onComplete={finish} />;
 }

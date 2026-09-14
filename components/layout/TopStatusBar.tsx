@@ -4,10 +4,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { motion } from "framer-motion";
-import { LogOut, Mail, BookOpen, CalendarDays, Pencil, Plus } from "lucide-react";
+import { LogOut, Mail, BookOpen, CalendarDays, Languages, Pencil, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MAX_LEVEL } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
+import { useT } from "@/lib/i18n/useT";
 import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
@@ -26,7 +27,10 @@ export function TopStatusBar() {
   const gifts = useGameStore((s) => s.gifts) || [];
   const hasUnseenProfile = useGameStore((s) => s.hasUnseenProfile);
   const logout = useGameStore((s) => s.logout);
+  const language = useGameStore((s) => s.language);
+  const setLanguage = useGameStore((s) => s.setLanguage);
   const router = useRouter();
+  const t = useT();
   const [showGifts, setShowGifts] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showDailyLogin, setShowDailyLogin] = useState(false);
@@ -107,7 +111,7 @@ export function TopStatusBar() {
             <motion.button
               type="button"
               onClick={() => router.push("/shop?tab=premium")}
-              aria-label="Buy Lacrima"
+              aria-label={t("topbar.buy_lacrima")}
               data-tour="lacrima-buy"
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1.3, repeat: Infinity, repeatType: "loop", ease: "easeInOut" }}
@@ -117,9 +121,22 @@ export function TopStatusBar() {
               <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3.5} />
             </motion.button>
           </div>
+          {/* Language toggle — the whole "un botón para pasarlo a español" ask. Shows the current
+              language's code; tapping switches to the other one. Purely a local store preference
+              (see lib/store.ts's `language` field) — no server round trip, resolved instantly. */}
+          <button
+            type="button"
+            onClick={() => setLanguage(language === "en" ? "es" : "en")}
+            aria-label={t("lang.switch_to")}
+            title={t("lang.switch_to")}
+            className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2.5 text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright sm:h-10 sm:px-3"
+          >
+            <Languages className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="font-arcade text-[10px] font-bold uppercase sm:text-xs">{language}</span>
+          </button>
           <button
             onClick={() => setShowGifts(true)}
-            aria-label="Gifts"
+            aria-label={t("topbar.gifts")}
             className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-gold hover:text-gold-bright sm:h-10 sm:w-10"
           >
             <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -137,7 +154,7 @@ export function TopStatusBar() {
               setShowDailyLogin(true);
               setDailyLoginAvailable(false);
             }}
-            aria-label="Daily Login Rewards"
+            aria-label={t("topbar.daily_login")}
             className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/50 bg-gold/10 text-gold-bright transition-colors hover:border-gold hover:bg-gold/20 sm:h-10 sm:w-10"
           >
             <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -147,7 +164,7 @@ export function TopStatusBar() {
           </button>
           <button
             onClick={() => setShowGuide(true)}
-            aria-label="Monster Guide"
+            aria-label={t("topbar.monster_guide")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-[#38bdf8] hover:text-[#0e7490] sm:h-10 sm:w-10"
           >
             <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -160,7 +177,7 @@ export function TopStatusBar() {
               // back, not the pitch (see app/play/page.tsx).
               router.replace("/play");
             }}
-            aria-label="Log out"
+            aria-label={t("sidebar.log_out")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel-light text-zinc-600 transition-colors hover:border-red-500 hover:text-red-500 lg:hidden"
           >
             <LogOut className="h-4 w-4" />

@@ -15,6 +15,8 @@ import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat
 import type { Element, Rarity } from "@/types/game";
 import { cn } from "@/lib/utils";
 import { sortCreaturesByRarity } from "@/lib/gameData";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const MAX_NAME_LENGTH = 16;
 
@@ -36,15 +38,17 @@ const RARITY_BORDER: Record<Rarity, string> = {
 };
 
 type SortKey = "rarity" | "atk" | "def" | "hp" | "obtention";
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "rarity", label: "Rarity" },
-  { key: "atk", label: "ATK" },
-  { key: "def", label: "DEF" },
-  { key: "hp", label: "HP" },
-  { key: "obtention", label: "Obtained" },
-];
+const SORT_OPTION_LABEL_KEY: Record<SortKey, TranslationKey> = {
+  rarity: "filters.rarity",
+  atk: "teams.sort_atk",
+  def: "teams.sort_def",
+  hp: "teams.sort_hp",
+  obtention: "teams.sort_obtained",
+};
+const SORT_OPTIONS: SortKey[] = ["rarity", "atk", "def", "hp", "obtention"];
 
 export default function FormationTeamsPage() {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const teamPresets = useGameStore((s) => s.teamPresets);
   const partyCreatureIds = useGameStore((s) => s.partyCreatureIds);
@@ -56,7 +60,7 @@ export default function FormationTeamsPage() {
 
   const [mode, setMode] = useState<Mode>("campaign");
   const [selectedPresetId, setSelectedPresetId] = useState<string | "new">("new");
-  const [draftName, setDraftName] = useState<string>("New Formation");
+  const [draftName, setDraftName] = useState<string>(t("teams.new_formation_name"));
   const [draftSlots, setDraftSlots] = useState<(string | null)[]>([null, null]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -74,7 +78,7 @@ export default function FormationTeamsPage() {
   const handleSelectMode = (nextMode: Mode) => {
     setMode(nextMode);
     setSelectedPresetId("new");
-    setDraftName("New Formation");
+    setDraftName(t("teams.new_formation_name"));
     setDraftSlots(Array(MODE_SLOTS[nextMode]).fill(null));
   };
 
@@ -113,7 +117,7 @@ export default function FormationTeamsPage() {
     setSelectedPresetId(id);
     const slotCount = MODE_SLOTS[mode];
     if (id === "new") {
-      setDraftName("New Formation");
+      setDraftName(t("teams.new_formation_name"));
       setDraftSlots(Array(slotCount).fill(null));
     } else {
       const preset = teamPresets.find((p) => p.id === id);
@@ -172,7 +176,7 @@ export default function FormationTeamsPage() {
     if (selectedPresetId === "new") return;
     // A bare trash-can icon with no confirmation made this hard to find/trust — a player wasn't
     // sure that button even deletes the formation vs. clicking it and finding out the hard way.
-    if (!confirm(`Delete "${draftName || "this formation"}"? This can't be undone.`)) return;
+    if (!confirm(`${t("teams.confirm_delete_prefix")}${draftName || t("teams.confirm_delete_fallback")}${t("teams.confirm_delete_suffix")}`)) return;
     setIsDeleting(true);
     try {
       await deleteFormationAction(selectedPresetId);
@@ -204,11 +208,11 @@ export default function FormationTeamsPage() {
   return (
     <div className="space-y-4 pb-4">
       <div className="flex items-center gap-2 lg:gap-4">
-        <BackButton href="/formations" label="Back to Formation Menu" />
+        <BackButton href="/formations" label={t("dex.back_to_formation_menu")} />
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Formations</h1>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("formations.tile_formations")}</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Build and save teams for different game modes.
+            {t("teams.subtitle")}
           </p>
         </div>
       </div>
@@ -225,7 +229,7 @@ export default function FormationTeamsPage() {
                 : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
             )}
           >
-            <Play className="h-3.5 w-3.5" /> Campaign <span className="opacity-70">1-2</span>
+            <Play className="h-3.5 w-3.5" /> {t("nav.campaign")} <span className="opacity-70">1-2</span>
           </button>
           <button
             onClick={() => handleSelectMode("raid")}
@@ -236,7 +240,7 @@ export default function FormationTeamsPage() {
                 : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:text-foreground"
             )}
           >
-            <Flame className="h-3.5 w-3.5" /> Raid <span className="opacity-70">1-4</span>
+            <Flame className="h-3.5 w-3.5" /> {t("teams.raid_mode")} <span className="opacity-70">1-4</span>
           </button>
         </div>
 
@@ -250,7 +254,7 @@ export default function FormationTeamsPage() {
                 : "border-transparent bg-arcade-panel-light text-zinc-500 hover:text-white"
             )}
           >
-            <Plus className="h-3.5 w-3.5" /> New
+            <Plus className="h-3.5 w-3.5" /> {t("teams.new_preset")}
           </button>
           {modePresets.map((preset) => (
             <button
@@ -276,7 +280,7 @@ export default function FormationTeamsPage() {
             type="text"
             value={draftName}
             onChange={(e) => setDraftName(e.target.value.slice(0, MAX_NAME_LENGTH))}
-            placeholder="Formation Name"
+            placeholder={t("teams.formation_name_placeholder")}
             className="flex-1 rounded-lg border border-arcade-border bg-arcade-panel-light px-3 py-2 text-sm text-foreground outline-none focus:border-gold font-semibold"
           />
           <span className="text-[10px] text-zinc-500 font-mono shrink-0">
@@ -291,11 +295,11 @@ export default function FormationTeamsPage() {
               variant={isCurrentlyCampaign ? "ghost" : "gold"}
               size="sm"
             >
-              {isCurrentlyCampaign ? "Active" : "Set Active"}
+              {isCurrentlyCampaign ? t("teams.active") : t("teams.set_active")}
             </PixelButton>
           )}
           <PixelButton onClick={handleSave} disabled={isSaving || !draftName.trim()} variant="neon" size="sm">
-            <Save className="mr-1.5 h-3.5 w-3.5" /> {isSaving ? "Saving..." : "Save"}
+            <Save className="mr-1.5 h-3.5 w-3.5" /> {isSaving ? t("teams.saving") : t("teams.save")}
           </PixelButton>
           {selectedPresetId !== "new" && (
             <PixelButton
@@ -304,9 +308,9 @@ export default function FormationTeamsPage() {
               variant="ghost"
               size="sm"
               className="border border-red-400/40 !text-red-400 hover:!bg-red-400/10"
-              aria-label="Delete formation"
+              aria-label={t("teams.delete_formation_aria")}
             >
-              <Trash2 className="mr-1.5 h-3.5 w-3.5" /> {isDeleting ? "Deleting..." : "Delete"}
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" /> {isDeleting ? t("teams.deleting") : t("teams.delete")}
             </PixelButton>
           )}
         </div>
@@ -324,7 +328,7 @@ export default function FormationTeamsPage() {
           )}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
+          {t("monsters.filters")}
           {activeFilterCount > 0 && (
             <span className="rounded-full bg-gold px-1.5 py-0.5 text-[9px] text-white">{activeFilterCount}</span>
           )}
@@ -333,7 +337,7 @@ export default function FormationTeamsPage() {
         {filtersOpen && (
           <GlowPanel accent="none" className="mt-2 space-y-3 p-3">
             <div className="space-y-1.5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Type</p>
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("filters.type")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {ELEMENTS.map((el) => {
                   const Icon = ELEMENT_ICON[el];
@@ -363,7 +367,7 @@ export default function FormationTeamsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Rarity</p>
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("filters.rarity")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {RARITIES.map((r) => {
                   const active = selectedRarities.has(r);
@@ -386,9 +390,9 @@ export default function FormationTeamsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Sort by</p>
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("teams.sort_by")}</p>
               <div className="flex flex-wrap gap-1.5">
-                {SORT_OPTIONS.map(({ key, label }) => {
+                {SORT_OPTIONS.map((key) => {
                   const active = sortKey === key;
                   return (
                     <button
@@ -407,7 +411,7 @@ export default function FormationTeamsPage() {
                           : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:border-gold/60"
                       )}
                     >
-                      {label} {active && (sortDesc ? "↓" : "↑")}
+                      {t(SORT_OPTION_LABEL_KEY[key])} {active && (sortDesc ? "↓" : "↑")}
                     </button>
                   );
                 })}
@@ -415,7 +419,7 @@ export default function FormationTeamsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Other</p>
+              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("teams.other")}</p>
               <button
                 onClick={() => setFavoritesOnly((v) => !v)}
                 className={cn(
@@ -425,7 +429,7 @@ export default function FormationTeamsPage() {
                     : "border-arcade-border bg-arcade-panel-light text-zinc-500 hover:border-gold/60"
                 )}
               >
-                <Heart className={cn("h-3.5 w-3.5", favoritesOnly && "fill-current")} /> Favorites Only
+                <Heart className={cn("h-3.5 w-3.5", favoritesOnly && "fill-current")} /> {t("teams.favorites_only")}
               </button>
             </div>
 
@@ -434,7 +438,7 @@ export default function FormationTeamsPage() {
                 onClick={clearFilters}
                 className="w-full text-center font-arcade text-[9px] uppercase tracking-wide text-zinc-500 hover:text-gold-bright"
               >
-                Clear filters
+                {t("monsters.clear_filters")}
               </button>
             )}
           </GlowPanel>
@@ -481,7 +485,7 @@ export default function FormationTeamsPage() {
                   e.stopPropagation();
                   toggleFavorite(creature.id);
                 }}
-                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-label={isFavorite ? t("teams.remove_from_favorites") : t("teams.add_to_favorites")}
                 className={cn(
                   "absolute left-1 top-1 z-20 flex h-5 w-5 items-center justify-center transition-colors sm:h-6 sm:w-6",
                   isFavorite ? "text-red-400" : "text-white/70 hover:text-red-300"
@@ -495,7 +499,7 @@ export default function FormationTeamsPage() {
 
         {filteredCreatures.length === 0 && (
           <div className="col-span-full h-24 flex items-center justify-center text-xs text-zinc-500 border border-dashed border-arcade-border rounded-xl">
-            No creatures match filters.
+            {t("monsters.no_match")}
           </div>
         )}
       </div>
@@ -505,7 +509,7 @@ export default function FormationTeamsPage() {
       <div className="sticky bottom-3 lg:bottom-5 z-20 mx-auto w-full max-w-2xl">
         <GlowPanel accent="neon" className="flex items-center gap-3 p-2.5 lg:p-3.5">
           {filledCount === 0 && (
-            <p className="shrink-0 text-[10px] text-zinc-500 sm:text-xs">Tap a character above to build your team →</p>
+            <p className="shrink-0 text-[10px] text-zinc-500 sm:text-xs">{t("teams.tap_to_build")}</p>
           )}
           <div className="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
             {draftSlots.map((id, slotIndex) => {
@@ -525,7 +529,7 @@ export default function FormationTeamsPage() {
                   key={slotIndex}
                   onClick={() => handleToggleSlot(creature.id)}
                   className="group relative shrink-0"
-                  aria-label={`Remove ${creature.name}`}
+                  aria-label={`${t("teams.remove_prefix")}${creature.name}`}
                 >
                   <div
                     className={cn(
@@ -550,7 +554,7 @@ export default function FormationTeamsPage() {
               onClick={handleClearSlots}
               className="shrink-0 font-arcade text-[10px] uppercase tracking-wide text-zinc-500 hover:text-red-400"
             >
-              Clear
+              {t("monsters.clear")}
             </button>
           )}
         </GlowPanel>

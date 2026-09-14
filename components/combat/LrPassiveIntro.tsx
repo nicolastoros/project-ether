@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { motion } from "framer-motion";
 import type { LrPassiveActivation } from "@/lib/combat";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { useT } from "@/lib/i18n/useT";
+import { useGameStore } from "@/lib/store";
+import { getLrPassiveDescription } from "@/lib/i18n/skillDescriptions";
 
 // Long enough to actually read a two-line effect description, short enough that a player who
 // doesn't realize they can tap isn't stuck staring at it — the tap-to-continue affordance below
@@ -24,6 +27,8 @@ interface LrPassiveIntroProps {
  * under the hood. Fully blocks the arena underneath (full-screen, high z-index) so nothing can act
  * until it's dismissed. */
 export function LrPassiveIntro({ activations, onDismiss }: LrPassiveIntroProps) {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   useEffect(() => {
     const timeout = setTimeout(onDismiss, AUTO_DISMISS_MS);
     return () => clearTimeout(timeout);
@@ -49,7 +54,7 @@ export function LrPassiveIntro({ activations, onDismiss }: LrPassiveIntroProps) 
       exit={{ opacity: 0, transition: { duration: 0.35 } }}
       transition={{ duration: 0.45, ease: "easeOut" }}
       className="fixed inset-0 z-[55] flex cursor-pointer flex-col items-center justify-center gap-5 border-0 bg-black/80 p-3 backdrop-blur-sm sm:p-6"
-      aria-label="Continue"
+      aria-label={t("common.continue")}
     >
       {/* The charge flash itself — a thin bright bar that snaps open then fades, centered where
           the banner stack is about to appear. */}
@@ -114,17 +119,19 @@ export function LrPassiveIntro({ activations, onDismiss }: LrPassiveIntroProps) 
                   className="relative min-w-0 flex-1 text-left"
                 >
                   <p className="font-arcade text-[10px] uppercase tracking-[0.25em] text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.9)] sm:text-xs">
-                    Passive Skill
+                    {t("battle.passive_skill_label")}
                   </p>
                   <p className="truncate text-lg font-bold text-white sm:text-xl lg:text-2xl">{activation.passive.name}</p>
-                  <p className="text-xs leading-snug text-sky-100/85 sm:text-sm lg:text-base">{activation.passive.description}</p>
+                  <p className="text-xs leading-snug text-sky-100/85 sm:text-sm lg:text-base">
+                    {getLrPassiveDescription(activation.creature, activation.passive, language)}
+                  </p>
                 </motion.div>
               </div>
             </motion.div>
           );
         })}
       </div>
-      <p className="animate-pulse text-[10px] uppercase tracking-widest text-sky-200/80 sm:text-xs">Tap to continue</p>
+      <p className="animate-pulse text-[10px] uppercase tracking-widest text-sky-200/80 sm:text-xs">{t("common.tap_to_continue")}</p>
     </motion.button>
   );
 }

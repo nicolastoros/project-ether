@@ -21,12 +21,26 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { HiddenPotentialScreen } from "./HiddenPotentialScreen";
 import { SuperAttackTrainingModal } from "./SuperAttackTrainingModal";
 import { AwakenScreen } from "./AwakenScreen";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import { getLrPassiveDescription, getSkillDescription, getUltimateDescription } from "@/lib/i18n/skillDescriptions";
 
 export const SKILL_TYPE_STYLES: Record<Skill["type"], string> = {
   Attack: "bg-red-500",
   Defense: "bg-sky-500",
   Support: "bg-emerald-500",
   Passive: "bg-violet-500",
+};
+
+// Single source of truth reused by every battle screen (BattleScreen.tsx, RaidBattleScreen.tsx,
+// OverclockBattleScreen.tsx already import SKILL_TYPE_STYLES from here, same idea) — the skill
+// TYPE badge text (Attack/Defense/Support/Passive) is interface chrome, translated; the skill's
+// own NAME (skill.name) is content and stays untouched everywhere.
+export const SKILL_TYPE_LABEL_KEY: Record<Skill["type"], TranslationKey> = {
+  Attack: "battle.skill_type.attack",
+  Defense: "battle.skill_type.defense",
+  Support: "battle.skill_type.support",
+  Passive: "battle.skill_type.passive",
 };
 
 // Big Dokkan-style stat tiles instead of a cramped 4-cell number grid — each stat gets its own
@@ -70,6 +84,8 @@ export function CreatureDetailModal({
   // re-sync against server truth first (see useSyncGate), the same race class that caused the
   // level/Hidden-Potential reset bug earlier.
   const { gating, runGated } = useSyncGate();
+  const t = useT();
+  const language = useGameStore((s) => s.language);
 
   const potentialBonuses = creature ? getPotentialBonuses(creature.potentialNodes) : null;
 
@@ -112,7 +128,7 @@ export function CreatureDetailModal({
 
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -135,9 +151,9 @@ export function CreatureDetailModal({
                     <CreatureName creature={creature} className="text-xl font-bold" />
                   </h2>
                   <p className="text-xs text-zinc-500">
-                    {creature.element} · Stage {creature.stage} · Lv.{creature.level}
+                    {creature.element} · {t("creature.stage_label")} {creature.stage} · Lv.{creature.level}
                     {creature.copies > 1 && (
-                      <span className="ml-1.5 font-arcade text-gold-bright">×{creature.copies} owned</span>
+                      <span className="ml-1.5 font-arcade text-gold-bright">×{creature.copies} {t("creature.owned_suffix")}</span>
                     )}
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 font-arcade text-sm glow-text-gold">
@@ -172,7 +188,7 @@ export function CreatureDetailModal({
 
               {creature.categories && creature.categories.length > 0 && (
                 <div className="mt-3">
-                  <h3 className="font-arcade text-xs glow-text-neon">Categories</h3>
+                  <h3 className="font-arcade text-xs glow-text-neon">{t("creature.categories")}</h3>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {creature.categories.map((category) => (
                       <span
@@ -201,11 +217,13 @@ export function CreatureDetailModal({
                           <Sparkles className="h-4 w-4 text-sky-300" />
                         </span>
                         <div className="min-w-0">
-                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-sky-300">LR Passive</p>
+                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-sky-300">{t("creature.lr_passive")}</p>
                           <p className="truncate text-sm font-bold text-white">{creature.lrPassive.name}</p>
                         </div>
                       </div>
-                      <p className="mt-2 text-[11px] leading-snug text-sky-100/80">{creature.lrPassive.description}</p>
+                      <p className="mt-2 text-[11px] leading-snug text-sky-100/80">
+                        {getLrPassiveDescription(creature, creature.lrPassive, language)}
+                      </p>
                     </div>
                   )}
                   {creature.ultimateSkill && (
@@ -216,7 +234,7 @@ export function CreatureDetailModal({
                           <Flame className="h-4 w-4 text-gold-bright" />
                         </span>
                         <div className="min-w-0">
-                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-gold-bright/80">Ultimate Attack</p>
+                          <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-gold-bright/80">{t("creature.ultimate_attack")}</p>
                           <p
                             className="truncate text-sm font-bold text-transparent"
                             style={{
@@ -229,7 +247,9 @@ export function CreatureDetailModal({
                           </p>
                         </div>
                       </div>
-                      <p className="relative mt-2 text-[11px] leading-snug text-amber-100/80">{creature.ultimateSkill.description}</p>
+                      <p className="relative mt-2 text-[11px] leading-snug text-amber-100/80">
+                        {getUltimateDescription(creature.ultimateSkill, language)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -249,9 +269,9 @@ export function CreatureDetailModal({
                   onClick={() => setSkillsExpanded((v) => !v)}
                   className="flex w-full items-center justify-between"
                 >
-                  <h3 className="font-arcade text-xs glow-text-neon">Skills</h3>
+                  <h3 className="font-arcade text-xs glow-text-neon">{t("creature.skills_header")}</h3>
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-zinc-500">
-                    {skillsExpanded ? "Hide Details" : "View Details"}
+                    {skillsExpanded ? t("common.hide_details") : t("common.view_details")}
                     <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", skillsExpanded && "rotate-180")} />
                   </span>
                 </button>
@@ -269,16 +289,16 @@ export function CreatureDetailModal({
                             SKILL_TYPE_STYLES[skill.type]
                           )}
                         >
-                          {skill.type}
+                          {t(SKILL_TYPE_LABEL_KEY[skill.type])}
                         </span>
                       </div>
                       {skillsExpanded && (
                         <>
-                          <p className="mt-1 text-[10px] text-zinc-600">{skill.description}</p>
+                          <p className="mt-1 text-[10px] text-zinc-600">{getSkillDescription(skill, language)}</p>
                           <p className="mt-1 text-[9px] text-zinc-500">
-                            {skill.power > 0 && `Power ${skill.power} · `}
-                            {skill.cooldown > 0 && `Cooldown ${skill.cooldown}t · `}
-                            Unlocks at Lv.{skill.unlockLevel}
+                            {skill.power > 0 && `${t("battle.power_label")} ${skill.power} · `}
+                            {skill.cooldown > 0 && `${t("battle.cooldown")} ${skill.cooldown}t · `}
+                            {t("creature.unlocks_at_lv")} {skill.unlockLevel}
                           </p>
                         </>
                       )}
@@ -294,7 +314,7 @@ export function CreatureDetailModal({
                   className="flex-1"
                   onClick={() => onSetActive(creature.id)}
                 >
-                  {isActive ? "Active in Hub" : "Set as Hub Showcase"}
+                  {isActive ? t("creature.active_in_hub") : t("creature.set_hub_showcase")}
                 </PixelButton>
                 <PixelButton
                   variant={isHubMember ? "ghost" : "gold"}
@@ -303,7 +323,7 @@ export function CreatureDetailModal({
                   onClick={() => toggleHubTeamMember(creature.id)}
                 >
                   <Star className={cn("mr-1 inline h-3.5 w-3.5", isHubMember && "fill-current")} />
-                  {isHubMember ? "Remove from Team" : "Add to Team"}
+                  {isHubMember ? t("creature.remove_from_team") : t("creature.add_to_team")}
                 </PixelButton>
               </div>
 
@@ -313,14 +333,14 @@ export function CreatureDetailModal({
                   className="flex-1 bg-violet-600 hover:bg-violet-500 border-violet-800"
                   onClick={() => runGated(() => setShowSA(true))}
                 >
-                  Train Super Attack
+                  {t("creature.train_super_attack")}
                 </PixelButton>
                 <PixelButton
                   variant="gold"
                   className="flex-1 bg-amber-500 hover:bg-amber-400 border-amber-700"
                   onClick={() => runGated(() => setShowPotential(true))}
                 >
-                  Hidden Potential
+                  {t("potential.title")}
                 </PixelButton>
               </div>
 
@@ -330,7 +350,7 @@ export function CreatureDetailModal({
                   className="mt-2 w-full bg-gradient-to-r from-amber-500 to-gold-bright"
                   onClick={() => runGated(() => setShowAwaken(true))}
                 >
-                  Awaken
+                  {t("creature.awaken")}
                 </PixelButton>
               )}
             </div>

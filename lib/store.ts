@@ -35,6 +35,7 @@ import { partyPower } from "@/lib/power";
 import { getPotentialBonuses } from "@/lib/hiddenPotential";
 import { thisWeekStartDateString, todayDateString } from "@/lib/utils";
 import { currentOverclockWeekId } from "@/lib/overclock";
+import type { Language } from "@/lib/i18n/translations";
 // Type-only import: erased at compile time, so this never pulls the server-only
 // BigQuery client (lib/db/bigquery.ts) into the client bundle.
 import type { AccountBundle } from "@/lib/db/bigquery";
@@ -478,6 +479,11 @@ interface GameState {
    * won't show one again once its id lands here. Local-only (never synced to BigQuery): it's a
    * UI nicety, not game progress, so a new device simply seeing a tip again is harmless. */
   seenTutorialTips: string[];
+  /** UI language for the (currently pilot-scope) chrome strings — see lib/i18n/translations.ts and
+   * lib/i18n/useT.ts. Local-only/device preference, same rationale as seenTutorialTips above: not
+   * game progress, so it doesn't need BigQuery persistence, and a new device simply defaulting back
+   * to "en" is harmless. */
+  language: Language;
   /** Base Campaign stage ids (never tier-suffixed — "attempted" is tracked per area, not per
    * difficulty tier) the player has started and lost at least once — see ChapterAreaList.tsx's
    * badge: NEW until first attempted, blank while attempted-but-not-yet-won (no longer "unseen",
@@ -521,6 +527,7 @@ interface GameState {
   markStagePerfect: (stageId: string) => void;
   recordStageStars: (stageId: string, stars: { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }) => void;
   markTutorialTipSeen: (id: string) => void;
+  setLanguage: (language: Language) => void;
   markStageAttempted: (baseStageId: string) => void;
 
   setActiveCreature: (creatureId: string) => void;
@@ -683,6 +690,7 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV9: false,
       hasReceivedGiftsV10: false,
       seenTutorialTips: [],
+      language: "en",
       attemptedStageIds: [],
       dailyBonusClaimed: false,
       favoriteCreatureIds: [],
@@ -801,6 +809,8 @@ export const useGameStore = create<GameState>()(
           if (state.seenTutorialTips.includes(id)) return state;
           return { seenTutorialTips: [...state.seenTutorialTips, id] };
         }),
+
+      setLanguage: (language) => set({ language }),
 
       markStageAttempted: (baseStageId) =>
         set((state) => {

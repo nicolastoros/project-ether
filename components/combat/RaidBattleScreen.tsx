@@ -28,13 +28,15 @@ import {
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
-import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
+import { SKILL_TYPE_STYLES, SKILL_TYPE_LABEL_KEY } from "@/components/monsters/CreatureDetailModal";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import type { Direction } from "@/components/ui/CreatureSprite";
 import { CombatantCard } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
+import { useT } from "@/lib/i18n/useT";
+import { getAchievementName } from "@/lib/i18n/achievementDescriptions";
 import { cn } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
@@ -81,6 +83,7 @@ interface RaidBattleScreenProps {
 }
 
 export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRematch, onExit }: RaidBattleScreenProps) {
+  const t = useT();
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -90,6 +93,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const guild = useGameStore((s) => s.guild);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
+  const language = useGameStore((s) => s.language);
 
   // Which owned gear is actually equipped right now — shared by the buff computation below and
   // the victory-reward block's Wind Set Effect (EXP +100%) check further down.
@@ -252,7 +256,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
             unlockAchievementOnServer(achievementId);
             const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
             if (achievement) {
-              setAchievementUnlockedName(achievement.name);
+              setAchievementUnlockedName(getAchievementName(achievement, language));
               notifyAchievementUnlocked(achievement);
             }
           }
@@ -403,7 +407,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
         )}
       </AnimatePresence>
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Raid Battle</h1>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("battle.raid_battle_title")}</h1>
         <p className="text-xs text-zinc-500">{boss.name} · {playerCreatures.length}v{bossCreatures.length}</p>
       </div>
 
@@ -528,12 +532,12 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
                   entry.kind === "defeat" ? "text-red-500" : "text-gold-bright"
                 )}
               >
-                {entry.message}
+                {t(entry.key, entry.params)}
               </p>
             ))}
           </div>
           <p className="mt-2 text-[10px] uppercase tracking-widest text-zinc-500 animate-pulse">
-            Tap to continue
+            {t("common.tap_to_continue")}
           </p>
         </GlowPanel>
       )}
@@ -541,19 +545,21 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
       {!pendingNotice && isPlayerTurn && actor && (
         <GlowPanel className="p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="font-arcade text-[10px] glow-text-gold">{actor.creature.name}&apos;s turn</p>
+            <p className="font-arcade text-[10px] glow-text-gold">
+              {t("battle.turn_prefix")}{actor.creature.name}{t("battle.turn_suffix")}
+            </p>
             {pendingSkill && (
               <button
                 onClick={() => setPendingSkill(null)}
                 className="text-[10px] text-zinc-500 underline underline-offset-2 hover:text-foreground"
               >
-                Cancel target
+                {t("battle.cancel_target")}
               </button>
             )}
           </div>
           {pendingSkill ? (
             <p className="text-xs text-zinc-500">
-              Choose an enemy to hit with <span className="font-semibold text-foreground">{pendingSkill.name}</span>.
+              {t("battle.choose_enemy_with")}<span className="font-semibold text-foreground">{pendingSkill.name}</span>.
             </p>
           ) : (
             <div className="space-y-2">
@@ -588,14 +594,14 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
                               SKILL_TYPE_STYLES[skill.type]
                             )}
                           >
-                            {skill.type}
+                            {t(SKILL_TYPE_LABEL_KEY[skill.type])}
                           </span>
                         </div>
                         {cooldownLeft > 0 && (
-                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-500">Cooldown {cooldownLeft}t</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-500">{t("battle.cooldown")} {cooldownLeft}t</p>
                         )}
                         {cooldownLeft <= 0 && actor.resonance < cost && (
-                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
+                          <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                         )}
                       </button>
                     );
@@ -622,11 +628,11 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
                         <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
                       </span>
                       <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white">
-                        Ultimate
+                        {t("battle.ultimate_badge")}
                       </span>
                     </div>
                     {!isReady && (
-                      <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">Needs {cost} Resonance</p>
+                      <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-600">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                     )}
                   </button>
                 );
@@ -638,12 +644,12 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
 
       {!pendingNotice && !isPlayerTurn && phase === "active" && (
         <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
-          {actor ? `${actor.creature.name} is acting…` : "…"}
+          {actor ? `${actor.creature.name}${t("battle.is_acting_suffix")}` : "…"}
         </p>
       )}
 
       {phase !== "active" && !showResult && (
-        <LoadingOverlay show label={phase === "victory" ? "Victory! Calculating rewards..." : "Calculating results..."} />
+        <LoadingOverlay show label={phase === "victory" ? t("battle.calculating_rewards") : t("battle.calculating_results")} />
       )}
 
       {phase !== "active" && showResult && (
@@ -656,12 +662,13 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
           elapsedSeconds={elapsedSeconds}
           tamerResult={tamerResult ?? undefined}
           bonusLines={[
-            achievementUnlockedName && `Achievement Unlocked: ${achievementUnlockedName}!`,
+            achievementUnlockedName &&
+              `${t("battle.achievement_unlocked_prefix")}${achievementUnlockedName}${t("battle.achievement_unlocked_suffix")}`,
           ].filter((line): line is string => Boolean(line))}
-          defeatMessage="Your party was defeated. Bring more/stronger creatures next time!"
+          defeatMessage={t("battle.defeat_message_party")}
           onRematch={onRematch}
           onExitClick={onExit}
-          exitLabel="Return to Raids"
+          exitLabel={t("battle.return_to_raids")}
         />
       )}
     </div>

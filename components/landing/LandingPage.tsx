@@ -4,10 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useAnimationControls, type Variants } from "framer-motion";
-import { ChevronDown, Sparkles, Swords, Users, Trophy, BookOpen, Wand2 } from "lucide-react";
+import { ChevronDown, Languages, Sparkles, Swords, Users, Trophy, BookOpen, Wand2 } from "lucide-react";
 import { STARTER_CREATURES, CREATURE_CATEGORIES } from "@/lib/gameData";
 import { CAMPAIGN_CHAPTERS } from "@/lib/campaignChapters";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { useGameStore } from "@/lib/store";
+import { useT } from "@/lib/i18n/useT";
+import { LANDING_CONTENT, type LandingContent } from "@/lib/i18n/landingContent";
+import type { Language } from "@/lib/i18n/translations";
+import { getLrPassiveDescription } from "@/lib/i18n/skillDescriptions";
 import { cn } from "@/lib/utils";
 
 // Real creatures, not placeholder art — a spread of elements and both top rarities (LR/Mythic)
@@ -99,6 +104,7 @@ function AmbientGlow({ className }: { className?: string }) {
  * number, and a critical-hit burst — so the Combat feature section shows the actual system
  * instead of describing it in a bullet point. */
 function CombatDemo() {
+  const t = useT();
   const lungeControls = useAnimationControls();
   const [hitNonce, setHitNonce] = useState(0);
   const [isCrit, setIsCrit] = useState(false);
@@ -146,7 +152,7 @@ function CombatDemo() {
               isCrit ? "text-amber-300 drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]" : "text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
             )}
           >
-            {isCrit && <div className="text-[9px] font-bold tracking-widest text-red-400">CRITICAL!</div>}
+            {isCrit && <div className="text-[9px] font-bold tracking-widest text-red-400">{t("battle.critical")}</div>}
             <div className={isCrit ? "text-2xl sm:text-3xl" : "text-base sm:text-lg"}>-{isCrit ? "1,240" : "612"}</div>
           </motion.div>
         )}
@@ -162,7 +168,7 @@ function CombatDemo() {
  * name/description text pulled straight off each LR's ultimateSkill/lrPassive. Plain <img> (not
  * next/image) for the GIFs specifically — Next's image optimizer strips GIF animation unless
  * explicitly told not to, same reason UltimateAttackIntro.tsx itself uses a plain img. */
-function LrPowerShowcase() {
+function LrPowerShowcase({ content, language }: { content: LandingContent; language: Language }) {
   const [mode, setMode] = useState<"ultimate" | "passive">("ultimate");
 
   return (
@@ -170,8 +176,8 @@ function LrPowerShowcase() {
       <div className="mx-auto flex w-fit gap-1 rounded-full border border-white/10 bg-white/5 p-1">
         {(
           [
-            ["ultimate", "Ultimate Attacks"],
-            ["passive", "Passives"],
+            ["ultimate", content.lrPower.ultimateTab],
+            ["passive", content.lrPower.passiveTab],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -232,9 +238,11 @@ function LrPowerShowcase() {
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-sky-300 bg-black/70 shadow-[0_0_14px_rgba(56,189,248,0.7)] sm:h-16 sm:w-16">
                   <CreatureSprite creature={creature} className="h-11 w-11 sm:h-12 sm:w-12" />
                 </div>
-                <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-sky-300 sm:text-[9px]">Passive Skill</p>
+                <p className="font-arcade text-[8px] uppercase tracking-[0.2em] text-sky-300 sm:text-[9px]">{content.lrPower.passiveSkillLabel}</p>
                 <p className="text-sm font-bold leading-tight text-white sm:text-base">{creature.lrPassive?.name}</p>
-                <p className="text-[10px] leading-snug text-sky-100/75 sm:text-xs">{creature.lrPassive?.description}</p>
+                <p className="text-[10px] leading-snug text-sky-100/75 sm:text-xs">
+                  {creature.lrPassive && getLrPassiveDescription(creature, creature.lrPassive, language)}
+                </p>
               </div>
             ))}
       </motion.div>
@@ -243,17 +251,37 @@ function LrPowerShowcase() {
 }
 
 export function LandingPage() {
+  const language = useGameStore((s) => s.language);
+  const setLanguage = useGameStore((s) => s.setLanguage);
+  const t = useT();
+  const content = LANDING_CONTENT[language];
+
   return (
     <div className="relative min-h-dvh overflow-x-hidden bg-[#05070d] text-white">
       {/* Nav */}
-      <div className="relative z-20 flex items-center justify-between px-4 py-5 sm:px-8">
+      <div className="relative z-20 flex items-center justify-between gap-2 px-4 py-5 sm:px-8">
         <Image src="/assets/digital_resonance_transparent.png" alt="Digital Resonance" width={280} height={140} className="h-8 w-auto sm:h-10" />
-        <Link
-          href="/play"
-          className="rounded-full border border-gold/50 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gold-bright backdrop-blur-sm transition-colors hover:bg-white/10 sm:px-5 sm:text-sm"
-        >
-          Log In
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* The one place a pre-login visitor can actually toggle language — the game's own
+              toggle (TopStatusBar.tsx) is behind auth, useless to someone still deciding whether
+              to sign up in a language they can read. */}
+          <button
+            type="button"
+            onClick={() => setLanguage(language === "en" ? "es" : "en")}
+            aria-label={t("lang.switch_to")}
+            title={t("lang.switch_to")}
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10 sm:px-3.5"
+          >
+            <Languages className="h-4 w-4" />
+            {language}
+          </button>
+          <Link
+            href="/play"
+            className="rounded-full border border-gold/50 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gold-bright backdrop-blur-sm transition-colors hover:bg-white/10 sm:px-5 sm:text-sm"
+          >
+            {content.nav.logIn}
+          </Link>
+        </div>
       </div>
 
       {/* Hero */}
@@ -300,7 +328,7 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mt-4 max-w-xl text-base text-zinc-300 sm:text-lg"
         >
-          Summon. Evolve. Conquer the Digital World.
+          {content.hero.tagline}
         </motion.p>
         <motion.p
           initial={{ opacity: 0, y: 12 }}
@@ -308,19 +336,18 @@ export function LandingPage() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-2 max-w-md text-sm text-zinc-500"
         >
-          A free turn-based creature-collecting adventure — build your team, awaken hidden potential, and bring
-          down colossal Raid Bosses.
+          {content.hero.subtitle}
         </motion.p>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.45 }}>
           <Link href="/play" className="group relative mt-8 inline-block">
             <span className="absolute inset-0 -z-10 rounded-full bg-gold blur-lg opacity-60 transition-opacity group-hover:opacity-90" />
             <span className="relative flex items-center gap-2 rounded-full bg-gradient-to-b from-gold to-gold-bright px-9 py-4 font-arcade text-sm uppercase tracking-wide text-white shadow-lg transition-transform group-hover:scale-105 sm:text-base">
-              Play Now
+              {content.hero.playNow}
             </span>
           </Link>
         </motion.div>
-        <p className="mt-3 text-xs text-zinc-600">Free to play — create your Tamer in seconds.</p>
+        <p className="mt-3 text-xs text-zinc-600">{content.hero.freeToPlay}</p>
 
         <motion.div
           className="absolute bottom-6 text-zinc-600"
@@ -335,11 +362,11 @@ export function LandingPage() {
       <Reveal className="relative border-y border-white/5 bg-white/[0.02] px-4 py-8 sm:px-8">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 text-center sm:grid-cols-3 lg:grid-cols-5">
           {[
-            { value: `${STARTER_CREATURES.length}+`, label: "Creatures to Collect" },
-            { value: `${CAMPAIGN_CHAPTERS.length}`, label: "Story Chapters" },
-            { value: `${totalAreas}`, label: "Campaign Areas" },
-            { value: "3", label: "Epic Raid Bosses" },
-            { value: `${CREATURE_CATEGORIES.length}`, label: "Team Categories" },
+            { value: `${STARTER_CREATURES.length}+`, label: content.stats.creatures },
+            { value: `${CAMPAIGN_CHAPTERS.length}`, label: content.stats.chapters },
+            { value: `${totalAreas}`, label: content.stats.areas },
+            { value: "3", label: content.stats.raidBosses },
+            { value: `${CREATURE_CATEGORIES.length}`, label: content.stats.categories },
           ].map((stat) => (
             <div key={stat.label}>
               <p className="font-arcade text-2xl text-gold-bright sm:text-3xl">{stat.value}</p>
@@ -354,9 +381,9 @@ export function LandingPage() {
         <AmbientGlow />
         <Reveal>
           <SectionHeading
-            eyebrow="Build Your Roster"
-            title="Collect and command a growing army"
-            subtitle={`From Common recruits to Legendary Royal Knights — ${STARTER_CREATURES.length}+ creatures await, each with its own element, skills, and evolution path.`}
+            eyebrow={content.collect.eyebrow}
+            title={content.collect.title}
+            subtitle={content.collect.subtitle(STARTER_CREATURES.length)}
           />
         </Reveal>
         <Reveal delay={0.15} className="mt-14 flex flex-wrap items-end justify-center gap-4 sm:gap-8">
@@ -377,8 +404,9 @@ export function LandingPage() {
             as a teaser, not a whole extra feature block. */}
         <Reveal delay={0.25} className="mx-auto mt-14 max-w-2xl text-center">
           <p className="text-sm text-zinc-400 sm:text-base">
-            Every creature carries real <span className="font-semibold text-white">Categories</span> — build a team
-            around one and stack their synergy, just like the tag systems veteran gacha players already know.
+            {content.collect.categoriesPrefix}
+            <span className="font-semibold text-white">{content.collect.categoriesWord}</span>
+            {content.collect.categoriesSuffix}
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
             {SHOWCASE_CATEGORIES.map((category) => (
@@ -397,9 +425,9 @@ export function LandingPage() {
       <section className="relative border-t border-white/5 bg-white/[0.02] px-4 py-20 sm:px-8 sm:py-28">
         <Reveal>
           <SectionHeading
-            eyebrow="Battle System"
-            title="Combat that feels alive"
-            subtitle="Directional attacks, screen-shaking criticals, and Dokkan-style floating damage numbers — every hit lands with real weight."
+            eyebrow={content.combat.eyebrow}
+            title={content.combat.title}
+            subtitle={content.combat.subtitle}
           />
         </Reveal>
         <Reveal delay={0.15} className="mx-auto mt-10 max-w-lg rounded-3xl border border-white/10 bg-black/40 p-4 backdrop-blur-sm sm:p-6">
@@ -412,13 +440,13 @@ export function LandingPage() {
         <AmbientGlow />
         <Reveal>
           <SectionHeading
-            eyebrow="LR-Exclusive"
-            title="Legendary power, on full display"
-            subtitle="Every LR creature carries its own Ultimate Attack and battle-opening Passive — real epic banners, real animations, straight from the actual game."
+            eyebrow={content.lrPower.eyebrow}
+            title={content.lrPower.title}
+            subtitle={content.lrPower.subtitle}
           />
         </Reveal>
         <Reveal delay={0.15} className="mt-12">
-          <LrPowerShowcase />
+          <LrPowerShowcase content={content} language={language} />
         </Reveal>
       </section>
 
@@ -427,9 +455,9 @@ export function LandingPage() {
         <AmbientGlow />
         <Reveal>
           <SectionHeading
-            eyebrow="Growth Systems"
-            title="Awaken hidden potential"
-            subtitle="Spend Orbs to unlock deep potential trees and push your strongest creatures far past their base limits."
+            eyebrow={content.potential.eyebrow}
+            title={content.potential.title}
+            subtitle={content.potential.subtitle}
           />
         </Reveal>
         <Reveal delay={0.15} className="mx-auto mt-12 flex max-w-xl items-center justify-center gap-3 sm:gap-5">
@@ -456,9 +484,9 @@ export function LandingPage() {
       <section className="relative border-t border-white/5 bg-white/[0.02] px-4 py-20 sm:px-8 sm:py-28">
         <Reveal>
           <SectionHeading
-            eyebrow="Team Up"
-            title="Bring down colossal Raid Bosses"
-            subtitle="Assemble up to 4 creatures and take on brutal multi-tier bosses for exclusive rewards."
+            eyebrow={content.raidBosses.eyebrow}
+            title={content.raidBosses.title}
+            subtitle={content.raidBosses.subtitle}
           />
         </Reveal>
         <Reveal delay={0.15} className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-3">
@@ -482,9 +510,9 @@ export function LandingPage() {
         <AmbientGlow />
         <Reveal>
           <SectionHeading
-            eyebrow="Story Mode"
-            title="A story worth fighting for"
-            subtitle={`${CAMPAIGN_CHAPTERS.length} chapters, ${totalAreas} areas and counting — from a quiet beginning to a clash with rogue Royal Knights.`}
+            eyebrow={content.campaign.eyebrow}
+            title={content.campaign.title}
+            subtitle={content.campaign.subtitle(CAMPAIGN_CHAPTERS.length, totalAreas)}
           />
         </Reveal>
         <Reveal delay={0.15} className="mx-auto mt-12 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
@@ -509,9 +537,9 @@ export function LandingPage() {
       <Reveal className="relative border-t border-white/5 bg-white/[0.02] px-4 py-14 sm:px-8">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-10 gap-y-6 text-center">
           {[
-            { icon: Users, label: "Guilds & Friends" },
-            { icon: Trophy, label: "Global Ranking" },
-            { icon: BookOpen, label: "Monster Dex" },
+            { icon: Users, label: content.social.guilds },
+            { icon: Trophy, label: content.social.ranking },
+            { icon: BookOpen, label: content.social.dex },
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-2 text-zinc-400">
               <Icon className="h-5 w-5 text-cyan-300" />
@@ -525,14 +553,12 @@ export function LandingPage() {
       <section className="relative overflow-hidden px-4 py-24 text-center sm:px-8 sm:py-32">
         <AmbientGlow />
         <Reveal>
-          <h2 className="text-3xl font-bold text-white sm:text-5xl">Your journey starts now.</h2>
-          <p className="mx-auto mt-4 max-w-md text-sm text-zinc-400 sm:text-base">
-            No download, no wallet required — just a Tamer name and a starter creature.
-          </p>
+          <h2 className="text-3xl font-bold text-white sm:text-5xl">{content.finalCta.title}</h2>
+          <p className="mx-auto mt-4 max-w-md text-sm text-zinc-400 sm:text-base">{content.finalCta.subtitle}</p>
           <Link href="/play" className="group relative mt-9 inline-block">
             <span className="absolute inset-0 -z-10 rounded-full bg-gold blur-lg opacity-60 transition-opacity group-hover:opacity-90" />
             <span className="relative flex items-center gap-2 rounded-full bg-gradient-to-b from-gold to-gold-bright px-10 py-4 font-arcade text-sm uppercase tracking-wide text-white shadow-lg transition-transform group-hover:scale-105 sm:text-base">
-              Play Now — It&apos;s Free
+              {content.finalCta.playNow}
             </span>
           </Link>
         </Reveal>
@@ -542,9 +568,9 @@ export function LandingPage() {
       <footer className="relative border-t border-white/5 px-4 py-8 text-center sm:px-8">
         <Image src="/assets/digital_resonance_transparent.png" alt="Digital Resonance" width={200} height={100} className="mx-auto h-6 w-auto opacity-60" />
         <p className="mt-3 text-xs text-zinc-600">
-          Already have an account?{" "}
+          {content.footer.alreadyHaveAccount}{" "}
           <Link href="/play" className="font-semibold text-neon hover:underline">
-            Log in
+            {content.footer.logIn}
           </Link>
         </p>
       </footer>

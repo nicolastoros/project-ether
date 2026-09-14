@@ -19,21 +19,45 @@ import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { CrownIcon } from "@/components/icons/CrownIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatTamerStatBonus } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import { getItemName, getItemDescription } from "@/lib/i18n/itemDescriptions";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type TabId = "Gear" | InventoryItemCategory;
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "Gear", label: "Tamer Gear" },
-  { id: "Consumable", label: "Consumables" },
-  { id: "Quest", label: "Quest" },
-  { id: "Evolution", label: "Evolution" },
-  { id: "Skin", label: "Skins" },
-  { id: "Crafting", label: "Crafting" },
-];
+const TAB_LABEL_KEY: Record<TabId, TranslationKey> = {
+  Gear: "inventory.tab_gear",
+  Consumable: "inventory.tab_consumable",
+  Quest: "inventory.tab_quest",
+  Evolution: "inventory.tab_evolution",
+  Skin: "inventory.tab_skin",
+  Crafting: "inventory.tab_crafting",
+};
+
+const TABS: TabId[] = ["Gear", "Consumable", "Quest", "Evolution", "Skin", "Crafting"];
+
+const SLOT_LABEL_KEY: Record<string, TranslationKey> = {
+  Hat: "inventory.slot_hat",
+  Shoulders: "inventory.slot_shoulders",
+  Chest: "inventory.slot_chest",
+  Gloves: "inventory.slot_gloves",
+  Legs: "inventory.slot_legs",
+  Shoes: "inventory.slot_shoes",
+  Aura: "inventory.slot_aura",
+  Wings: "inventory.slot_wings",
+};
 
 // Owning a piece of Tamer gear means wearing it (no per-creature assignment), so every card here
 // shows the "E" badge.
-function TamerGearCard({ item, onClick }: { item: TamerEquipment; onClick: () => void }) {
+function TamerGearCard({
+  item,
+  onClick,
+  t,
+}: {
+  item: TamerEquipment;
+  onClick: () => void;
+  t: ReturnType<typeof useT>;
+}) {
   return (
     <button onClick={onClick} className="text-left">
       <GlowPanel accent="gold" className="flex flex-col items-center gap-1.5 p-3 text-center">
@@ -43,7 +67,7 @@ function TamerGearCard({ item, onClick }: { item: TamerEquipment; onClick: () =>
         </div>
         <p className="truncate text-[11px] font-semibold text-foreground">{item.name}</p>
         <p className="text-[9px] uppercase tracking-wide text-zinc-500">
-          {item.slot} · {item.setName}
+          {t(SLOT_LABEL_KEY[item.slot] ?? "inventory.slot_hat")} · {item.setName}
         </p>
         <RarityBadge rarity={item.rarity} />
         {formatTamerStatBonus(item.statBonus) && (
@@ -58,10 +82,12 @@ function ItemCard({
   item,
   quantity,
   onClick,
+  language,
 }: {
   item: InventoryItem;
   quantity: number;
   onClick: () => void;
+  language: "en" | "es";
 }) {
   return (
     <button onClick={onClick} className="text-left">
@@ -69,7 +95,7 @@ function ItemCard({
         <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-arcade-border bg-arcade-panel-light sm:h-16 sm:w-16">
           <ItemIcon item={item} className="h-9 w-9 text-zinc-500 sm:h-11 sm:w-11" />
         </div>
-        <p className="truncate text-xs font-semibold text-foreground sm:text-sm">{item.name}</p>
+        <p className="truncate text-xs font-semibold text-foreground sm:text-sm">{getItemName(item, language)}</p>
         <RarityBadge rarity={item.rarity} />
         <span className="rounded-full bg-gold px-2.5 py-1 font-arcade text-xs font-bold text-white shadow-sm sm:text-sm">
           ×{quantity}
@@ -79,16 +105,22 @@ function ItemCard({
   );
 }
 
-function EmptyTab({ label }: { label: string }) {
+function EmptyTab({ label, t }: { label: string; t: ReturnType<typeof useT> }) {
   return (
     <GlowPanel accent="none" className="flex h-40 flex-col items-center justify-center gap-1.5 text-center">
-      <p className="text-xs text-zinc-500">No {label.toLowerCase()} yet.</p>
-      <p className="text-[10px] text-zinc-400">Clear Campaign and Survival stages to find some.</p>
+      <p className="text-xs text-zinc-500">
+        {t("inventory.empty_prefix")}
+        {label.toLowerCase()}
+        {t("inventory.empty_suffix")}
+      </p>
+      <p className="text-[10px] text-zinc-400">{t("inventory.empty_hint")}</p>
     </GlowPanel>
   );
 }
 
 export default function InventoryPage() {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const currencies = useGameStore((s) => s.currencies);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const ownedItems = useGameStore((s) => s.ownedItems);
@@ -112,10 +144,10 @@ export default function InventoryPage() {
   const maxLevelCreatureIds = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of creatures) {
-      if (c.level >= creatureLevelCap(c)) map.set(c.id, "MAX LEVEL");
+      if (c.level >= creatureLevelCap(c)) map.set(c.id, t("common.badge_max_level"));
     }
     return map;
-  }, [creatures]);
+  }, [creatures, t]);
 
   useEffect(() => {
     markInventorySeen();
@@ -127,9 +159,9 @@ export default function InventoryPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">Inventory</h1>
+          <h1 className="font-arcade text-lg glow-text-gold sm:text-xl lg:text-2xl">{t("inventory.title")}</h1>
           <p className="mt-1 text-sm text-zinc-600 sm:text-base">
-            Everything you&apos;ve found across Campaign, Survival, and beyond.
+            {t("inventory.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -140,29 +172,29 @@ export default function InventoryPage() {
       </div>
 
       <div className="scrollbar-hidden flex gap-1.5 overflow-x-auto pb-1 sm:gap-2">
-        {TABS.map((tab) => (
+        {TABS.map((tabId) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            key={tabId}
+            onClick={() => setActiveTab(tabId)}
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 font-arcade text-xs uppercase tracking-wide transition-colors sm:px-4 sm:py-2 sm:text-sm",
-              activeTab === tab.id
+              activeTab === tabId
                 ? "border-gold bg-gold text-white"
                 : "border-arcade-border bg-arcade-panel-light text-zinc-600 hover:text-foreground"
             )}
           >
-            {tab.label}
+            {t(TAB_LABEL_KEY[tabId])}
           </button>
         ))}
       </div>
 
       {activeTab === "Gear" ? (
         tamerInventory.length === 0 ? (
-          <EmptyTab label="Tamer Gear" />
+          <EmptyTab label={t("inventory.tab_gear")} t={t} />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {tamerInventory.map((item) => (
-              <TamerGearCard key={item.id} item={item} onClick={() => setSelectedTamerGear(item)} />
+              <TamerGearCard key={item.id} item={item} onClick={() => setSelectedTamerGear(item)} t={t} />
             ))}
           </div>
         )
@@ -171,7 +203,7 @@ export default function InventoryPage() {
           const categoryItems = ITEM_CATALOG.filter((i) => i.category === activeTab).filter((i) =>
             ownedQuantityByItemId.has(i.id)
           );
-          if (categoryItems.length === 0) return <EmptyTab label={activeTab} />;
+          if (categoryItems.length === 0) return <EmptyTab label={t(TAB_LABEL_KEY[activeTab])} t={t} />;
           return (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {categoryItems.map((item) => (
@@ -183,6 +215,7 @@ export default function InventoryPage() {
                     setSelectedItem(item);
                     setUseQuantity(1);
                   }}
+                  language={language}
                 />
               ))}
             </div>
@@ -209,7 +242,7 @@ export default function InventoryPage() {
             >
               <button
                 onClick={() => setSelectedTamerGear(null)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -221,7 +254,9 @@ export default function InventoryPage() {
               </div>
 
               <p className="mt-3 text-center text-[10px] uppercase tracking-wide text-zinc-500">
-                {selectedTamerGear.slot} · {selectedTamerGear.setName} Set
+                {t(SLOT_LABEL_KEY[selectedTamerGear.slot] ?? "inventory.slot_hat")} · {t("inventory.set_prefix")}
+                {selectedTamerGear.setName}
+                {t("inventory.set_suffix")}
               </p>
               <h2 className="text-center text-xl font-bold text-foreground">{selectedTamerGear.name}</h2>
               <div className="mt-2 flex items-center justify-center gap-2">
@@ -230,7 +265,7 @@ export default function InventoryPage() {
 
               {formatTamerStatBonus(selectedTamerGear.statBonus) && (
                 <div className="mt-3 rounded-xl border border-arcade-border bg-arcade-panel-light py-2 text-center">
-                  <p className="text-[9px] uppercase tracking-wide text-zinc-500">Bonus</p>
+                  <p className="text-[9px] uppercase tracking-wide text-zinc-500">{t("inventory.bonus")}</p>
                   <p className="text-sm font-semibold text-emerald-600">
                     {formatTamerStatBonus(selectedTamerGear.statBonus)}
                   </p>
@@ -238,7 +273,7 @@ export default function InventoryPage() {
               )}
 
               <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-zinc-500">
-                <Check className="h-3.5 w-3.5 text-emerald-600" /> Equipped on your Tamer
+                <Check className="h-3.5 w-3.5 text-emerald-600" /> {t("inventory.equipped_on_tamer")}
               </p>
             </motion.div>
           </div>
@@ -264,21 +299,22 @@ export default function InventoryPage() {
             >
               <button
                 onClick={() => setSelectedItem(null)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
 
               <p className="text-[10px] uppercase tracking-wide text-zinc-500">{selectedItem.category}</p>
-              <h2 className="text-xl font-bold text-foreground">{selectedItem.name}</h2>
+              <h2 className="text-xl font-bold text-foreground">{getItemName(selectedItem, language)}</h2>
               <div className="mt-2 flex items-center gap-2">
                 <RarityBadge rarity={selectedItem.rarity} />
                 <span className="font-arcade text-[10px] text-zinc-500">
-                  ×{ownedQuantityByItemId.get(selectedItem.id) ?? 0} owned
+                  ×{ownedQuantityByItemId.get(selectedItem.id) ?? 0}
+                  {t("inventory.owned_suffix")}
                 </span>
               </div>
-              <p className="mt-3 text-xs text-zinc-600">{selectedItem.description}</p>
+              <p className="mt-3 text-xs text-zinc-600">{getItemDescription(selectedItem, language)}</p>
 
               {(selectedItem.energyRestore || selectedItem.creatureExpValue) && (
                 <div className="mt-4 flex items-center justify-between rounded-xl border border-arcade-border bg-arcade-panel-light p-2">
@@ -297,11 +333,11 @@ export default function InventoryPage() {
                   >
                     +
                   </button>
-                  <button 
-                    onClick={() => setUseQuantity(ownedQuantityByItemId.get(selectedItem.id) ?? 0)} 
+                  <button
+                    onClick={() => setUseQuantity(ownedQuantityByItemId.get(selectedItem.id) ?? 0)}
                     className="text-[10px] font-bold uppercase text-zinc-500 hover:text-foreground"
                   >
-                    Max
+                    {t("inventory.max")}
                   </button>
                 </div>
               )}
@@ -323,7 +359,7 @@ export default function InventoryPage() {
                       setSelectedItem(null);
                     }}
                   >
-                    Use (+{(selectedItem.energyRestore as number) * useQuantity} Energy)
+                    {t("inventory.use_energy_prefix")}{(selectedItem.energyRestore as number) * useQuantity}{t("inventory.use_energy_suffix")}
                   </PixelButton>
                 )}
                 {selectedItem.creatureExpValue && (
@@ -335,12 +371,12 @@ export default function InventoryPage() {
                       setSelectedItem(null);
                     }}
                   >
-                    Use on a Creature
+                    {t("inventory.use_on_creature")}
                   </PixelButton>
                 )}
                 {selectedItem.sellPriceGold && (
                   <p className="text-center text-[10px] text-zinc-500">
-                    Sell this in the Shop for {selectedItem.sellPriceGold} gold.
+                    {t("inventory.sell_prefix")}{selectedItem.sellPriceGold}{t("inventory.sell_suffix")}
                   </p>
                 )}
               </div>
@@ -378,13 +414,13 @@ export default function InventoryPage() {
                   setUsingItemForCreature(null);
                   setPickedCreatureId(null);
                 }}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
               <h2 className="shrink-0 px-4 pr-12 pt-4 text-sm font-bold text-foreground">
-                Use {useQuantity}x {usingItemForCreature.name} on which creature?
+                {t("inventory.use_on_which_prefix")}{useQuantity}{t("inventory.use_on_which_mid")}{getItemName(usingItemForCreature, language)}{t("inventory.use_on_which_suffix")}
               </h2>
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 <MultiCreaturePicker
@@ -393,7 +429,7 @@ export default function InventoryPage() {
                   selectedIds={pickedCreatureId ? [pickedCreatureId] : []}
                   maxCount={1}
                   onToggle={(id) => setPickedCreatureId(id)}
-                  confirmLabel={`Use (+${(usingItemForCreature.creatureExpValue as number) * useQuantity} EXP)`}
+                  confirmLabel={`${t("inventory.use_exp_prefix")}${(usingItemForCreature.creatureExpValue as number) * useQuantity}${t("inventory.use_exp_suffix")}`}
                   onConfirm={() => {
                     if (!pickedCreatureId) return;
                     if (consumeItem(usingItemForCreature.id, useQuantity)) {

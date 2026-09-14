@@ -12,8 +12,10 @@ import { CreatureName } from "@/components/ui/CreatureName";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { TamerSprite } from "@/components/ui/TamerSprite";
 import { xpPercent, cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 export function CreatureShowcase() {
+  const t = useT();
   const creature = useActiveCreature();
   const creatures = useGameStore((s) => s.creatures);
   const hubTeamIds = useGameStore((s) => s.hubTeamIds);
@@ -37,7 +39,7 @@ export function CreatureShowcase() {
 
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h2 className="font-arcade text-xs glow-text-gold">Active Creature</h2>
+          <h2 className="font-arcade text-xs glow-text-gold">{t("hub.active_creature")}</h2>
           <p className="mt-1">
             <CreatureName creature={creature} className="text-lg font-bold" />
           </p>
@@ -45,7 +47,7 @@ export function CreatureShowcase() {
         <div className="flex flex-col items-end gap-1">
           <RarityBadge rarity={creature.rarity} />
           <span className="text-[10px] uppercase tracking-wide text-zinc-500">
-            Stage {creature.stage} · Lv.{creature.level}
+            {t("creature.stage_label")} {creature.stage} · Lv.{creature.level}
           </span>
         </div>
       </div>
@@ -119,7 +121,7 @@ export function CreatureShowcase() {
       {hubTeam.length > 1 && (
         <div className="mt-3">
           <p className="mb-1.5 text-[9px] uppercase tracking-wide text-zinc-500">
-            Hub Team {hubTeam.length}/7
+            {t("hub.hub_team_prefix")}{hubTeam.length}/7
           </p>
           <div className="flex gap-2">
             {hubTeam.map((c) => {
@@ -134,7 +136,7 @@ export function CreatureShowcase() {
                       ? "border-gold bg-arcade-panel-light glow-border-gold"
                       : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-zinc-700"
                   )}
-                  aria-label={`Select ${c.name}`}
+                  aria-label={`${t("hub.select_creature_prefix")}${c.name}`}
                 >
                   <CreatureSprite creature={c} className={cn("h-5 w-5 p-0.5", isActive && "text-gold-bright")} />
                 </button>

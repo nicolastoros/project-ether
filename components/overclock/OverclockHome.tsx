@@ -20,6 +20,7 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { cn, formatNumber } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 const MAX_PARTY = 2;
 
@@ -80,16 +81,17 @@ function useCountdownTo(targetMs: number | null): string {
 
 const RANK_ICON: Record<number, typeof Crown> = { 1: Crown, 2: Trophy, 3: Medal };
 
-function RewardTierRow({ rank }: { rank: 1 | 2 | 3 }) {
+function RewardTierRow({ rank, t }: { rank: 1 | 2 | 3; t: ReturnType<typeof useT> }) {
   const Icon = RANK_ICON[rank];
   const chipItems = OVERCLOCK_REWARD_CHIPSET_ITEM_IDS.map((id) => ITEM_CATALOG.find((i) => i.id === id)).filter(
     (i): i is NonNullable<typeof i> => Boolean(i)
   );
+  const placeLabel = rank === 1 ? t("overclock.place_1st") : rank === 2 ? t("overclock.place_2nd") : t("overclock.place_3rd");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-3">
       <span className="flex items-center gap-2 font-arcade text-[11px] uppercase tracking-wide text-foreground sm:text-xs">
         <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6", rank === 1 ? "text-gold-bright" : rank === 2 ? "text-zinc-400" : "text-amber-700")} />
-        {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} Place
+        {placeLabel}{t("overclock.place_suffix")}
       </span>
       <span className="flex items-center gap-3 text-sm text-zinc-600">
         <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
@@ -111,6 +113,7 @@ function RewardTierRow({ rank }: { rank: 1 | 2 | 3 }) {
  * (unlike every other Challenge trial) — repeatable on purpose, since the whole point is climbing
  * the weekly ranking through as many attempts as the player wants. */
 export function OverclockHome() {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const isOnExpedition = useGameStore((s) => s.isOnExpedition);
   const overclockBestDamage = useGameStore((s) => s.profile.overclockBestDamage ?? 0);
@@ -154,19 +157,19 @@ export function OverclockHome() {
   const excludedIds = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
+      if (isOnExpedition(c.id)) map.set(c.id, t("common.badge_on_expedition"));
     }
     const hasLR = playerIds.some((id) => creatures.find((c) => c.id === id)?.rarity === "LR");
     if (hasLR) {
       for (const c of creatures) {
-        if (c.rarity === "LR" && !playerIds.includes(c.id)) map.set(c.id, "MAX 1 LR");
+        if (c.rarity === "LR" && !playerIds.includes(c.id)) map.set(c.id, t("common.badge_max_one_lr"));
       }
     }
     return map;
-  }, [creatures, isOnExpedition, playerIds]);
+  }, [creatures, isOnExpedition, playerIds, t]);
 
   if (!bossCreature) {
-    return <p className="text-center text-xs text-zinc-500">This week&apos;s boss isn&apos;t available yet.</p>;
+    return <p className="text-center text-xs text-zinc-500">{t("overclock.boss_unavailable")}</p>;
   }
 
   if (fighting) {
@@ -195,10 +198,10 @@ export function OverclockHome() {
       <div className="space-y-3">
         <div>
           <button onClick={() => setPicking(false)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← Back
+             {t("overclock.back")}
           </button>
           <h1 className="font-arcade text-lg glow-text-gold">{boss.name}</h1>
-          <p className="text-xs text-zinc-500">Choose up to {MAX_PARTY} creatures — max 1 LR.</p>
+          <p className="text-xs text-zinc-500">{t("overclock.choose_up_to_prefix")}{MAX_PARTY}{t("overclock.choose_up_to_suffix")}</p>
         </div>
         <MultiCreaturePicker
           creatures={creatures}
@@ -212,7 +215,7 @@ export function OverclockHome() {
               return [...prev, id];
             })
           }
-          confirmLabel="Start"
+          confirmLabel={t("overclock.start")}
           confirmDisabled={playerIds.length === 0}
           onConfirm={() => setFighting(true)}
         />
@@ -223,12 +226,12 @@ export function OverclockHome() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold sm:text-xl">Overclock</h1>
-        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">A weekly ranked boss — repeat as many times as you want, your best run counts.</p>
+        <h1 className="font-arcade text-lg glow-text-gold sm:text-xl">{t("overclock.title")}</h1>
+        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">{t("overclock.subtitle")}</p>
       </div>
 
       {loading ? (
-        <LoadingOverlay show label="Loading this week's Overclock..." />
+        <LoadingOverlay show label={t("overclock.loading")} />
       ) : (
         <>
           <GlowPanel accent="gold" className="flex items-center gap-4 p-4" data-tour="overclock-boss">
@@ -236,37 +239,37 @@ export function OverclockHome() {
               <CreatureSprite creature={bossCreature} className="h-16 w-16 sm:h-20 sm:w-20" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-arcade text-[11px] uppercase tracking-wide text-gold-bright sm:text-xs">Week {data?.weekNumber ?? "—"}</p>
+              <p className="font-arcade text-[11px] uppercase tracking-wide text-gold-bright sm:text-xs">{t("overclock.week_prefix")}{data?.weekNumber ?? "—"}</p>
               <p className="text-base font-semibold text-foreground sm:text-lg">{data?.bossName ?? boss.name}</p>
-              <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">Ranking updates in {nextUpdateLabel || "…"} · Resets in {resetLabel || "…"}</p>
+              <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">{t("overclock.ranking_updates_prefix")}{nextUpdateLabel || "…"}{t("overclock.resets_in_mid")}{resetLabel || "…"}</p>
             </div>
           </GlowPanel>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-3">
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-3" data-tour="overclock-best">
-                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Your Best This Week</p>
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">{t("overclock.your_best_this_week")}</p>
                 <p className="font-arcade text-xl text-gold-bright sm:text-2xl">{formatNumber(overclockBestDamage)}</p>
                 {data?.yourRank ? (
                   <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">
-                    Currently rank <span className="font-semibold text-gold-ink">#{data.yourRank}</span> of {formatNumber(data.totalPlayers)}
+                    {t("overclock.currently_rank_prefix")}<span className="font-semibold text-gold-ink">#{data.yourRank}</span>{t("overclock.of_suffix")}{formatNumber(data.totalPlayers)}
                   </p>
                 ) : (
-                  <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">Not ranked yet — fight the boss to get on the board.</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">{t("overclock.not_ranked_yet")}</p>
                 )}
               </div>
 
               <div className="space-y-1.5" data-tour="overclock-rewards">
-                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Rewards</p>
-                <RewardTierRow rank={1} />
-                <RewardTierRow rank={2} />
-                <RewardTierRow rank={3} />
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">{t("overclock.rewards")}</p>
+                <RewardTierRow rank={1} t={t} />
+                <RewardTierRow rank={2} t={t} />
+                <RewardTierRow rank={3} t={t} />
               </div>
             </div>
 
             <div className="space-y-1.5" data-tour="overclock-leaderboard">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Leaderboard</p>
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">{t("overclock.leaderboard")}</p>
                 {/* The server only actually recomputes once its own 2h window has passed (see
                     getOverclockLeaderboard) — this button doesn't bypass that, it just re-runs the
                     same check on demand instead of making the player wait for a passive countdown
@@ -287,7 +290,7 @@ export function OverclockHome() {
                   className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-gold-bright to-gold px-3.5 py-2 font-arcade text-[10px] uppercase tracking-wide text-white sm:text-[11px]"
                 >
                   <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  Update Ranking
+                  {t("overclock.update_ranking")}
                 </motion.button>
               </div>
               <GlowPanel accent="none" className="max-h-64 overflow-y-auto p-2">
@@ -310,7 +313,7 @@ export function OverclockHome() {
                     ))}
                   </div>
                 ) : (
-                  <p className="p-3 text-center text-xs text-zinc-500 sm:text-sm">No scores yet this week — be the first!</p>
+                  <p className="p-3 text-center text-xs text-zinc-500 sm:text-sm">{t("overclock.no_scores_yet")}</p>
                 )}
               </GlowPanel>
 
@@ -321,7 +324,7 @@ export function OverclockHome() {
                 <div className="flex items-center justify-between gap-2 rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-xs sm:text-sm">
                   <span className="flex items-center gap-2 font-semibold text-gold-ink">
                     <span className="font-arcade text-[10px] sm:text-[11px]">#{data.yourRank}</span>
-                    Your Rank · of {formatNumber(data.totalPlayers)}
+                    {t("overclock.your_rank_prefix")}{formatNumber(data.totalPlayers)}
                   </span>
                   <span className="shrink-0 font-mono text-gold-ink">{formatNumber(overclockBestDamage)}</span>
                 </div>
@@ -329,7 +332,7 @@ export function OverclockHome() {
 
               {data && data.history.length > 0 && (
                 <>
-                  <p className="pt-2 font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Previous Weeks</p>
+                  <p className="pt-2 font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">{t("overclock.previous_weeks")}</p>
                   <div className="space-y-1">
                     {data.history.map((h) => (
                       <div key={h.weekId} className="flex items-center justify-between gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light px-2.5 py-1.5 text-[11px] text-zinc-600 sm:text-xs">
@@ -366,7 +369,7 @@ export function OverclockHome() {
         className="mx-auto flex w-fit items-center gap-2 rounded-full bg-gradient-to-br from-gold-bright to-gold px-8 py-3 font-arcade text-sm uppercase tracking-widest text-white sm:px-10 sm:text-base"
       >
         <Swords className="h-5 w-5 sm:h-6 sm:w-6" />
-        Battle!
+        {t("overclock.battle")}
       </motion.button>
     </div>
   );

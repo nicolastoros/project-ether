@@ -11,6 +11,7 @@ import { MAX_LEVEL } from "@/lib/gameData";
 import { ORB_EVENTS } from "@/lib/eventData";
 import { useGameStore } from "@/lib/store";
 import { getNavGroups } from "@/lib/navigation";
+import { useT } from "@/lib/i18n/useT";
 import { cn, thisWeekStartDateString, xpPercent } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { NewBadge } from "@/components/ui/NewBadge";
@@ -66,6 +67,7 @@ export function Sidebar() {
   const router = useRouter();
   const navGroups = getNavGroups(profile.isAdmin);
   const [showProfile, setShowProfile] = useState(false);
+  const t = useT();
 
   // True whenever Hidden Training still has an unused attempt this week — a fresh (or stale, i.e.
   // not-yet-reset-locally) date counts every attempt as available, same "reset on stale date"
@@ -78,15 +80,15 @@ export function Sidebar() {
     <aside className="sidebar-surface sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-arcade-border/80 shadow-[2px_0_16px_-8px_rgba(30,64,120,0.14)] lg:flex xl:w-72 2xl:w-80">
       <nav className="scrollbar-hidden relative flex-1 overflow-y-auto px-3.5 pb-4 pt-5 xl:px-4">
         {navGroups.map((group) => (
-          <div key={group.title} className="mb-6">
+          <div key={group.titleKey} className="mb-6">
             <div className="mb-2 flex items-center gap-2 px-2">
               <span className="font-arcade text-[10px] uppercase tracking-wider text-slate-400 xl:text-[11px]">
-                {group.title}
+                {t(group.titleKey)}
               </span>
               <span className="h-px flex-1 bg-gradient-to-r from-arcade-border to-transparent" />
             </div>
             <ul className="space-y-1.5">
-              {group.items.map(({ href, label, icon: Icon }) => {
+              {group.items.map(({ href, labelKey, icon: Icon }) => {
                 const isActive = pathname.startsWith(href);
 
                 // "Start" is the door into every game mode (Adventure/Survivor/Overclock/Infinite
@@ -161,7 +163,7 @@ export function Sidebar() {
                           <NewBadge className="-right-2 -top-2" />
                         )}
                       </span>
-                      <span className="truncate">{label}</span>
+                      <span className="truncate">{t(labelKey)}</span>
                     </Link>
                   </li>
                 );
@@ -179,7 +181,7 @@ export function Sidebar() {
             <button
               type="button"
               onClick={() => setShowProfile(true)}
-              title="My Profile"
+              title={t("sidebar.my_profile")}
               className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-gold/70 bg-gradient-to-b from-white to-arcade-panel-light shadow-[0_2px_8px_-2px_rgba(255,184,77,0.35)] transition-transform hover:scale-105 xl:h-12 xl:w-12"
             >
               <ProfileAvatar avatarKey={profile.avatarKey} iconClassName="h-6 w-6 xl:h-7 xl:w-7" />
@@ -212,13 +214,13 @@ export function Sidebar() {
                 className="mt-1"
               />
             ) : (
-              <p className="mt-1 font-arcade text-[9px] uppercase tracking-wide text-gold-bright">Max level</p>
+              <p className="mt-1 font-arcade text-[9px] uppercase tracking-wide text-gold-bright">{t("sidebar.max_level")}</p>
             )}
           </button>
           <button
             type="button"
             disabled
-            title="Settings — coming soon"
+            title={t("sidebar.settings_soon")}
             className="flex h-8 w-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full text-slate-300"
           >
             <Settings strokeWidth={2.25} className="h-4 w-4" />
@@ -236,7 +238,7 @@ export function Sidebar() {
           className="mt-0.5 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
         >
           <LogOut strokeWidth={2.25} className="h-4 w-4" />
-          Log out
+          {t("sidebar.log_out")}
         </button>
       </div>
     </aside>

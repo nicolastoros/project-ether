@@ -7,9 +7,13 @@ import { Loader2, ArrowLeft, User, Lock, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { getSecretQuestionAction, resetPasswordWithAnswerAction } from "@/app/actions/auth";
+import { useT } from "@/lib/i18n/useT";
+import { useGameStore } from "@/lib/store";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const t = useT();
+  const language = useGameStore((s) => s.language);
 
   // step 1: enter username
   // step 2: answer question + enter new password
@@ -30,7 +34,7 @@ export default function ForgotPasswordPage() {
     
     setError(null);
     setLoading(true);
-    const res = await getSecretQuestionAction(username.trim());
+    const res = await getSecretQuestionAction(username.trim(), language);
     setLoading(false);
 
     if (res.error) {
@@ -46,17 +50,17 @@ export default function ForgotPasswordPage() {
     if (!answer.trim() || !newPassword.trim() || loading) return;
 
     if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(t("auth.error_password_length"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("auth.error_passwords_mismatch"));
       return;
     }
 
     setError(null);
     setLoading(true);
-    const res = await resetPasswordWithAnswerAction(username.trim(), answer.trim(), newPassword);
+    const res = await resetPasswordWithAnswerAction(username.trim(), answer.trim(), newPassword, language);
     setLoading(false);
 
     if (res.error) {
@@ -70,12 +74,12 @@ export default function ForgotPasswordPage() {
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-arcade-bg bg-arcade-grid px-4 py-10">
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <h1 className="font-arcade text-xl leading-tight glow-text-gold sm:text-2xl">
-          ACCOUNT RECOVERY
+          {t("auth.account_recovery_title")}
         </h1>
         <p className="mt-2 text-xs text-zinc-500 sm:text-sm">
-          {step === 1 && "Enter your username to begin."}
-          {step === 2 && "Answer your secret question to reset."}
-          {step === 3 && "Password updated successfully!"}
+          {step === 1 && t("auth.step1_subtitle")}
+          {step === 2 && t("auth.step2_subtitle")}
+          {step === 3 && t("auth.step3_subtitle")}
         </p>
 
         <div className="mt-8 w-full">
@@ -94,7 +98,7 @@ export default function ForgotPasswordPage() {
                   <input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Username"
+                    placeholder={t("auth.username_placeholder")}
                     autoComplete="username"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -105,12 +109,12 @@ export default function ForgotPasswordPage() {
 
                 <PixelButton type="submit" disabled={loading} className="mt-2 flex items-center justify-center gap-2">
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {loading ? "Searching..." : "Find Account"}
+                  {loading ? t("auth.searching") : t("auth.find_account")}
                 </PixelButton>
 
                 <div className="mt-2 text-center">
                   <Link href="/play" className="text-xs text-zinc-500 hover:text-white transition-colors flex items-center justify-center gap-1">
-                    <ArrowLeft className="h-3 w-3" /> Back to Login
+                    <ArrowLeft className="h-3 w-3" /> {t("auth.back_to_login")}
                   </Link>
                 </div>
               </motion.form>
@@ -126,7 +130,7 @@ export default function ForgotPasswordPage() {
                 className="flex w-full flex-col gap-3 text-left"
               >
                 <div className="rounded-xl border border-arcade-border bg-arcade-panel/50 p-4 mb-2">
-                  <p className="text-xs text-zinc-400 uppercase font-bold tracking-wide mb-1">Secret Question</p>
+                  <p className="text-xs text-zinc-400 uppercase font-bold tracking-wide mb-1">{t("auth.secret_question_label")}</p>
                   <p className="text-sm text-foreground">{question}</p>
                 </div>
 
@@ -135,7 +139,7 @@ export default function ForgotPasswordPage() {
                   <input
                     value={answer}
                     onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Your Answer"
+                    placeholder={t("auth.your_answer_placeholder")}
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                   />
@@ -147,7 +151,7 @@ export default function ForgotPasswordPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     type="password"
-                    placeholder="New Password"
+                    placeholder={t("auth.new_password_placeholder")}
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                   />
@@ -159,7 +163,7 @@ export default function ForgotPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     type="password"
-                    placeholder="Confirm New Password"
+                    placeholder={t("auth.confirm_new_password_placeholder")}
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                   />
@@ -169,12 +173,12 @@ export default function ForgotPasswordPage() {
 
                 <PixelButton type="submit" disabled={loading} className="mt-2 flex items-center justify-center gap-2">
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {loading ? "Resetting..." : "Reset Password"}
+                  {loading ? t("auth.resetting") : t("auth.reset_password")}
                 </PixelButton>
 
                 <div className="mt-2 text-center">
                   <button type="button" onClick={() => { setStep(1); setError(null); }} className="text-xs text-zinc-500 hover:text-white transition-colors">
-                    Try another username
+                    {t("auth.try_another_username")}
                   </button>
                 </div>
               </motion.form>
@@ -191,11 +195,11 @@ export default function ForgotPasswordPage() {
                   <Lock className="h-8 w-8 text-green-400" />
                 </div>
                 <p className="text-sm text-zinc-300">
-                  Your password has been changed successfully. You can now log in with your new password.
+                  {t("auth.password_changed_success")}
                 </p>
                 <Link href="/play" className="w-full">
                   <PixelButton className="w-full mt-4">
-                    Go to Login
+                    {t("auth.go_to_login")}
                   </PixelButton>
                 </Link>
               </motion.div>

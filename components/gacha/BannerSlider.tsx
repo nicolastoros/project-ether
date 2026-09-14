@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { GachaBanner } from "@/types/game";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 interface BannerSliderProps {
   banners: GachaBanner[];
@@ -19,6 +20,7 @@ const SWIPE_VELOCITY = 400;
 // Summon right as it slid to a different banner underneath them, pulling on the wrong one. Moving
 // between banners is now 100% player-initiated: drag/swipe, the arrow buttons, or the dots.
 export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderProps) {
+  const t = useT();
   const goTo = (index: number) => onChange((index + banners.length) % banners.length);
 
   return (
@@ -99,7 +101,7 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
                 still brightens further on hover/tap for desktop polish. */}
             <button
               onClick={() => goTo(activeIndex - 1)}
-              aria-label="Previous banner"
+              aria-label={t("gacha.previous_banner")}
               className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-90 shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/65 hover:opacity-100 sm:h-10 sm:w-10"
             >
               <motion.span
@@ -112,7 +114,7 @@ export function BannerSlider({ banners, activeIndex, onChange }: BannerSliderPro
             </button>
             <button
               onClick={() => goTo(activeIndex + 1)}
-              aria-label="Next banner"
+              aria-label={t("gacha.next_banner")}
               className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white opacity-90 shadow-md backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/65 hover:opacity-100 sm:h-10 sm:w-10"
             >
               <motion.span

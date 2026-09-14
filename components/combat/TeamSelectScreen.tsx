@@ -16,6 +16,7 @@ import { useGameStore } from "@/lib/store";
 import { Check, X, Bookmark, BookmarkPlus, Trash2 } from "lucide-react";
 import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat";
 import { useState } from "react";
+import { useT } from "@/lib/i18n/useT";
 
 interface TeamSelectScreenProps {
   stage: DungeonStage;
@@ -34,6 +35,7 @@ export function TeamSelectScreen({
   onSetTeam,
   onStart,
 }: TeamSelectScreenProps) {
+  const t = useT();
   const stageStars = useGameStore((s) => s.dungeon.stageStars);
   const teamPresets = useGameStore((s) => s.teamPresets);
   const saveTeamPreset = useGameStore((s) => s.saveTeamPreset);
@@ -43,15 +45,15 @@ export function TeamSelectScreen({
   
   const handleSavePreset = async () => {
     if (selectedIds.length === 0) return;
-    const name = prompt("Enter a name for this formation:", `Team ${teamPresets.length + 1}`);
+    const name = prompt(t("team_select.name_prompt"), `${t("team_select.default_team_name_prefix")}${teamPresets.length + 1}`);
     if (!name) return;
-    
+
     try {
       setIsSaving(true);
       const id = await saveFormationAction(name, selectedIds, "campaign");
       saveTeamPreset(id, name, selectedIds, "campaign");
     } catch (err) {
-      alert("Failed to save preset.");
+      alert(t("team_select.save_failed"));
     } finally {
       setIsSaving(false);
     }
@@ -59,12 +61,12 @@ export function TeamSelectScreen({
 
   const handleDeletePreset = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Delete this formation?")) return;
+    if (!confirm(t("team_select.confirm_delete"))) return;
     try {
       deleteTeamPreset(id);
       await deleteFormationAction(id);
     } catch (err) {
-      alert("Failed to delete preset.");
+      alert(t("team_select.delete_failed"));
     }
   };
 
@@ -85,28 +87,28 @@ export function TeamSelectScreen({
       <div className="flex items-center gap-2 lg:gap-4">
         <Link
           href={isEventBattle ? "/events" : "/campaign"}
-          aria-label={isEventBattle ? "Back to Events" : "Back to Campaign"}
+          aria-label={isEventBattle ? t("common.back_to_events") : t("common.back_to_campaign")}
           className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:h-11 lg:w-11"
         >
           <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5" />
         </Link>
         <div>
           <h1 className="font-arcade text-lg glow-text-gold lg:text-2xl xl:text-3xl">
-            {isEventBattle ? stage.name : `World ${stage.world}-${stage.worldStageNumber}`}
+            {isEventBattle ? stage.name : `${t("battle.world_label")} ${stage.world}-${stage.worldStageNumber}`}
           </h1>
           <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">
-            {isEventBattle ? "Choose 1 or 2 creatures for this battle." : `${stage.name} — choose 1 or 2 creatures for this battle.`}
+            {isEventBattle ? t("team_select.choose_1_or_2") : `${stage.name} — ${t("team_select.choose_1_or_2").toLowerCase()}`}
           </p>
         </div>
       </div>
 
       {!isEventBattle && (
         <GlowPanel accent="none" className="p-3 lg:p-4">
-          <h2 className="font-arcade text-sm text-foreground mb-2 sm:text-base lg:text-lg">Stage Missions</h2>
+          <h2 className="font-arcade text-sm text-foreground mb-2 sm:text-base lg:text-lg">{t("team_select.stage_missions")}</h2>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <MissionItem completed={stars.noDeaths} label="Win without losing any monster" />
-            <MissionItem completed={stars.noItems} label="Win without using support items" />
-            <MissionItem completed={stars.underFiveTurns} label="Win in less than 5 turns" />
+            <MissionItem completed={stars.noDeaths} label={t("team_select.mission_no_deaths")} />
+            <MissionItem completed={stars.noItems} label={t("team_select.mission_no_items")} />
+            <MissionItem completed={stars.underFiveTurns} label={t("team_select.mission_under_5_turns")} />
           </div>
         </GlowPanel>
       )}
@@ -114,7 +116,7 @@ export function TeamSelectScreen({
       <GlowPanel accent="none" className="p-3 lg:p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-arcade text-sm text-foreground sm:text-base lg:text-lg flex items-center gap-2">
-            <Bookmark className="h-4 w-4 sm:h-5 sm:w-5" /> Formations
+            <Bookmark className="h-4 w-4 sm:h-5 sm:w-5" /> {t("team_select.formations")}
           </h2>
           <PixelButton
             variant="ghost"
@@ -123,12 +125,12 @@ export function TeamSelectScreen({
             onClick={handleSavePreset}
             className="text-xs sm:text-sm py-1.5 h-auto flex items-center gap-1"
           >
-            <BookmarkPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Save Current
+            <BookmarkPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {t("team_select.save_current")}
           </PixelButton>
         </div>
 
         {campaignPresets.length === 0 ? (
-          <p className="text-xs text-zinc-500 italic sm:text-sm">No saved formations yet.</p>
+          <p className="text-xs text-zinc-500 italic sm:text-sm">{t("team_select.no_saved_formations")}</p>
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sm:gap-3">
             {campaignPresets.map((preset) => (
@@ -194,7 +196,7 @@ export function TeamSelectScreen({
                 </div>
                 <RarityBadge rarity={creature.rarity} className="lg:text-xs lg:px-2 lg:py-1" />
                 {isSelected && (
-                  <span className="font-arcade text-[8px] text-gold-bright lg:text-[10px]">SELECTED</span>
+                  <span className="font-arcade text-[8px] text-gold-bright lg:text-[10px]">{t("picker.selected")}</span>
                 )}
               </GlowPanel>
             </button>
@@ -204,20 +206,20 @@ export function TeamSelectScreen({
 
       <div className="sticky bottom-3 lg:bottom-5 z-20">
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3 lg:rounded-2xl lg:p-5">
-          <p className="text-xs text-zinc-500 lg:text-base">{selectedIds.length}/2 creatures selected</p>
+          <p className="text-xs text-zinc-500 lg:text-base">{selectedIds.length}/2{t("team_select.creatures_selected_suffix")}</p>
           <div className="flex gap-2">
             {hasAllStars && (
-              <PixelButton 
-                variant="gold" 
-                disabled={selectedIds.length === 0} 
-                onClick={() => onStart(true)} 
+              <PixelButton
+                variant="gold"
+                disabled={selectedIds.length === 0}
+                onClick={() => onStart(true)}
                 className="lg:px-8 lg:py-3.5 lg:text-base"
               >
-                Sweep
+                {t("team_select.sweep")}
               </PixelButton>
             )}
             <PixelButton variant="neon" disabled={selectedIds.length === 0} onClick={() => onStart(false)} className="lg:px-8 lg:py-3.5 lg:text-base">
-              Start Battle
+              {t("team_select.start_battle")}
             </PixelButton>
           </div>
         </GlowPanel>

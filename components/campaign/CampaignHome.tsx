@@ -9,8 +9,10 @@ import { useGameStore } from "@/lib/store";
 import { ChapterList } from "@/components/campaign/ChapterList";
 import { ChapterAreaList } from "@/components/campaign/ChapterAreaList";
 import { StageDetailModal } from "@/components/campaign/StageDetailModal";
+import { useT } from "@/lib/i18n/useT";
 
 export function CampaignHome() {
+  const t = useT();
   const highestCleared = useGameStore((s) => s.dungeon.highestStageCleared);
   const markCampaignSeen = useGameStore((s) => s.markCampaignSeen);
 
@@ -45,9 +47,9 @@ export function CampaignHome() {
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="shrink-0">
-        <h1 className="font-arcade text-lg glow-text-gold">Campaign</h1>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("nav.campaign")}</h1>
         <p className="mt-1 text-xs text-zinc-500">
-          {view === "chapters" ? "Pick a chapter to see its areas." : "Pick an area, then clear it to progress."}
+          {view === "chapters" ? t("campaign.pick_chapter") : t("campaign.pick_area")}
         </p>
       </div>
 

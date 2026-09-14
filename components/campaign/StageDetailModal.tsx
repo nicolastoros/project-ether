@@ -16,11 +16,19 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
 import { cn, formatNumber } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const DIFFICULTY_STYLES: Record<DungeonDifficulty, string> = {
   Normal: "bg-rarity-rare",
   Hard: "bg-rarity-ssr",
   Nightmare: "bg-rarity-mythic",
+};
+
+const DIFFICULTY_LABEL_KEY: Record<DungeonDifficulty, TranslationKey> = {
+  Normal: "campaign.difficulty_normal",
+  Hard: "campaign.difficulty_hard",
+  Nightmare: "campaign.difficulty_nightmare",
 };
 
 // Distinct from DIFFICULTY_STYLES above (that's the cosmetic Normal/Hard/Nightmare badge) — these
@@ -32,6 +40,13 @@ const TIER_PILL_STYLES: Record<DifficultyTier, string> = {
   Super: "border-rarity-mythic text-rarity-mythic data-[selected=true]:bg-rarity-mythic",
 };
 
+const TIER_LABEL_KEY: Record<DifficultyTier, TranslationKey> = {
+  Easy: "campaign.tier_normal",
+  Medium: "campaign.tier_medium",
+  Hard: "campaign.tier_hard",
+  Super: "campaign.tier_super",
+};
+
 // Every stage can drop these three training items alongside its own Tamer-gear piece (if any).
 const STANDARD_DROP_ITEM_IDS = ["it-training-dumbbell", "it-training-trx", "it-training-box"];
 
@@ -41,6 +56,7 @@ interface StageDetailModalProps {
 }
 
 export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
+  const t = useT();
   const dungeon = useGameStore((s) => s.dungeon);
   const [selectedTier, setSelectedTier] = useState<DifficultyTier>("Easy");
   // Tracks which stage the current selectedTier was computed for, so it only resets when a
@@ -93,14 +109,14 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
           >
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("common.close")}
               className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:right-5 lg:top-5 lg:h-10 lg:w-10"
             >
               <X className="h-4 w-4 lg:h-5 lg:w-5" />
             </button>
 
             <p className="text-[10px] uppercase tracking-wide text-zinc-500 lg:text-sm">
-              World {stage.world}-{stage.worldStageNumber}
+              {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
             </p>
             <h2 className="text-xl font-bold text-foreground lg:text-3xl xl:text-4xl">{stage.name}</h2>
 
@@ -110,12 +126,12 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
                 DIFFICULTY_STYLES[stage.difficulty]
               )}
             >
-              {stage.difficulty}
+              {t(DIFFICULTY_LABEL_KEY[stage.difficulty])}
             </span>
 
             {isExpEvent && (
               <p className="mt-2 flex items-center gap-1 font-arcade text-[9px] font-semibold uppercase tracking-wide text-sky-500 lg:text-xs">
-                <Zap className="h-3 w-3 fill-current lg:h-4 lg:w-4" /> 2x EXP Event Today
+                <Zap className="h-3 w-3 fill-current lg:h-4 lg:w-4" /> {t("campaign.exp_event_today")}
               </p>
             )}
 
@@ -138,7 +154,7 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
                           : "cursor-not-allowed border-arcade-border text-zinc-400"
                       )}
                     >
-                      {unlocked ? tier : <Lock className="h-3 w-3 lg:h-3.5 lg:w-3.5" />}
+                      {unlocked ? t(TIER_LABEL_KEY[tier]) : <Lock className="h-3 w-3 lg:h-3.5 lg:w-3.5" />}
                     </button>
                   );
                 })}
@@ -149,26 +165,26 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2 lg:rounded-2xl lg:py-5">
                 <Zap className="mx-auto h-3.5 w-3.5 text-neon lg:h-6 lg:w-6" />
                 <p className="mt-1 text-xs font-semibold text-foreground lg:mt-2 lg:text-lg xl:text-xl">{stage.staminaCost}</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">Stamina</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">{t("campaign.stamina")}</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2 lg:rounded-2xl lg:py-5">
                 <GoldCoinIcon className="mx-auto h-3.5 w-3.5 lg:h-6 lg:w-6" />
                 <p className="mt-1 text-xs font-semibold text-foreground lg:mt-2 lg:text-lg xl:text-xl">{formatNumber(displayStage?.rewardGold ?? stage.rewardGold)}</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">Gold</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">{t("campaign.gold")}</p>
               </div>
               <div className="rounded-xl border border-arcade-border bg-arcade-panel-light py-2 lg:rounded-2xl lg:py-5">
                 <SealCoinIcon className="mx-auto h-3.5 w-3.5 lg:h-6 lg:w-6" />
                 <p className="mt-1 text-xs font-semibold text-foreground lg:mt-2 lg:text-lg xl:text-xl">{displayStage?.equipmentDropChance ?? stage.equipmentDropChance}%</p>
-                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">Seal Coin</p>
+                <p className="text-[8px] uppercase tracking-wide text-zinc-500 lg:text-xs">{t("campaign.seal_coin")}</p>
               </div>
             </div>
 
             <p className="mt-3 text-center text-[11px] text-zinc-500 lg:mt-5 lg:text-sm">
-              Recommended power: {formatNumber(stage.recommendedPower)}
+              {t("campaign.recommended_power_prefix")}{formatNumber(stage.recommendedPower)}
             </p>
 
             <div className="mt-4 rounded-xl border border-arcade-border bg-arcade-panel-light p-3 lg:mt-6 lg:rounded-2xl lg:p-5">
-              <p className="text-center text-[10px] uppercase tracking-wide text-zinc-500 mb-2 lg:text-xs lg:mb-3">Possible Drops</p>
+              <p className="text-center text-[10px] uppercase tracking-wide text-zinc-500 mb-2 lg:text-xs lg:mb-3">{t("campaign.possible_drops")}</p>
               <div className="flex flex-wrap justify-center gap-2 lg:gap-4">
                 {specificGear.map((gear) => (
                   <div key={gear.id} className="flex w-12 flex-col items-center gap-1 lg:w-24">
@@ -198,21 +214,21 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
             {isSelectedTierLocked ? (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500 lg:mt-6 lg:py-4 lg:text-sm">
                 <Lock className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
-                {selectedTier === "Easy" ? "Clear the previous stage first" : "Clear the previous difficulty on this stage first"}
+                {selectedTier === "Easy" ? t("campaign.clear_previous_stage") : t("campaign.clear_previous_difficulty")}
               </div>
             ) : isPlayable ? (
               <Link href={`/combat?stage=${tierStageId(stage.id, selectedTier)}`} className="mt-4 block lg:mt-6" onClick={onClose}>
                 <PixelButton variant="gold" className="w-full lg:py-4 lg:text-base">
                   {Boolean(dungeon.stageStars[tierStageId(stage.id, selectedTier)])
-                    ? "Replay"
+                    ? t("campaign.replay")
                     : isFinalAreaOfChapter(stage.world, stage.worldStageNumber)
-                      ? "Boss Battle"
-                      : "Battle"}
+                      ? t("campaign.boss_battle")
+                      : t("campaign.battle")}
                 </PixelButton>
               </Link>
             ) : (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500 lg:mt-6 lg:py-4 lg:text-sm">
-                Coming soon
+                {t("campaign.coming_soon")}
               </div>
             )}
           </motion.div>

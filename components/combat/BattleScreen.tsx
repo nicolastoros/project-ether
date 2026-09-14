@@ -40,11 +40,12 @@ import {
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
-import { SKILL_TYPE_STYLES } from "@/components/monsters/CreatureDetailModal";
-import { CombatantCard, STATUS_BADGE } from "./CombatantCard";
+import { SKILL_TYPE_STYLES, SKILL_TYPE_LABEL_KEY } from "@/components/monsters/CreatureDetailModal";
+import { CombatantCard, STATUS_BADGE, STATUS_LABEL_KEY } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 
 // One arena background per world with real battle content — each is the same portrait dimensions
@@ -92,6 +93,7 @@ function CombatantPlate({
   className?: string;
 }) {
   const { creature } = combatant;
+  const t = useT();
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
   const resonancePercent = Math.round((combatant.resonance / combatant.resonanceMax) * 100);
   const activeStatuses = (Object.keys(combatant.statusEffects) as StatusEffectType[]).filter(
@@ -122,7 +124,7 @@ function CombatantPlate({
               return (
                 <span
                   key={type}
-                  title={type}
+                  title={t(STATUS_LABEL_KEY[type])}
                   className={cn("flex h-4 w-4 items-center justify-center rounded-full border border-arcade-border text-white", badge.className)}
                 >
                   <Icon className="h-2.5 w-2.5" />
@@ -167,6 +169,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   // "this isn't really Campaign" flag everywhere below (rewards, stage-progress writes, exit/next
   // navigation).
   const isEventBattle = Boolean(stage.eventRewards);
+  const t = useT();
   const addGold = useGameStore((s) => s.addGold);
   const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -602,9 +605,9 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       </AnimatePresence>
       <div>
         <h1 className="font-arcade text-lg glow-text-gold">
-          World {stage.world}-{stage.worldStageNumber}
+          {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
         </h1>
-        <p className="text-xs text-zinc-500">{stage.name} · 2v2 Turn Battle</p>
+        <p className="text-xs text-zinc-500">{stage.name} · {t("battle.turn_battle_2v2")}</p>
       </div>
 
       <div className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-4xl xl:max-w-6xl 2xl:max-w-[1600px]">
@@ -712,29 +715,31 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                             entry.kind === "defeat" ? "text-red-400" : "text-gold-bright"
                           )}
                         >
-                          {entry.message}
+                          {t(entry.key, entry.params)}
                         </p>
                       ))}
                       <p className="mt-1 animate-pulse text-[9px] uppercase tracking-widest text-zinc-400 sm:text-[10px]">
-                        Tap to continue
+                        {t("common.tap_to_continue")}
                       </p>
                     </button>
                   ) : isPlayerTurn && actor ? (
                     <>
                       <div className="mb-2 sm:mb-3 flex items-center justify-between">
-                        <p className="font-arcade text-[10px] sm:text-xs text-white">What will <span className="text-gold">{actor.creature.name}</span> do?</p>
+                        <p className="font-arcade text-[10px] sm:text-xs text-white">
+                          {t("battle.what_will_do_prefix")}<span className="text-gold">{actor.creature.name}</span>{t("battle.what_will_do_suffix")}
+                        </p>
                         {pendingSkill && (
                           <button
                             onClick={() => setPendingSkill(null)}
                             className="text-[9px] sm:text-[10px] text-zinc-300 underline underline-offset-2 hover:text-white"
                           >
-                            Cancel
+                            {t("battle.cancel")}
                           </button>
                         )}
                       </div>
                       {pendingSkill ? (
                         <p className="text-[10px] sm:text-xs text-zinc-300 mt-6 text-center">
-                          Select an enemy target on the battlefield.
+                          {t("battle.select_enemy_target")}
                         </p>
                       ) : (
                         // One 2x2 grid, not a 3-skill grid plus a separate full-width Ultimate
@@ -776,14 +781,14 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                           SKILL_TYPE_STYLES[skill.type]
                                         )}
                                       >
-                                        {skill.type}
+                                        {t(SKILL_TYPE_LABEL_KEY[skill.type])}
                                       </span>
                                     </div>
                                     {cooldownLeft > 0 && (
-                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-400">Cooldown {cooldownLeft}t</p>
+                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-red-400">{t("battle.cooldown")} {cooldownLeft}t</p>
                                     )}
                                     {cooldownLeft <= 0 && actor.resonance < cost && (
-                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                      <p className="mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                                     )}
                                   </button>
                                 );
@@ -809,11 +814,11 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                                     <Zap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{cost}
                                   </span>
                                   <span className="rounded-full bg-gradient-to-r from-amber-400 via-fuchsia-500 to-sky-500 px-1.5 py-0.5 font-arcade text-[8px] sm:text-[10px] lg:text-xs font-semibold uppercase text-white">
-                                    Ultimate
+                                    {t("battle.ultimate_badge")}
                                   </span>
                                 </div>
                                 {!isReady && (
-                                  <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">Needs {cost} Resonance</p>
+                                  <p className="relative mt-1 text-[9px] sm:text-[11px] lg:text-xs font-semibold text-sky-400">{t("battle.needs")} {cost} {t("battle.resonance")}</p>
                                 )}
                               </button>
                             );
@@ -824,7 +829,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                   ) : phase === "active" ? (
                     <div className="flex h-full items-center justify-center">
                       <p className="text-center font-arcade text-[10px] uppercase tracking-widest text-zinc-400 sm:text-xs">
-                        {actor ? `${actor.creature.name} is thinking…` : "Waiting…"}
+                        {actor ? `${actor.creature.name}${t("battle.is_thinking_suffix")}` : t("battle.waiting")}
                       </p>
                     </div>
                   ) : null}
@@ -880,7 +885,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       </div>
 
       {phase !== "active" && !showResult && (
-        <LoadingOverlay show label={phase === "victory" ? "Victory! Calculating rewards..." : "Calculating results..."} />
+        <LoadingOverlay show label={phase === "victory" ? t("battle.calculating_rewards") : t("battle.calculating_results")} />
       )}
 
       {phase !== "active" && showResult && (
@@ -898,23 +903,23 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           stars={starsEarned ?? undefined}
           tamerResult={tamerResult ?? undefined}
           bonusLines={[
-            rewardMultiplier > 1 && "First Clear Bonus ×2",
+            rewardMultiplier > 1 && t("battle.first_clear_bonus"),
             isExpEventStage && (
               <span className="inline-flex items-center gap-1 text-sky-500">
-                <Zap className="h-3 w-3 fill-current" /> 2x EXP Event!
+                <Zap className="h-3 w-3 fill-current" /> {t("battle.exp_event")}
               </span>
             ),
             firstClearGift &&
               (firstClearGift.isNew
-                ? `${FIRST_CLEAR_GIFT_CREATURE_NAME} joined your roster!`
-                : `+1 ${FIRST_CLEAR_GIFT_CREATURE_NAME} copy! (×${firstClearGift.copies} owned)`),
-            tamerGearGranted && `${tamerGearGranted} unlocked for your Tamer!`,
+                ? `${FIRST_CLEAR_GIFT_CREATURE_NAME}${t("battle.joined_roster_suffix")}`
+                : `${t("battle.copy_owned_prefix")}${FIRST_CLEAR_GIFT_CREATURE_NAME}${t("battle.copy_owned_mid")}${firstClearGift.copies}${t("battle.copy_owned_suffix")}`),
+            tamerGearGranted && `${tamerGearGranted}${t("battle.tamer_gear_unlocked_suffix")}`,
           ].filter((line): line is NonNullable<typeof line> => Boolean(line))}
-          defeatMessage="Your team was defeated. Give it another shot!"
+          defeatMessage={t("battle.defeat_message_team")}
           onRematch={onRematch}
           exitHref={isEventBattle ? "/events" : `/campaign?chapter=${stage.world}`}
           onExitClick={onExit}
-          exitLabel="Exit"
+          exitLabel={t("battle.exit")}
         />
       )}
     </div>

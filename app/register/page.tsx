@@ -10,6 +10,8 @@ import { STARTER_CREATURES, STARTER_CHOICE_IDS, type StarterChoiceId } from "@/l
 import { ELEMENT_ICON, ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { loadAccountIntoStore } from "@/lib/loadAccount";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { cn } from "@/lib/utils";
 
 type Gender = "male" | "female";
@@ -19,14 +21,15 @@ const STARTER_OPTIONS = STARTER_CHOICE_IDS.map(
   (id) => STARTER_CREATURES.find((c) => c.id === id)!
 );
 
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
+const GENDER_OPTIONS: { value: Gender; labelKey: TranslationKey }[] = [
+  { value: "male", labelKey: "auth.gender_male" },
+  { value: "female", labelKey: "auth.gender_female" },
 ];
 
 export default function RegisterPage() {
   const { status } = useSession();
   const router = useRouter();
+  const t = useT();
 
   const [step, setStep] = useState<Step>(1);
   const [username, setUsername] = useState("");
@@ -58,27 +61,27 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     if (username.trim().length < 3) {
-      setError("Username must be at least 3 characters.");
+      setError(t("auth.error_username_length"));
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Enter a valid email.");
+      setError(t("auth.error_invalid_email"));
       return;
     }
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(t("auth.error_password_length"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("auth.error_passwords_mismatch"));
       return;
     }
     if (secretQuestion.trim().length < 5) {
-      setError("Enter a valid secret question.");
+      setError(t("auth.error_invalid_secret_question"));
       return;
     }
     if (secretAnswer.trim().length < 3) {
-      setError("Secret answer must be at least 3 characters.");
+      setError(t("auth.error_secret_answer_length"));
       return;
     }
     setStep(2);
@@ -97,14 +100,14 @@ export default function RegisterPage() {
     const registerBody = await registerRes.json().catch(() => ({}));
 
     if (!registerRes.ok) {
-      setError(registerBody.error ?? "Could not create account.");
+      setError(registerBody.error ?? t("auth.error_could_not_create_account"));
       setSubmitting(false);
       return;
     }
 
     const signInResult = await signIn("credentials", { username, password, redirect: false });
     if (!signInResult || signInResult.error) {
-      setError("Account created, but we couldn't log you in. Try logging in manually.");
+      setError(t("auth.error_created_but_login_failed"));
       setSubmitting(false);
       return;
     }
@@ -115,7 +118,7 @@ export default function RegisterPage() {
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-arcade-bg bg-arcade-grid px-4 py-10">
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <h1 className="font-arcade text-xl leading-tight glow-text-gold sm:text-2xl">
-          CREATE CHARACTER
+          {t("auth.create_character_title")}
         </h1>
 
         <div className="mt-4 flex items-center gap-2">
@@ -146,7 +149,7 @@ export default function RegisterPage() {
                   <input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Username"
+                    placeholder={t("auth.username_placeholder")}
                     autoComplete="username"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -159,7 +162,7 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     type="email"
-                    placeholder="Email"
+                    placeholder={t("auth.email_placeholder")}
                     autoComplete="email"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -172,7 +175,7 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     type="password"
-                    placeholder="Password"
+                    placeholder={t("auth.password_placeholder")}
                     autoComplete="new-password"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -185,7 +188,7 @@ export default function RegisterPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     type="password"
-                    placeholder="Confirm password"
+                    placeholder={t("auth.confirm_password_placeholder")}
                     autoComplete="new-password"
                     required
                     className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
@@ -193,13 +196,13 @@ export default function RegisterPage() {
                 </label>
 
                 <div className="mt-2 text-left">
-                  <p className="px-1 mb-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Account Recovery</p>
+                  <p className="px-1 mb-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">{t("auth.account_recovery_label")}</p>
                   <label className="flex mb-3 items-center gap-2.5 rounded-full border border-arcade-border bg-arcade-panel px-4 py-3">
                     <User className="h-4 w-4 shrink-0 text-zinc-500" />
                     <input
                       value={secretQuestion}
                       onChange={(e) => setSecretQuestion(e.target.value)}
-                      placeholder="Secret Question (e.g. First pet's name?)"
+                      placeholder={t("auth.secret_question_placeholder")}
                       required
                       className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                     />
@@ -209,7 +212,7 @@ export default function RegisterPage() {
                     <input
                       value={secretAnswer}
                       onChange={(e) => setSecretAnswer(e.target.value)}
-                      placeholder="Secret Answer"
+                      placeholder={t("auth.secret_answer_placeholder")}
                       required
                       className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-zinc-500"
                     />
@@ -219,7 +222,7 @@ export default function RegisterPage() {
                 {error && <p className="px-1 text-xs text-red-500">{error}</p>}
 
                 <PixelButton type="submit" className="mt-1 flex items-center justify-center gap-2">
-                  Next <ArrowRight className="h-4 w-4" />
+                  {t("auth.next")} <ArrowRight className="h-4 w-4" />
                 </PixelButton>
               </motion.form>
             )}
@@ -232,7 +235,7 @@ export default function RegisterPage() {
                 exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
                 className="flex w-full flex-col gap-3"
               >
-                <p className="text-xs text-zinc-500">Choose your character</p>
+                <p className="text-xs text-zinc-500">{t("auth.choose_character")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {GENDER_OPTIONS.map((opt) => (
                     <button
@@ -254,7 +257,7 @@ export default function RegisterPage() {
                       >
                         {opt.value === "male" ? "M" : "F"}
                       </span>
-                      <span className="text-sm font-semibold text-foreground">{opt.label}</span>
+                      <span className="text-sm font-semibold text-foreground">{t(opt.labelKey)}</span>
                     </button>
                   ))}
                 </div>
@@ -266,7 +269,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(1)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Back
+                    <ArrowLeft className="h-4 w-4" /> {t("common.back")}
                   </PixelButton>
                   <PixelButton
                     type="button"
@@ -274,7 +277,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(3)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    Next <ArrowRight className="h-4 w-4" />
+                    {t("auth.next")} <ArrowRight className="h-4 w-4" />
                   </PixelButton>
                 </div>
               </motion.div>
@@ -288,7 +291,7 @@ export default function RegisterPage() {
                 exit={{ opacity: 0, x: -12, transition: { duration: 0.15 } }}
                 className="flex w-full flex-col gap-3"
               >
-                <p className="text-xs text-zinc-500">Choose your first creature</p>
+                <p className="text-xs text-zinc-500">{t("auth.choose_first_creature")}</p>
                 <div className="flex flex-col gap-2.5">
                   {STARTER_OPTIONS.map((creature) => {
                     const Icon = ELEMENT_ICON[creature.element];
@@ -337,7 +340,7 @@ export default function RegisterPage() {
                     onClick={() => setStep(2)}
                     className="flex flex-1 items-center justify-center gap-2"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Back
+                    <ArrowLeft className="h-4 w-4" /> {t("common.back")}
                   </PixelButton>
                   <PixelButton
                     type="button"
@@ -346,7 +349,7 @@ export default function RegisterPage() {
                     className="flex flex-1 items-center justify-center gap-2"
                   >
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {submitting ? "Creating..." : "Start"}
+                    {submitting ? t("auth.creating") : t("nav.start")}
                   </PixelButton>
                 </div>
               </motion.div>
@@ -355,9 +358,9 @@ export default function RegisterPage() {
         </div>
 
         <p className="mt-6 text-xs text-zinc-500">
-          Already have an account?{" "}
+          {t("auth.already_have_account")}{" "}
           <Link href="/play" className="font-semibold text-neon hover:underline">
-            Log in
+            {t("auth.log_in")}
           </Link>
         </p>
       </div>

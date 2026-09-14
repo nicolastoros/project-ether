@@ -9,6 +9,8 @@ import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SegmentedHpBar } from "@/components/ui/SegmentedHpBar";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { cn } from "@/lib/utils";
 
 // Small corner badges for active status effects — same visual language as the existing
@@ -19,6 +21,13 @@ export const STATUS_BADGE: Record<StatusEffectType, { icon: typeof Zap; classNam
   sleep: { icon: Moon, className: "bg-indigo-500" },
   poison: { icon: Droplet, className: "bg-emerald-500" },
   confusion: { icon: Shuffle, className: "bg-pink-500" },
+};
+
+export const STATUS_LABEL_KEY: Record<StatusEffectType, TranslationKey> = {
+  paralysis: "status.paralysis",
+  sleep: "status.sleep",
+  poison: "status.poison",
+  confusion: "status.confusion",
 };
 
 // Fixed angles (not random) for the death particle burst — deterministic so nothing ever looks
@@ -77,6 +86,7 @@ export function CombatantCard({
   segmentedHp = false,
 }: CombatantCardProps) {
   const { creature } = combatant;
+  const t = useT();
   const hpPercent = Math.round((combatant.currentHp / combatant.maxHp) * 100);
   const lungeControls = useAnimationControls();
   const impactControls = useAnimationControls();
@@ -255,10 +265,10 @@ export function CombatantCard({
               )}
             >
               {myHit.isCrit && (
-                <div className="text-[9px] font-bold tracking-widest text-red-400 sm:text-[10px]">CRITICAL!</div>
+                <div className="text-[9px] font-bold tracking-widest text-red-400 sm:text-[10px]">{t("battle.critical")}</div>
               )}
               {myHit.isMiss ? (
-                <div className="text-lg italic sm:text-xl">Miss!</div>
+                <div className="text-lg italic sm:text-xl">{t("battle.miss")}</div>
               ) : (
                 <div className={myHit.isCrit ? "text-2xl sm:text-3xl" : "text-base sm:text-lg"}>
                   {myHit.isHeal ? "+" : "-"}
@@ -346,7 +356,7 @@ export function CombatantCard({
               return (
                 <span
                   key={type}
-                  title={type}
+                  title={t(STATUS_LABEL_KEY[type])}
                   className={cn(
                     "flex h-5 w-5 items-center justify-center rounded-full border border-arcade-border text-white shadow-sm",
                     badge.className

@@ -7,6 +7,7 @@ import { Menu } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { BOTTOM_NAV_ITEMS } from "@/lib/navigation";
 import { useUiStore } from "@/lib/uiStore";
+import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { NewBadge } from "@/components/ui/NewBadge";
 
@@ -15,11 +16,12 @@ export function BottomNav() {
   const toggleDrawer = useUiStore((s) => s.toggleDrawer);
   const isDrawerOpen = useUiStore((s) => s.isDrawerOpen);
   const hasUnseenCampaign = useGameStore((s) => s.hasUnseenCampaign);
+  const t = useT();
 
   return (
     <nav className="sticky bottom-0 z-20 border-t border-arcade-border bg-arcade-panel/95 backdrop-blur-sm lg:hidden">
       <ul className="flex items-stretch justify-between px-2">
-        {BOTTOM_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {BOTTOM_NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
           const isActive = pathname.startsWith(href);
           return (
             <li key={href} className="flex-1">
@@ -46,7 +48,7 @@ export function BottomNav() {
                   )}
                 </div>
                 <span className={cn("font-arcade", isActive ? "text-gold-bright" : "text-zinc-500")}>
-                  {label}
+                  {t(labelKey)}
                 </span>
               </Link>
             </li>
@@ -71,7 +73,7 @@ export function BottomNav() {
               )}
             />
             <span className={cn("font-arcade", isDrawerOpen ? "text-gold-bright" : "text-zinc-500")}>
-              Menu
+              {t("common.menu")}
             </span>
           </button>
         </li>

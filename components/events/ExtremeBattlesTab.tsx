@@ -12,6 +12,8 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { formatNumber } from "@/lib/utils";
 import { useSyncGate } from "@/lib/useSyncGate";
+import { getRaidBossDescription, getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
+import { useT } from "@/lib/i18n/useT";
 
 const MAX_RAID_PARTY = 4;
 
@@ -32,6 +34,8 @@ export function ExtremeBattlesTab() {
   const isOnExpedition = useGameStore((s) => s.isOnExpedition);
   const energy = useGameStore((s) => s.currencies.energy);
   const spendEnergy = useGameStore((s) => s.spendEnergy);
+  const language = useGameStore((s) => s.language);
+  const t = useT();
 
   const [selectedEvent, setSelectedEvent] = useState<RaidEvent | null>(null);
   const [pickingBoss, setPickingBoss] = useState<RaidBoss | null>(null);
@@ -43,10 +47,10 @@ export function ExtremeBattlesTab() {
   const excludedIds = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of creatures) {
-      if (isOnExpedition(c.id)) map.set(c.id, "ON EXPEDITION");
+      if (isOnExpedition(c.id)) map.set(c.id, t("common.badge_on_expedition"));
     }
     return map;
-  }, [creatures, isOnExpedition]);
+  }, [creatures, isOnExpedition, t]);
 
   if (fightingBoss) {
     const playerCreatures = playerIds
@@ -72,10 +76,12 @@ export function ExtremeBattlesTab() {
       <div className="space-y-3">
         <div>
           <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← Back to Stages
+             ← {t("common.back_to_stages")}
           </button>
           <h1 className="font-arcade text-lg glow-text-gold">{pickingBoss.name}</h1>
-          <p className="text-xs text-zinc-500">Choose up to {MAX_RAID_PARTY} creatures for this raid.</p>
+          <p className="text-xs text-zinc-500">
+            {t("battle.choose_up_to_prefix")}{MAX_RAID_PARTY}{t("battle.choose_up_to_raid_suffix")}
+          </p>
         </div>
         <MultiCreaturePicker
           creatures={creatures}
@@ -89,7 +95,7 @@ export function ExtremeBattlesTab() {
               return [...prev, id];
             })
           }
-          confirmLabel="Start Raid"
+          confirmLabel={t("battle.start_raid")}
           confirmDisabled={playerIds.length === 0 || energy < pickingBoss.staminaCost}
           onConfirm={() =>
             runGated(() => {
@@ -109,10 +115,10 @@ export function ExtremeBattlesTab() {
       <div className="space-y-4">
         <div>
           <button onClick={() => setSelectedEvent(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← Back to Events
+             ← {t("common.back_to_events")}
           </button>
           <h1 className="font-arcade text-lg glow-text-gold">{selectedEvent.name}</h1>
-          <p className="mt-1 text-xs text-zinc-500">{selectedEvent.description}</p>
+          <p className="mt-1 text-xs text-zinc-500">{getRaidEventDescription(selectedEvent, language)}</p>
         </div>
 
         {selectedEvent.bannerImage && (
@@ -138,14 +144,14 @@ export function ExtremeBattlesTab() {
 
                 <div className="min-w-0 flex-1 text-center sm:text-left z-10">
                   <p className="font-arcade text-sm font-bold text-foreground glow-text-gold">{boss.name.replace(/\s*\(.*\)\s*/, '')}</p>
-                  <p className="text-xs text-zinc-400 mt-1">{boss.description}</p>
+                  <p className="text-xs text-zinc-400 mt-1">{getRaidBossDescription(boss, language)}</p>
 
                   <div className="flex items-center justify-center sm:justify-start gap-4 text-xs text-zinc-500 mt-2">
                     <span className="inline-flex items-center gap-1 font-arcade">
-                      <Zap className="h-3 w-3 text-neon" /> {boss.staminaCost} STAMINA
+                      <Zap className="h-3 w-3 text-neon" /> {boss.staminaCost} {t("battle.stamina_label")}
                     </span>
                     <span className="inline-flex items-center gap-1 font-arcade">
-                      <GoldCoinIcon className="h-3 w-3" /> {formatNumber(boss.rewardGold)} GOLD
+                      <GoldCoinIcon className="h-3 w-3" /> {formatNumber(boss.rewardGold)} {t("battle.gold_label")}
                     </span>
                   </div>
                 </div>
@@ -159,7 +165,7 @@ export function ExtremeBattlesTab() {
                     setPlayerIds([]);
                   }}
                 >
-                  Challenge
+                  {t("battle.challenge_button")}
                 </PixelButton>
               </GlowPanel>
             );
@@ -172,10 +178,8 @@ export function ExtremeBattlesTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Raid Events</h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          Select an event to challenge its bosses. More events will be added over time!
-        </p>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("raid.events_title")}</h1>
+        <p className="mt-1 text-xs text-zinc-500">{t("raid.events_subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

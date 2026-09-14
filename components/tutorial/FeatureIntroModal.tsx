@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { X, type LucideIcon } from "lucide-react";
 import type { FeatureIntroItem } from "@/lib/whatsNew";
+import { useT } from "@/lib/i18n/useT";
 
 export type { FeatureIntroItem };
 
@@ -17,7 +18,7 @@ export function FeatureIntroModal({
   title,
   subtitle,
   items,
-  ctaLabel = "Show Me Around",
+  ctaLabel,
   onContinue,
   onSkip,
 }: {
@@ -29,6 +30,8 @@ export function FeatureIntroModal({
   onContinue: () => void;
   onSkip: () => void;
 }) {
+  const t = useT();
+  const resolvedCtaLabel = ctaLabel ?? t("tutorial.show_me_around");
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
       <motion.div
@@ -40,7 +43,7 @@ export function FeatureIntroModal({
         <button
           type="button"
           onClick={onSkip}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="absolute right-3 top-3 z-10 text-zinc-400 hover:text-zinc-200"
         >
           <X className="h-4 w-4" />
@@ -69,14 +72,14 @@ export function FeatureIntroModal({
             onClick={onContinue}
             className="w-full rounded-full bg-gradient-to-br from-gold-bright to-gold py-2.5 font-arcade text-[11px] uppercase tracking-wide text-white shadow-[0_0_14px_rgba(255,184,77,0.6)]"
           >
-            {ctaLabel}
+            {resolvedCtaLabel}
           </button>
           <button
             type="button"
             onClick={onSkip}
             className="mt-2 w-full text-center text-[10px] uppercase tracking-wide text-zinc-500 hover:text-zinc-300"
           >
-            Skip
+            {t("tutorial.skip")}
           </button>
         </div>
       </motion.div>

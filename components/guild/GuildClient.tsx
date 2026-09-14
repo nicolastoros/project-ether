@@ -21,10 +21,26 @@ import {
   searchUsersAction
 } from "@/app/actions/guild";
 import { getDailyGuildBuff, getGuildBuffValue } from "@/lib/guildBuffs";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type Tab = "overview" | "members" | "logs" | "admin";
 
+const TAB_LABEL_KEY: Record<Tab, TranslationKey> = {
+  overview: "guild.tab_overview",
+  members: "guild.tab_members",
+  logs: "guild.tab_logs",
+  admin: "guild.tab_admin",
+};
+
+const ROLE_LABEL_KEY: Record<string, TranslationKey> = {
+  Master: "guild.role_master",
+  SubMaster: "guild.role_submaster",
+  Member: "guild.role_member",
+};
+
 export function GuildClient() {
+  const t = useT();
   const guild = useGameStore((s) => s.guild);
   const profile = useGameStore((s) => s.profile);
   const joinGuildLocally = useGameStore((s) => s.joinGuildLocally);
@@ -98,11 +114,11 @@ export function GuildClient() {
     setCreateError("");
     
     if (gold < 500) {
-      setCreateError("Not enough Gold Coin (500 required)");
+      setCreateError(t("guild.error_not_enough_gold"));
       return;
     }
     if (!createName.trim()) {
-      setCreateError("Name is required");
+      setCreateError(t("guild.error_name_required"));
       return;
     }
 
@@ -129,7 +145,7 @@ export function GuildClient() {
       setActiveGuildData(myData);
       setShowCreate(false);
     } catch (err: any) {
-      setCreateError(err.message || "Failed to create guild");
+      setCreateError(err.message || t("guild.error_create_failed"));
     } finally {
       setIsCreating(false);
     }
@@ -141,7 +157,7 @@ export function GuildClient() {
       await joinGuildAction(g.id);
       
       if (g.require_approval) {
-        alert("Join request sent!");
+        alert(t("guild.join_request_sent"));
         setLoading(false);
         return;
       }
@@ -155,7 +171,7 @@ export function GuildClient() {
         setActiveGuildData(myData);
       }
     } catch (err: any) {
-      alert(err.message || "Failed to join guild");
+      alert(err.message || t("guild.error_join_failed"));
     } finally {
       setLoading(false);
     }
@@ -175,11 +191,11 @@ export function GuildClient() {
     if (!guild || !inviteUsername.trim()) return;
     try {
       await sendGuildInviteAction(guild.id, inviteUsername);
-      setInviteMsg("Invite sent!");
+      setInviteMsg(t("guild.invite_sent"));
       setInviteUsername("");
       setInviteSuggestions([]);
     } catch (err: any) {
-      setInviteMsg(err.message || "Failed to send invite");
+      setInviteMsg(err.message || t("guild.error_invite_failed"));
     }
   };
 
@@ -204,7 +220,7 @@ export function GuildClient() {
 
   const handleKick = async (targetUserId: string) => {
     if (!guild) return;
-    if (!confirm("Are you sure you want to kick this member?")) return;
+    if (!confirm(t("guild.confirm_kick"))) return;
     await kickMemberAction(guild.id, targetUserId);
     const myData = await getMyGuildAction();
     setActiveGuildData(myData);
@@ -212,7 +228,7 @@ export function GuildClient() {
 
   const handleLeave = async () => {
     if (!guild) return;
-    if (!confirm("Are you sure you want to leave your guild?")) return;
+    if (!confirm(t("guild.confirm_leave"))) return;
     await leaveGuildAction(guild.id);
     useGameStore.setState({ guild: undefined });
   };
@@ -220,7 +236,7 @@ export function GuildClient() {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <div className="text-zinc-500 font-arcade text-sm animate-pulse">Loading Guilds...</div>
+        <div className="text-zinc-500 font-arcade text-sm animate-pulse">{t("guild.loading")}</div>
       </div>
     );
   }
@@ -252,18 +268,18 @@ export function GuildClient() {
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-arcade-border pb-2 overflow-x-auto mt-4">
-          {(["overview", "members", "logs"] as Tab[]).concat(isAdmin ? ["admin"] as Tab[] : []).map(t => (
+          {(["overview", "members", "logs"] as Tab[]).concat(isAdmin ? ["admin"] as Tab[] : []).map(tabId => (
             <button
-              key={t}
-              onClick={() => setActiveTab(t)}
+              key={tabId}
+              onClick={() => setActiveTab(tabId)}
               className={cn(
                 "px-5 py-2.5 font-arcade text-sm capitalize transition-colors rounded-t whitespace-nowrap",
-                activeTab === t 
-                  ? "bg-white text-gold-ink border-b-2 border-gold-bright shadow-sm" 
+                activeTab === tabId
+                  ? "bg-white text-gold-ink border-b-2 border-gold-bright shadow-sm"
                   : "text-zinc-500 hover:text-zinc-800 hover:bg-arcade-bg"
               )}
             >
-              {t}
+              {t(TAB_LABEL_KEY[tabId])}
             </button>
           ))}
         </div>
@@ -272,29 +288,29 @@ export function GuildClient() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <GlowPanel className="p-6 flex flex-col items-center justify-center text-center gap-3">
               <Shield className="h-12 w-12 text-gold mb-2" />
-              <h3 className="font-arcade text-base text-foreground">Guild Stats</h3>
-              <p className="text-sm text-zinc-600">Members: {members.length} / {gData.member_cap}</p>
-              <p className="text-sm text-zinc-600">Total Contrib: {formatNumber(members.reduce((sum: number, m: any) => sum + (m.total_contribution || 0), 0))}</p>
+              <h3 className="font-arcade text-base text-foreground">{t("guild.guild_stats")}</h3>
+              <p className="text-sm text-zinc-600">{t("guild.members_prefix")}{members.length} / {gData.member_cap}</p>
+              <p className="text-sm text-zinc-600">{t("guild.total_contrib_prefix")}{formatNumber(members.reduce((sum: number, m: any) => sum + (m.total_contribution || 0), 0))}</p>
             </GlowPanel>
 
             <GlowPanel className="p-6 flex flex-col items-center justify-center text-center gap-3">
               <Zap className="h-12 w-12 text-neon mb-2" />
-              <h3 className="font-arcade text-base text-foreground">Daily Buff</h3>
+              <h3 className="font-arcade text-base text-foreground">{t("guild.daily_buff")}</h3>
               <p className="text-sm text-zinc-600 uppercase tracking-widest text-neon">
-                {buffType === "atk" ? "+ATK" : buffType === "def" ? "+DEF" : buffType === "hp" ? "+HP" : "+ALL STATS"}
+                {buffType === "atk" ? "+ATK" : buffType === "def" ? "+DEF" : buffType === "hp" ? "+HP" : t("guild.buff_all_stats")}
               </p>
-              <p className="text-xs font-semibold text-zinc-500">+{buffType === "atk" ? buffVal.atkPercent : buffType === "def" ? buffVal.defPercent : buffType === "hp" ? buffVal.hpPercent : buffVal.atkPercent}% Bonus</p>
+              <p className="text-xs font-semibold text-zinc-500">{t("guild.bonus_prefix")}{buffType === "atk" ? buffVal.atkPercent : buffType === "def" ? buffVal.defPercent : buffType === "hp" ? buffVal.hpPercent : buffVal.atkPercent}{t("guild.bonus_suffix")}</p>
             </GlowPanel>
 
             <div className="col-span-full mt-4 flex justify-end">
-               <PixelButton variant="danger" size="sm" onClick={handleLeave}>Leave Guild</PixelButton>
+               <PixelButton variant="danger" size="sm" onClick={handleLeave}>{t("guild.leave_guild")}</PixelButton>
             </div>
           </div>
         )}
 
         {activeTab === "members" && (
           <GlowPanel className="p-4 sm:p-6">
-            <h3 className="font-arcade text-base text-gold mb-5 flex items-center gap-2"><Users className="h-4 w-4"/> Member Contribution</h3>
+            <h3 className="font-arcade text-base text-gold mb-5 flex items-center gap-2"><Users className="h-4 w-4"/> {t("guild.member_contribution")}</h3>
             <div className="space-y-4">
               {members.map((m: any) => (
                 <div key={m.user_id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded bg-white shadow-sm border border-arcade-border gap-4">
@@ -304,28 +320,28 @@ export function GuildClient() {
                     </div>
                     <div>
                       <p className="text-base font-semibold text-foreground flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        {m.username} 
-                        <span className="text-xs font-arcade text-zinc-500">{m.role}</span>
+                        {m.username}
+                        <span className="text-xs font-arcade text-zinc-500">{t(ROLE_LABEL_KEY[m.role] ?? "guild.role_member")}</span>
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">Lv.{m.level}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6 justify-between sm:justify-end">
                     <div className="text-right">
-                      <p className="text-xs text-zinc-500 uppercase">Contrib</p>
+                      <p className="text-xs text-zinc-500 uppercase">{t("guild.contrib")}</p>
                       <p className="text-sm font-arcade text-gold-bright mt-1">{formatNumber(m.total_contribution)}</p>
                     </div>
-                    
+
                     {/* Admin Actions */}
                     {isAdmin && m.user_id !== profile?.id && m.role !== "Master" && (
                       <div className="flex items-center gap-2 pl-4 border-l border-arcade-border">
                         {isMaster && m.role === "Member" && (
-                          <button onClick={() => handleChangeRole(m.user_id, "SubMaster")} className="text-[10px] bg-neon/20 text-neon px-2 py-1 rounded hover:bg-neon/40">Promote</button>
+                          <button onClick={() => handleChangeRole(m.user_id, "SubMaster")} className="text-[10px] bg-neon/20 text-neon px-2 py-1 rounded hover:bg-neon/40">{t("guild.promote")}</button>
                         )}
                         {isMaster && m.role === "SubMaster" && (
-                          <button onClick={() => handleChangeRole(m.user_id, "Member")} className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-1 rounded hover:bg-orange-500/40">Demote</button>
+                          <button onClick={() => handleChangeRole(m.user_id, "Member")} className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-1 rounded hover:bg-orange-500/40">{t("guild.demote")}</button>
                         )}
-                        <button onClick={() => handleKick(m.user_id)} className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded hover:bg-red-500/40">Kick</button>
+                        <button onClick={() => handleKick(m.user_id)} className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded hover:bg-red-500/40">{t("guild.kick")}</button>
                       </div>
                     )}
                   </div>
@@ -337,9 +353,9 @@ export function GuildClient() {
 
         {activeTab === "logs" && (
           <GlowPanel className="p-4">
-            <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><Activity className="h-4 w-4"/> Guild Activity</h3>
+            <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><Activity className="h-4 w-4"/> {t("guild.guild_activity")}</h3>
             {adminData.logs.length === 0 ? (
-              <p className="text-xs text-zinc-500 text-center py-4">No recent activity.</p>
+              <p className="text-xs text-zinc-500 text-center py-4">{t("guild.no_recent_activity")}</p>
             ) : (
               <div className="space-y-3">
                 {adminData.logs.map((log: any) => (
@@ -356,14 +372,14 @@ export function GuildClient() {
         {activeTab === "admin" && isAdmin && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <GlowPanel className="p-4">
-              <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><Settings className="h-4 w-4"/> Settings</h3>
-              
+              <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><Settings className="h-4 w-4"/> {t("guild.settings")}</h3>
+
               <div className="flex items-center justify-between p-3 bg-white shadow-sm rounded border border-arcade-border">
                 <div>
-                  <p className="text-xs font-semibold text-foreground">Require Approval to Join</p>
-                  <p className="text-[10px] text-zinc-500">If on, players must send a join request.</p>
+                  <p className="text-xs font-semibold text-foreground">{t("guild.require_approval_label")}</p>
+                  <p className="text-[10px] text-zinc-500">{t("guild.require_approval_hint")}</p>
                 </div>
-                <button 
+                <button
                   onClick={handleToggleApproval}
                   className={cn("w-10 h-6 rounded-full relative transition-colors", isRequireApproval ? "bg-neon" : "bg-slate-300")}
                 >
@@ -371,19 +387,19 @@ export function GuildClient() {
                 </button>
               </div>
 
-              <h3 className="font-arcade text-sm text-gold mt-6 mb-4 flex items-center gap-2"><UserPlus className="h-4 w-4"/> Invite Player</h3>
+              <h3 className="font-arcade text-sm text-gold mt-6 mb-4 flex items-center gap-2"><UserPlus className="h-4 w-4"/> {t("guild.invite_player")}</h3>
               <form onSubmit={handleSendInvite} className="flex gap-2 relative">
                 <div className="flex-1 relative">
-                  <input 
-                    type="text" 
-                    value={inviteUsername} 
+                  <input
+                    type="text"
+                    value={inviteUsername}
                     onChange={e => {
                       setInviteUsername(e.target.value);
                       setShowSuggestions(true);
-                    }} 
+                    }}
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder="Username" 
+                    placeholder={t("guild.username_placeholder")}
                     className="w-full bg-white shadow-sm border border-arcade-border rounded p-2 text-xs focus:outline-none focus:border-gold"
                   />
                   {showSuggestions && inviteSuggestions.length > 0 && (
@@ -403,15 +419,15 @@ export function GuildClient() {
                     </div>
                   )}
                 </div>
-                <PixelButton variant="gold" size="sm" type="submit">Invite</PixelButton>
+                <PixelButton variant="gold" size="sm" type="submit">{t("guild.invite")}</PixelButton>
               </form>
               {inviteMsg && <p className="text-[10px] text-neon mt-2">{inviteMsg}</p>}
             </GlowPanel>
 
             <GlowPanel className="p-4">
-              <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><MessageSquare className="h-4 w-4"/> Join Requests</h3>
+              <h3 className="font-arcade text-sm text-gold mb-4 flex items-center gap-2"><MessageSquare className="h-4 w-4"/> {t("guild.join_requests")}</h3>
               {adminData.requests.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-4">No pending requests.</p>
+                <p className="text-xs text-zinc-500 text-center py-4">{t("guild.no_pending_requests")}</p>
               ) : (
                 <div className="space-y-2">
                   {adminData.requests.map((req: any) => (
@@ -440,23 +456,23 @@ export function GuildClient() {
     <div className="space-y-6 max-w-5xl mx-auto w-full px-2 sm:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-arcade text-2xl glow-text-gold">Guilds</h1>
-          <p className="mt-2 text-sm text-zinc-500">Join a guild for exclusive buffs and perks.</p>
+          <h1 className="font-arcade text-2xl glow-text-gold">{t("guild.title")}</h1>
+          <p className="mt-2 text-sm text-zinc-500">{t("guild.subtitle")}</p>
         </div>
         <PixelButton variant="gold" className="py-2 px-6 text-sm" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? "Back to List" : "Create Guild"}
+          {showCreate ? t("guild.back_to_list") : t("guild.create_guild")}
         </PixelButton>
       </div>
 
       {showCreate ? (
         <GlowPanel className="p-6 max-w-md mx-auto mt-8">
-          <h2 className="font-arcade text-sm text-gold-bright text-center mb-6">Found a New Guild</h2>
-          
+          <h2 className="font-arcade text-sm text-gold-bright text-center mb-6">{t("guild.found_new_guild")}</h2>
+
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-xs font-arcade text-zinc-500 mb-1">Guild Name</label>
-              <input 
-                type="text" 
+              <label className="block text-xs font-arcade text-zinc-500 mb-1">{t("guild.guild_name_label")}</label>
+              <input
+                type="text"
                 maxLength={20}
                 required
                 className="w-full bg-white shadow-sm border border-arcade-border rounded p-2 text-sm text-foreground focus:outline-none focus:border-gold"
@@ -465,24 +481,24 @@ export function GuildClient() {
               />
             </div>
             <div>
-              <label className="block text-xs font-arcade text-zinc-500 mb-1">Description</label>
-              <textarea 
+              <label className="block text-xs font-arcade text-zinc-500 mb-1">{t("guild.description_label")}</label>
+              <textarea
                 maxLength={100}
                 className="w-full bg-white shadow-sm border border-arcade-border rounded p-2 text-sm text-foreground focus:outline-none focus:border-gold h-20 resize-none"
                 value={createDesc}
                 onChange={(e) => setCreateDesc(e.target.value)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between pt-4 border-t border-arcade-border">
               <div className="flex items-center gap-1.5 text-gold text-sm font-semibold">
-                Cost: 500 Gold
+                {t("guild.cost_500_gold")}
               </div>
               <PixelButton type="submit" variant="gold" className="py-2" disabled={isCreating}>
-                {isCreating ? "Creating..." : "Create"}
+                {isCreating ? t("guild.creating") : t("guild.create")}
               </PixelButton>
             </div>
-            
+
             {createError && (
               <p className="text-red-400 text-xs text-center">{createError}</p>
             )}
@@ -492,7 +508,7 @@ export function GuildClient() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {guildList.length === 0 ? (
             <div className="col-span-full p-8 text-center text-zinc-500 text-sm italic">
-              No guilds found. Be the first to create one!
+              {t("guild.no_guilds_found")}
             </div>
           ) : (
             guildList.map((g) => (
@@ -507,11 +523,11 @@ export function GuildClient() {
                   </div>
                   <p className="mt-1 text-xs text-zinc-500 line-clamp-2">{g.description}</p>
                   <p className="mt-2 text-xs font-semibold text-zinc-500 flex items-center gap-1.5">
-                    <Users className="h-4 w-4" /> {g.member_cap} max members
+                    <Users className="h-4 w-4" /> {g.member_cap}{t("guild.max_members_suffix")}
                   </p>
                 </div>
                 <PixelButton variant="neon" className="px-4 py-2 text-xs shrink-0 ml-2" onClick={() => handleJoin(g)}>
-                  {g.require_approval ? "Request Join" : "Join"}
+                  {g.require_approval ? t("guild.request_join") : t("guild.join")}
                 </PixelButton>
               </GlowPanel>
             ))

@@ -5,23 +5,27 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { BookOpen, X } from "lucide-react";
 import { TUTORIAL_TIPS } from "@/lib/tutorialTips";
+import { useGameStore } from "@/lib/store";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 interface MonsterGuideModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Mirrors NAV_GROUPS' "Play"/"Collection" section titles (lib/navigation.ts) so this reads like a
-// table of contents, but listed explicitly rather than derived from NAV_GROUPS — that array only
-// has top-level routes, not the Formations sub-pages/Dex this also covers. "Social" (Friends/
-// Guild) has no tips yet, so it's left out rather than shown as an empty section.
-const GUIDE_SECTIONS: { title: string; pathnames: string[] }[] = [
+// Mirrors NAV_GROUPS' "Play"/"Collection" section titles (lib/navigation.ts, hence reusing those
+// same translation keys below) so this reads like a table of contents, but listed explicitly
+// rather than derived from NAV_GROUPS — that array only has top-level routes, not the Formations
+// sub-pages/Dex this also covers. "Social" (Friends/Guild) has no tips yet, so it's left out
+// rather than shown as an empty section.
+const GUIDE_SECTIONS: { titleKey: TranslationKey; pathnames: string[] }[] = [
   {
-    title: "Play",
+    titleKey: "nav.play",
     pathnames: ["/hub", "/campaign", "/survival", "/events", "/expeditions", "/gacha", "/ranking"],
   },
   {
-    title: "Collection",
+    titleKey: "nav.collection",
     pathnames: [
       "/monsters",
       "/formations",
@@ -43,6 +47,8 @@ const GUIDE_SECTIONS: { title: string; pathnames: string[] }[] = [
  * tracking. Same portal/Escape-to-close shape as GiftsModal.tsx. */
 export function MonsterGuideModal({ isOpen, onClose }: MonsterGuideModalProps) {
   const [mounted, setMounted] = useState(false);
+  const language = useGameStore((s) => s.language);
+  const t = useT();
 
   // Delays the createPortal call below until after client mount — document.body doesn't exist
   // during SSR, and this is the standard guard for that (same pattern as GiftsModal.tsx). The
@@ -85,11 +91,11 @@ export function MonsterGuideModal({ isOpen, onClose }: MonsterGuideModalProps) {
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-arcade-border bg-arcade-panel p-4">
               <h2 className="flex items-center gap-2 font-arcade text-lg glow-text-gold">
                 <BookOpen className="h-5 w-5 text-gold-bright" />
-                Monster Guide
+                {t("topbar.monster_guide")}
               </h2>
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -98,13 +104,13 @@ export function MonsterGuideModal({ isOpen, onClose }: MonsterGuideModalProps) {
 
             <div className="flex-1 space-y-5 overflow-y-auto p-4">
               {GUIDE_SECTIONS.map((section) => (
-                <div key={section.title}>
+                <div key={section.titleKey}>
                   <p className="mb-2 font-arcade text-[10px] uppercase tracking-wider text-slate-400">
-                    {section.title}
+                    {t(section.titleKey)}
                   </p>
                   <div className="space-y-2">
                     {section.pathnames.map((pathname) => {
-                      const tip = TUTORIAL_TIPS[pathname];
+                      const tip = TUTORIAL_TIPS[language][pathname];
                       if (!tip) return null;
                       return (
                         <div

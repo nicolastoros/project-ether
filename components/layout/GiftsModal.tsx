@@ -9,6 +9,8 @@ import { ITEM_CATALOG, STARTER_CREATURES } from "@/lib/gameData";
 import { grantItemOnServer, grantItemsOnServer, grantCreatureOnServer, claimAdminGiftOnServer } from "@/lib/syncProgress";
 import { PixelButton } from "@/components/ui/PixelButton";
 import type { Gift as GiftData } from "@/types/game";
+import { useT } from "@/lib/i18n/useT";
+import { getItemName } from "@/lib/i18n/itemDescriptions";
 
 interface GiftsModalProps {
   isOpen: boolean;
@@ -16,6 +18,8 @@ interface GiftsModalProps {
 }
 
 export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const gifts = useGameStore((s) => s.gifts) || [];
   const claimGift = useGameStore((s) => s.claimGift);
   const [mounted, setMounted] = useState(false);
@@ -36,12 +40,13 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
 
   const getGiftName = (gift: GiftData) => {
     if (gift.type === "item" && gift.itemId) {
-      return ITEM_CATALOG.find(i => i.id === gift.itemId)?.name || gift.itemId;
+      const item = ITEM_CATALOG.find(i => i.id === gift.itemId);
+      return item ? getItemName(item, language) : gift.itemId;
     }
     if (gift.type === "creature" && gift.creatureId) {
       return STARTER_CREATURES.find(c => c.id === gift.creatureId)?.name || gift.creatureId;
     }
-    return "Unknown Gift";
+    return t("gifts.unknown_gift");
   };
 
   const getGiftIcon = (gift: GiftData) => {
@@ -118,11 +123,11 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-arcade-border bg-arcade-panel p-4">
               <h2 className="flex items-center gap-2 font-arcade text-lg glow-text-gold">
                 <Gift className="h-5 w-5 text-gold-bright" />
-                Gifts & Rewards
+                {t("gifts.title")}
               </h2>
               <button
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -133,7 +138,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
               {gifts.length === 0 ? (
                 <div className="flex h-32 flex-col items-center justify-center text-center">
                   <Gift className="mb-2 h-8 w-8 text-zinc-300" />
-                  <p className="text-sm text-zinc-500">No gifts available.</p>
+                  <p className="text-sm text-zinc-500">{t("gifts.no_gifts")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -175,7 +180,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
                           <p className="text-[9px] text-zinc-400 mt-0.5">{new Date(gift.createdAt).toLocaleDateString()}</p>
                         </div>
                         <PixelButton variant="gold" size="sm" onClick={() => handleClaim(gift)} className="px-3 py-1 text-xs">
-                          Claim
+                          {t("gifts.claim")}
                         </PixelButton>
                       </div>
                     );
@@ -191,7 +196,7 @@ export function GiftsModal({ isOpen, onClose }: GiftsModalProps) {
                   className="w-full"
                   onClick={handleClaimAll}
                 >
-                  Claim All
+                  {t("gifts.claim_all")}
                 </PixelButton>
               </div>
             )}

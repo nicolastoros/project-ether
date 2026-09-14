@@ -9,8 +9,18 @@ import { CrownIcon } from "@/components/icons/CrownIcon";
 import { syncProgressToServer } from "@/lib/syncProgress";
 import { cn } from "@/lib/utils";
 import { useResetCountdown } from "@/lib/useResetCountdown";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+const TASK_DESCRIPTION_KEY: Record<string, TranslationKey> = {
+  "task-login": "task.task-login",
+  "task-dungeon": "task.task-dungeon",
+  "task-gacha": "task.task-gacha",
+  "task-enhance": "task.task-enhance",
+};
 
 export function DailyTaskList() {
+  const t = useT();
   const dailyTasks = useGameStore((s) => s.dailyTasks);
   const dailyBonusClaimed = useGameStore((s) => s.dailyBonusClaimed);
   const claimTask = useGameStore((s) => s.claimTask);
@@ -23,10 +33,10 @@ export function DailyTaskList() {
   return (
     <GlowPanel accent="neon" className="p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-arcade text-xs glow-text-neon">Daily Tasks</h2>
-        <span className="font-mono text-[10px] text-zinc-500">Resets in {resetLabel}</span>
+        <h2 className="font-arcade text-xs glow-text-neon">{t("hub.daily_tasks")}</h2>
+        <span className="font-mono text-[10px] text-zinc-500">{t("hub.resets_in_prefix")}{resetLabel}</span>
       </div>
-      <p className="mt-1 font-mono text-[10px] text-zinc-600">{claimedCount}/{dailyTasks.length} complete</p>
+      <p className="mt-1 font-mono text-[10px] text-zinc-600">{claimedCount}/{dailyTasks.length}{t("hub.complete_suffix")}</p>
 
       <ul className="mt-3 space-y-2">
         {dailyTasks.map((task) => {
@@ -40,7 +50,9 @@ export function DailyTaskList() {
               )}
             >
               <div className="min-w-0">
-                <p className="truncate text-xs text-foreground">{task.description}</p>
+                <p className="truncate text-xs text-foreground">
+                  {TASK_DESCRIPTION_KEY[task.id] ? t(TASK_DESCRIPTION_KEY[task.id]) : task.description}
+                </p>
                 <p
                   className={cn(
                     "mt-0.5 font-mono text-[10px]",
@@ -79,13 +91,13 @@ export function DailyTaskList() {
                       syncProgressToServer();
                     }}
                   >
-                    Claim
+                    {t("hub.claim")}
                   </PixelButton>
                 ) : (
                   // Not ready yet — no button at all, so it can't be mistaken for a disabled
                   // "Claim" (which used to look identical to a bug, not "keep playing").
                   <span className="px-1 font-arcade text-[9px] uppercase tracking-wide text-zinc-500">
-                    In progress
+                    {t("hub.in_progress")}
                   </span>
                 )}
               </div>
@@ -107,7 +119,7 @@ export function DailyTaskList() {
         <div className="flex min-w-0 items-center gap-2">
           <Gift className={cn("h-4 w-4 shrink-0", allClaimed && !dailyBonusClaimed ? "text-gold-bright" : "text-zinc-500")} />
           <div className="min-w-0">
-            <p className="truncate text-xs text-foreground">All tasks bonus</p>
+            <p className="truncate text-xs text-foreground">{t("hub.all_tasks_bonus")}</p>
             <span className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-600">
               <span className="flex items-center gap-0.5 text-gold-bright">
                 <GoldCoinIcon className="h-3 w-3" />
@@ -133,7 +145,7 @@ export function DailyTaskList() {
               if (claimDailyBonus()) syncProgressToServer();
             }}
           >
-            Claim
+            {t("hub.claim")}
           </PixelButton>
         )}
       </div>

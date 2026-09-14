@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import type { UltimateSkill } from "@/types/game";
+import { useT } from "@/lib/i18n/useT";
 
 // A punchy impact should resolve fast — long enough to actually read the name and watch the
 // centered GIF play through once, short enough that even an all-Ultimate battle doesn't drag.
@@ -23,6 +24,7 @@ interface UltimateAttackIntroProps {
  * damage back until this is dismissed (tap, or its own auto-timer), same "onDismiss both ways"
  * pattern as LrPassiveIntro.tsx. */
 export function UltimateAttackIntro({ casterName, ultimate, onDismiss }: UltimateAttackIntroProps) {
+  const t = useT();
   useEffect(() => {
     const timeout = setTimeout(onDismiss, AUTO_DISMISS_MS);
     return () => clearTimeout(timeout);
@@ -38,7 +40,7 @@ export function UltimateAttackIntro({ casterName, ultimate, onDismiss }: Ultimat
       exit={{ opacity: 0, transition: { duration: 0.35 } }}
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-[58] flex cursor-pointer flex-col items-center justify-center overflow-hidden border-0 bg-black/92 p-4"
-      aria-label="Continue"
+      aria-label={t("common.continue")}
     >
       {/* Slow-spinning sunburst rays — a repeating pattern (not one wedge) so it's symmetric all
           the way around and never shows a hard edge/seam while it rotates, unlike a plain
@@ -77,7 +79,7 @@ export function UltimateAttackIntro({ casterName, ultimate, onDismiss }: Ultimat
         transition={{ delay: 0.1, duration: 0.3 }}
         className="relative font-arcade text-[9px] uppercase tracking-[0.4em] text-gold-bright/90 drop-shadow-[0_0_8px_rgba(255,184,77,0.8)] sm:text-[11px]"
       >
-        {casterName} · Ultimate Attack
+        {casterName} · {t("creature.ultimate_attack")}
       </motion.p>
 
       {ultimate.animationGif && (
@@ -157,7 +159,7 @@ export function UltimateAttackIntro({ casterName, ultimate, onDismiss }: Ultimat
       </motion.h2>
 
       <p className="relative mt-6 animate-pulse text-[9px] uppercase tracking-widest text-gold-bright/50 sm:text-[10px]">
-        Tap to continue
+        {t("common.tap_to_continue")}
       </p>
     </motion.button>
   );

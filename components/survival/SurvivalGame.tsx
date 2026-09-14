@@ -16,6 +16,9 @@ import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
 import { survivalLoadoutForCreature } from "@/lib/survivalBalance";
 import { SURVIVAL_WORLDS, type SurvivalStage } from "@/lib/survivalStages";
 import type { Creature } from "@/types/game";
+import { useT } from "@/lib/i18n/useT";
+import { getUpgradeDescription } from "@/lib/i18n/survivalDescriptions";
+import { getItemName } from "@/lib/i18n/itemDescriptions";
 import {
   UPGRADE_POOL,
   WEAPON_META,
@@ -255,6 +258,8 @@ interface SurvivalGameProps {
 }
 
 export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
+  const t = useT();
+  const language = useGameStore((s) => s.language);
   const addGold = useGameStore((s) => s.addGold);
   const addGems = useGameStore((s) => s.addGems);
   const gainProfileExp = useGameStore((s) => s.gainProfileExp);
@@ -470,15 +475,15 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
         <div className="min-w-0">
           <h1 className="truncate font-arcade text-xs glow-text-neon sm:text-lg">{stage.name}</h1>
           <p className="truncate text-[10px] text-zinc-500 sm:text-xs">
-            World {stage.world}-{stage.worldStageNumber}
-            <span className="hidden sm:inline"> · drag the arena to steer (or WASD)</span>
+            {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
+            <span className="hidden sm:inline">{t("survival.steer_hint")}</span>
           </p>
         </div>
         {hud.phase === "playing" && (
           <button
             type="button"
             onClick={handlePause}
-            aria-label="Pause"
+            aria-label={t("survival.pause")}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-600 shadow-sm transition-colors hover:border-gold hover:text-gold-bright sm:h-8 sm:w-8"
           >
             <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -557,8 +562,8 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
         // quarter of the screen height.
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
           <GlowPanel accent="gold" className="w-full max-w-2xl space-y-4 p-6 text-center">
-            <h2 className="font-arcade text-lg glow-text-gold">Level {hud.level}!</h2>
-            <p className="text-sm text-zinc-500">Choose an upgrade</p>
+            <h2 className="font-arcade text-lg glow-text-gold">{t("survival.level_prefix")}{hud.level}{t("survival.level_suffix")}</h2>
+            <p className="text-sm text-zinc-500">{t("survival.choose_upgrade")}</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {hud.pendingUpgradeIds.map((id) => {
                 const upgrade = UPGRADE_POOL.find((u) => u.id === id);
@@ -578,7 +583,7 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
                       )}
                       <p className="text-base font-semibold text-foreground">{upgrade.name}</p>
                     </div>
-                    <p className="mt-2 text-sm text-zinc-600">{upgrade.description}</p>
+                    <p className="mt-2 text-sm text-zinc-600">{getUpgradeDescription(upgrade.id, upgrade.description, language)}</p>
                   </button>
                 );
               })}
@@ -590,18 +595,18 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
       {hud.phase === "paused" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <GlowPanel accent="neon" className="w-full max-w-sm space-y-4 p-6 text-center">
-            <h2 className="font-arcade text-sm glow-text-neon">Paused</h2>
+            <h2 className="font-arcade text-sm glow-text-neon">{t("survival.paused")}</h2>
             <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
               <span>{formatTime(hud.elapsedMs)}</span>
               <span>Lv.{hud.level}</span>
-              <span>{hud.kills} kills</span>
+              <span>{hud.kills}{t("survival.kills_suffix")}</span>
             </div>
             <div className="flex flex-col gap-2">
               <PixelButton variant="neon" onClick={handleResume} className="flex items-center justify-center gap-2">
-                <Play className="h-4 w-4" /> Resume
+                <Play className="h-4 w-4" /> {t("survival.resume")}
               </PixelButton>
               <PixelButton variant="ghost" className="w-full" onClick={onExit}>
-                Back to Map
+                {t("survival.back_to_map")}
               </PixelButton>
             </div>
           </GlowPanel>
@@ -611,18 +616,18 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
       {hud.phase === "gameover" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <GlowPanel accent="none" className="w-full max-w-sm space-y-4 p-5 text-center">
-            <h2 className="font-arcade text-sm text-zinc-500">You Fell</h2>
+            <h2 className="font-arcade text-sm text-zinc-500">{t("survival.you_fell")}</h2>
             <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
-              <span>Survived {formatTime(hud.elapsedMs)}</span>
+              <span>{t("survival.survived_prefix")}{formatTime(hud.elapsedMs)}</span>
               <span>Lv.{hud.level}</span>
-              <span>{hud.kills} kills</span>
+              <span>{hud.kills}{t("survival.kills_suffix")}</span>
             </div>
             <div className="flex gap-2">
               <PixelButton variant="ghost" className="flex-1" onClick={handleRestart}>
-                Try Again
+                {t("survival.try_again")}
               </PixelButton>
               <PixelButton variant="gold" className="flex-1" onClick={onExit}>
-                Back to Map
+                {t("survival.back_to_map")}
               </PixelButton>
             </div>
           </GlowPanel>
@@ -632,14 +637,14 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
       {hud.phase === "victory" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <GlowPanel accent="neon" className="w-full max-w-sm space-y-4 p-6 text-center">
-            <h2 className="font-arcade text-sm glow-text-neon">Stage Cleared!</h2>
+            <h2 className="font-arcade text-sm glow-text-neon">{t("survival.stage_cleared")}</h2>
             <p className="text-xs text-zinc-500">
-              {stage.name} · World {stage.world}-{stage.worldStageNumber}
+              {stage.name} · {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
             </p>
             <div className="flex items-center justify-center gap-4 text-xs text-zinc-600">
               <span>{formatTime(hud.elapsedMs)}</span>
               <span>Lv.{hud.level}</span>
-              <span>{hud.kills} kills</span>
+              <span>{hud.kills}{t("survival.kills_suffix")}</span>
             </div>
             <div className="flex items-center justify-center gap-4 text-sm font-semibold text-foreground">
               <span className="flex items-center gap-1">
@@ -655,12 +660,12 @@ export function SurvivalGame({ stage, creature, onExit }: SurvivalGameProps) {
                 if (!item) return null;
                 return (
                   <span className="inline-flex items-center gap-1 rounded-full border border-arcade-border bg-arcade-panel-light px-2 py-1 text-[10px] text-foreground">
-                    <ItemIcon item={item} className="h-3 w-3" /> +{itemDropped.quantity} {item.name}
+                    <ItemIcon item={item} className="h-3 w-3" /> +{itemDropped.quantity} {getItemName(item, language)}
                   </span>
                 );
               })()}
             <PixelButton variant="neon" className="w-full" onClick={onExit}>
-              Back to Map
+              {t("survival.back_to_map")}
             </PixelButton>
           </GlowPanel>
         </div>

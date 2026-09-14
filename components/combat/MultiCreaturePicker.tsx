@@ -12,6 +12,7 @@ import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
 import { RARITY_BORDER_CLASS, sortCreaturesByRarity } from "@/lib/gameData";
+import { useT } from "@/lib/i18n/useT";
 
 // Matches RARITY_BORDER_CLASS's tiers, for the section-header label text below — same identity
 // color per rarity, just as text instead of a border.
@@ -49,9 +50,11 @@ export function MultiCreaturePicker({
   maxCount,
   onToggle,
   onConfirm,
-  confirmLabel = "Confirm",
+  confirmLabel,
   confirmDisabled,
 }: MultiCreaturePickerProps) {
+  const t = useT();
+  const resolvedConfirmLabel = confirmLabel ?? t("picker.confirm");
   const [query, setQuery] = useState("");
   const sortedCreatures = sortCreaturesByRarity(creatures);
   const visibleCreatures = query.trim()
@@ -74,13 +77,13 @@ export function MultiCreaturePicker({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name..."
+            placeholder={t("picker.search_placeholder")}
             className="w-full rounded-xl border border-arcade-border bg-arcade-panel-light py-2.5 pl-9 pr-9 text-sm text-foreground outline-none placeholder:text-zinc-400 focus:border-gold"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              aria-label="Clear search"
+              aria-label={t("picker.clear_search")}
               className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -90,7 +93,7 @@ export function MultiCreaturePicker({
       )}
 
       {visibleCreatures.length === 0 ? (
-        <p className="py-8 text-center text-xs text-zinc-500">No creatures match &quot;{query}&quot;.</p>
+        <p className="py-8 text-center text-xs text-zinc-500">{t("picker.no_match_prefix")}{query}{t("picker.no_match_suffix")}</p>
       ) : (
         <div className="grid grid-cols-1 gap-2.5 @lg:grid-cols-2 @4xl:grid-cols-3">
           {visibleCreatures.map((creature, i) => {
@@ -143,7 +146,7 @@ export function MultiCreaturePicker({
                     {isExcluded ? (
                       <span className="font-arcade text-[8px] text-zinc-400">{excludedReason}</span>
                     ) : (
-                      isSelected && <span className="font-arcade text-[8px] text-gold-bright">SELECTED</span>
+                      isSelected && <span className="font-arcade text-[8px] text-gold-bright">{t("picker.selected")}</span>
                     )}
                   </GlowPanel>
                 </button>
@@ -156,14 +159,14 @@ export function MultiCreaturePicker({
       <div className="sticky bottom-3">
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3">
           <p className="text-xs text-zinc-500">
-            {selectedIds.length}/{maxCount} creature{maxCount !== 1 && "s"} selected
+            {selectedIds.length}/{maxCount} {maxCount !== 1 ? t("picker.creature_plural") : t("picker.creature_singular")}{t("picker.creature_selected_suffix")}
           </p>
           <PixelButton
             variant="neon"
             disabled={confirmDisabled ?? selectedIds.length === 0}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </PixelButton>
         </GlowPanel>
       </div>

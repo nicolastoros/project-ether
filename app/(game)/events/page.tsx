@@ -1,13 +1,17 @@
+"use client";
+
 import { Suspense } from "react";
 import { EventsHub } from "@/components/events/EventsHub";
+import { useT } from "@/lib/i18n/useT";
 
 export default function EventsPage() {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Events</h1>
+        <h1 className="font-arcade text-lg glow-text-gold">{t("events.title")}</h1>
         <p className="mt-1 text-xs text-zinc-500">
-          Battle elementals and gather Orbs, take down raid bosses, and more — organized below.
+          {t("events.subtitle")}
         </p>
       </div>
       {/* useSearchParams (inside EventsHub, for the ?tab= deep link) requires a Suspense boundary

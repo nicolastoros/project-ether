@@ -12,6 +12,7 @@ import { CreatureName } from "@/components/ui/CreatureName";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 interface SummonRevealModalProps {
   results: Creature[] | null;
@@ -21,12 +22,12 @@ interface SummonRevealModalProps {
 // Rarity reads at a glance now instead of every card getting the same gold frame regardless of
 // what's inside — Common/Rare/SSR/Mythic borders match the same colors RarityBadge already uses
 // elsewhere, LR gets its own brighter gold since it's the one tier above Mythic.
-const RARITY_REVEAL: Record<Rarity, { border: string; flash: string; title: string | null }> = {
-  Common: { border: "border-rarity-common/70", flash: "rgba(100,116,139,0.6)", title: null },
-  Rare: { border: "border-rarity-rare/70", flash: "rgba(59,130,246,0.65)", title: null },
-  SSR: { border: "border-rarity-ssr/70", flash: "rgba(245,158,11,0.7)", title: null },
-  Mythic: { border: "border-rarity-mythic", flash: "rgba(236,72,153,0.8)", title: "MYTHIC SUMMON!" },
-  LR: { border: "border-amber-400", flash: "rgba(253,224,71,0.9)", title: "LEGENDARY SUMMON!" },
+const RARITY_REVEAL: Record<Rarity, { border: string; flash: string; titleKey: "gacha.mythic_summon" | "gacha.legendary_summon" | null }> = {
+  Common: { border: "border-rarity-common/70", flash: "rgba(100,116,139,0.6)", titleKey: null },
+  Rare: { border: "border-rarity-rare/70", flash: "rgba(59,130,246,0.65)", titleKey: null },
+  SSR: { border: "border-rarity-ssr/70", flash: "rgba(245,158,11,0.7)", titleKey: null },
+  Mythic: { border: "border-rarity-mythic", flash: "rgba(236,72,153,0.8)", titleKey: "gacha.mythic_summon" },
+  LR: { border: "border-amber-400", flash: "rgba(253,224,71,0.9)", titleKey: "gacha.legendary_summon" },
 };
 
 const BASE_STAGGER_S = 0.12;
@@ -37,10 +38,12 @@ const FINALE_PAUSE_S = 0.55;
  * the only setState left in the timer effect happens inside setTimeout callbacks, not
  * synchronously in the effect body. */
 function RevealCards({ ordered, onClose }: { ordered: Creature[]; onClose: () => void }) {
+  const t = useT();
   const [revealedCount, setRevealedCount] = useState(0);
   const isSingle = ordered.length === 1;
   const bestRarity = ordered[ordered.length - 1].rarity;
-  const bestTitle = RARITY_REVEAL[bestRarity].title;
+  const bestTitleKey = RARITY_REVEAL[bestRarity].titleKey;
+  const bestTitle = bestTitleKey ? t(bestTitleKey) : null;
 
   useEffect(() => {
     const timers = ordered.map((_, i) => {
@@ -76,7 +79,7 @@ function RevealCards({ ordered, onClose }: { ordered: Creature[]; onClose: () =>
       >
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-white text-zinc-500 shadow-sm transition-colors hover:text-foreground"
         >
           <X className="h-4 w-4" />
@@ -87,8 +90,8 @@ function RevealCards({ ordered, onClose }: { ordered: Creature[]; onClose: () =>
           style={bestRarity === "Mythic" ? { textShadow: "0 0 8px rgba(219,39,119,0.7)", color: "#db2777" } : undefined}
         >
           {revealedCount < ordered.length
-            ? "Summoning..."
-            : bestTitle ?? (isSingle ? "Creature Summoned!" : `${ordered.length} Creatures Summoned!`)}
+            ? t("gacha.summoning")
+            : bestTitle ?? (isSingle ? t("gacha.creature_summoned") : `${ordered.length}${t("gacha.creatures_summoned_suffix")}`)}
         </h2>
 
         <div
@@ -136,7 +139,7 @@ function RevealCards({ ordered, onClose }: { ordered: Creature[]; onClose: () =>
           disabled={revealedCount < ordered.length}
           onClick={onClose}
         >
-          Nice!
+          {t("gacha.nice")}
         </PixelButton>
       </motion.div>
     </>

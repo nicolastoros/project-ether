@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Check, Lock } from "lucide-react";
 import type { SurvivalStage, SurvivalWorld } from "@/lib/survivalStages";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 // Same "S-curve" technique as CampaignWorldMap (components/campaign/CampaignWorldMap.tsx), just
 // laid out as percentages over a single square map image instead of scrolling through several worlds.
@@ -51,6 +52,7 @@ interface SurvivalWorldMapProps {
 }
 
 export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage }: SurvivalWorldMapProps) {
+  const t = useT();
   const nodes = useMemo(() => buildNodes(stages), [stages]);
   const nextStageNumber = highestCleared + 1;
   const nextIndex = stages.findIndex((s) => s.stageNumber === nextStageNumber);
@@ -72,7 +74,7 @@ export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage 
       <Image src={world.mapImage} alt={world.name} fill className="object-cover" priority />
       <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/45 to-transparent p-3">
         <p className="font-arcade text-xs font-bold text-white drop-shadow">
-          World {world.world} · {world.name}
+          {t("battle.world_label")} {world.world} · {world.name}
         </p>
       </div>
 
@@ -107,7 +109,7 @@ export function SurvivalWorldMap({ world, stages, highestCleared, onSelectStage 
             onClick={() => onSelectStage(stage)}
             className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
             style={{ left: `${x}%`, top: `${y}%` }}
-            aria-label={`${world.name} stage ${stage.worldStageNumber}: ${stage.name}`}
+            aria-label={`${world.name}${t("survival.stage_aria_mid")}${stage.worldStageNumber}: ${stage.name}`}
           >
             <motion.div
               animate={

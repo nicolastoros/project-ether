@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { ELEMENT_ICON } from "@/lib/elementVisuals";
 import type { Element, Rarity } from "@/types/game";
 import { RarityBadge } from "@/components/ui/RarityBadge";
+import { useT } from "@/lib/i18n/useT";
 
 const ELEMENTS = Object.keys(ELEMENT_ICON) as Element[];
 const RARITIES: Rarity[] = ["Common", "Rare", "SSR", "Mythic", "LR"];
@@ -13,9 +14,10 @@ export function ElementFilterGroup({
   selected: Set<Element>;
   onToggle: (el: Element) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
-      <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Type</p>
+      <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("filters.type")}</p>
       <div className="flex flex-col gap-1.5">
         {ELEMENTS.map((el) => {
           const Icon = ELEMENT_ICON[el];
@@ -57,10 +59,11 @@ export function RarityLevelFilterGroup({
   onMinLevelChange: (v: string) => void;
   onMaxLevelChange: (v: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Rarity</p>
+        <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("filters.rarity")}</p>
         <div className="flex flex-wrap gap-1.5">
           {RARITIES.map((r) => {
             const active = selectedRarities.has(r);
@@ -74,12 +77,12 @@ export function RarityLevelFilterGroup({
       </div>
 
       <div className="space-y-1.5">
-        <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Level</p>
+        <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">{t("filters.level")}</p>
         <div className="flex items-center gap-2">
           <input
             type="number"
             min={1}
-            placeholder="Min"
+            placeholder={t("filters.min")}
             value={minLevel}
             onChange={(e) => onMinLevelChange(e.target.value)}
             className="w-full rounded-lg border border-arcade-border bg-arcade-panel-light px-2 py-1.5 text-xs text-foreground outline-none focus:border-gold"
@@ -88,7 +91,7 @@ export function RarityLevelFilterGroup({
           <input
             type="number"
             min={1}
-            placeholder="Max"
+            placeholder={t("filters.max")}
             value={maxLevel}
             onChange={(e) => onMaxLevelChange(e.target.value)}
             className="w-full rounded-lg border border-arcade-border bg-arcade-panel-light px-2 py-1.5 text-xs text-foreground outline-none focus:border-gold"

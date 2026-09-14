@@ -13,6 +13,7 @@ import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { CreatureDetailModal } from "@/components/monsters/CreatureDetailModal";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 // Full-art foil cards for a handful of standout creatures — each already has an ornate rainbow
 // frame baked into the artwork itself; LegendaryCardAura (the same rotating-prism shimmer used
@@ -27,6 +28,7 @@ const LEGENDARY_CARD_ART: Record<string, string> = {
 };
 
 export default function DexPage() {
+  const t = useT();
   const ownedCreatures = useGameStore((s) => s.creatures);
   const activeCreatureId = useGameStore((s) => s.activeCreatureId);
   const setActiveCreature = useGameStore((s) => s.setActiveCreature);
@@ -39,22 +41,22 @@ export default function DexPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 lg:gap-4">
-        <BackButton href="/formations" label="Back to Formation Menu" />
+        <BackButton href="/formations" label={t("dex.back_to_formation_menu")} />
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Dex</h1>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("dex.title")}</h1>
           {/* One single string expression, not JSX text broken up by {expr} — some combination of
               this file's JSX text nodes and the em dash character was silently dropping the space
               immediately before it (confirmed via the rendered DOM, not just visually) when written
               as plain JSX children. */}
           <p className="mt-1 text-xs text-zinc-500">
-            {`${ownedCount}/${GACHA_CREATURE_POOL.length} discovered — every creature in the Digital World, whether you've met them yet or not.`}
+            {`${ownedCount}/${GACHA_CREATURE_POOL.length}${t("dex.discovered_suffix")}`}
           </p>
         </div>
       </div>
 
       {Object.keys(LEGENDARY_CARD_ART).length > 0 && (
         <div>
-          <p className="font-arcade text-xs uppercase tracking-wide text-zinc-500">Legendary Cards</p>
+          <p className="font-arcade text-xs uppercase tracking-wide text-zinc-500">{t("dex.legendary_cards")}</p>
           <div className="mt-2 flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-4 lg:grid-cols-5">
             {Object.entries(LEGENDARY_CARD_ART).map(([creatureId, art]) => {
               const entry = GACHA_CREATURE_POOL.find((c) => c.id === creatureId);
@@ -139,7 +141,7 @@ export default function DexPage() {
                       )}
                     </div>
                   ) : (
-                    <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-400">Not discovered</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-400">{t("dex.not_discovered")}</p>
                   )}
                 </div>
               </GlowPanel>

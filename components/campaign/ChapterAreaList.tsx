@@ -11,10 +11,17 @@ import { useGameStore } from "@/lib/store";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn, formatNumber } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 // Easy is relabeled "Normal" here — the underlying tier (and its unlock chain: Normal -> Medium ->
 // Hard -> Super) is unchanged, this is a display-only rename for the new chapter UI.
-const TIER_LABEL: Record<DifficultyTier, string> = { Easy: "Normal", Medium: "Medium", Hard: "Hard", Super: "Super" };
+const TIER_LABEL_KEY: Record<DifficultyTier, TranslationKey> = {
+  Easy: "campaign.tier_normal",
+  Medium: "campaign.tier_medium",
+  Hard: "campaign.tier_hard",
+  Super: "campaign.tier_super",
+};
 
 interface ChapterAreaListProps {
   chapter: CampaignChapter;
@@ -24,6 +31,7 @@ interface ChapterAreaListProps {
 }
 
 export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: ChapterAreaListProps) {
+  const t = useT();
   const dungeon = useGameStore((s) => s.dungeon);
   const attemptedStageIds = useGameStore((s) => s.attemptedStageIds);
   const [selectedTier, setSelectedTier] = useState<DifficultyTier>("Easy");
@@ -45,18 +53,18 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to Chapters"
+          aria-label={t("campaign.back_to_chapters")}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:h-11 lg:w-11"
         >
           <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="font-arcade text-base text-foreground lg:text-lg">Chapter {chapter.chapter}</h2>
+          <h2 className="font-arcade text-base text-foreground lg:text-lg">{t("hub.chapter_label")} {chapter.chapter}</h2>
           <div className="mt-1 max-w-xs">
             <ProgressBar
               percent={stages.length > 0 ? (clearedCount / stages.length) * 100 : 0}
               color="exp"
-              label={`${clearedCount}/${stages.length} areas cleared`}
+              label={`${clearedCount}/${stages.length}${t("campaign.areas_cleared_suffix")}`}
             />
           </div>
         </div>
@@ -76,7 +84,7 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
                 : "border-arcade-border bg-arcade-panel text-zinc-500 hover:text-foreground"
             )}
           >
-            {TIER_LABEL[tier]}
+            {t(TIER_LABEL_KEY[tier])}
           </button>
         ))}
       </div>
@@ -125,7 +133,7 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
                     with real breathing room from the frame's top edge. */}
                 <div className="absolute inset-x-0 top-0 flex h-[52%] flex-col items-center justify-center gap-1 px-3 pt-3 sm:flex-row sm:gap-2.5 sm:pt-4 lg:px-6 lg:pt-6">
                   <span className="flex h-6 shrink-0 items-center justify-center rounded-md border border-white/40 bg-black/30 px-2 font-arcade text-[10px] font-bold text-white sm:h-7 sm:text-xs lg:h-9 lg:px-3 lg:text-sm">
-                    Area {areaNumber}
+                    {t("campaign.area_prefix")}{areaNumber}
                   </span>
                   <span className="max-w-full truncate text-center text-sm font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] sm:text-lg lg:text-2xl">
                     {stage.name}
@@ -140,16 +148,16 @@ export function ChapterAreaList({ chapter, stages, onBack, onSelectStage }: Chap
                 <div className="absolute inset-x-0 bottom-0 flex h-[48%] items-center justify-center gap-1.5 overflow-hidden px-3 pb-2 sm:pb-2.5 lg:px-6 lg:pb-14">
                   {stage.isLocked ? (
                     <span className="flex items-center gap-1 text-[10px] font-medium text-white/60 sm:text-xs lg:text-sm">
-                      <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> Locked
+                      <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {t("campaign.locked")}
                     </span>
                   ) : !tierUnlockedHere ? (
                     <span className="flex items-center gap-1 text-[10px] font-medium text-white/60 sm:text-xs lg:text-sm">
-                      <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {TIER_LABEL[selectedTier]} locked
+                      <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {t(TIER_LABEL_KEY[selectedTier])}{t("campaign.tier_locked_suffix")}
                     </span>
                   ) : (
                     <>
                       <span className="shrink-0 font-arcade text-[9px] font-semibold uppercase tracking-widest text-white/85 sm:text-[10px] lg:text-xs">
-                        Rewards:
+                        {t("campaign.rewards_label")}
                       </span>
                       {gear ? (
                         <span className="flex min-w-0 items-center gap-1.5">

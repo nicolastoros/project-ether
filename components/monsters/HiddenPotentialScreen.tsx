@@ -12,23 +12,25 @@ import { ELEMENT_GRADIENT, ELEMENT_ORB_COLOR } from "@/lib/elementVisuals";
 import { syncProgressToServer, consumeItemOnServer } from "@/lib/syncProgress";
 import { useSyncSettleGate } from "@/lib/useSyncGate";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { useT } from "@/lib/i18n/useT";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type BranchId = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
-const BRANCHES: { id: BranchId; label: string; desc: string; icon: typeof Scale }[] = [
-  { id: "top-left", label: "Top-Left", desc: "Balanced (ATK/DEF)", icon: Scale },
-  { id: "top-right", label: "Top-Right", desc: "Offensive (ATK/HP)", icon: Swords },
-  { id: "bottom-left", label: "Bottom-Left", desc: "Defensive (HP/DEF)", icon: Shield },
-  { id: "bottom-right", label: "Bottom-Right", desc: "Ultimate (ATK/HP)", icon: Crown },
+const BRANCHES: { id: BranchId; labelKey: TranslationKey; descKey: TranslationKey; icon: typeof Scale }[] = [
+  { id: "top-left", labelKey: "potential.branch.top_left", descKey: "potential.branch.balanced", icon: Scale },
+  { id: "top-right", labelKey: "potential.branch.top_right", descKey: "potential.branch.offensive", icon: Swords },
+  { id: "bottom-left", labelKey: "potential.branch.bottom_left", descKey: "potential.branch.defensive", icon: Shield },
+  { id: "bottom-right", labelKey: "potential.branch.bottom_right", descKey: "potential.branch.ultimate", icon: Crown },
 ];
 
 // "sa"/"crit"/"evasion"/"heal" read as cryptic abbreviations on their own — spelled out here for
 // the Advanced Node label, same way stat nodes already show a real stat name via statType.
-const ADVANCED_LABEL: Record<string, string> = {
-  sa: "Super Attack",
-  crit: "Critical Rate",
-  evasion: "Evasion",
-  heal: "Healing",
+const ADVANCED_LABEL_KEY: Record<string, TranslationKey> = {
+  sa: "potential.advanced.sa",
+  crit: "potential.advanced.crit",
+  evasion: "potential.advanced.evasion",
+  heal: "potential.advanced.heal",
 };
 
 // Node-type accent — a color language on top of the existing gold "progression" identity, so the
@@ -105,6 +107,7 @@ export function HiddenPotentialScreen({
   const ownedItems = useGameStore((s) => s.ownedItems);
   const liveCreature = useGameStore((s) => s.creatures.find((c) => c.id === creature.id)) || creature;
   const { settling, runWithSettle } = useSyncSettleGate();
+  const t = useT();
 
   const elementStr = liveCreature.element.toLowerCase();
   const orbColor = ELEMENT_ORB_COLOR[liveCreature.element];
@@ -135,10 +138,10 @@ export function HiddenPotentialScreen({
           if (cost.large > 0) consumeItemOnServer(largeOrbId, cost.large);
         }
         syncProgressToServer();
-        toast.success(isGate ? "Gate Unlocked!" : "Node Unlocked!");
+        toast.success(isGate ? t("potential.toast.gate_unlocked") : t("potential.toast.node_unlocked"));
       });
     } else {
-      toast.error(isGate ? "Not enough duplicate copies!" : "Not enough Orbs!");
+      toast.error(isGate ? t("potential.toast.not_enough_dupes") : t("potential.toast.not_enough_orbs"));
     }
   };
 
@@ -161,8 +164,10 @@ export function HiddenPotentialScreen({
             </div>
           </div>
           <div>
-            <h2 className="font-arcade text-lg tracking-wide text-gold-bright drop-shadow-[0_0_10px_rgba(255,184,77,0.5)]">Hidden Potential</h2>
-            <p className="text-xs text-zinc-400">{liveCreature.name} · {liveCreature.copies > 1 ? `${liveCreature.copies - 1} Dupes Available` : "No Dupes"}</p>
+            <h2 className="font-arcade text-lg tracking-wide text-gold-bright drop-shadow-[0_0_10px_rgba(255,184,77,0.5)]">{t("potential.title")}</h2>
+            <p className="text-xs text-zinc-400">
+              {liveCreature.name} · {liveCreature.copies > 1 ? `${liveCreature.copies - 1} ${t("potential.dupes_available_suffix")}` : t("potential.no_dupes")}
+            </p>
           </div>
         </div>
         <button
@@ -178,7 +183,7 @@ export function HiddenPotentialScreen({
         {/* Sidebar / Tabs */}
         <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-cyan-400/10 bg-black/50 p-3 sm:w-64 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r">
           <div className="mb-2 hidden px-1 sm:block">
-            <p className="font-arcade text-[10px] uppercase tracking-wider text-zinc-500">Your Orbs · {liveCreature.element}</p>
+            <p className="font-arcade text-[10px] uppercase tracking-wider text-zinc-500">{t("potential.your_orbs")} · {liveCreature.element}</p>
             <div className="mt-2 flex gap-2">
               {([
                 ["small", smallOrbAmt] as const,
@@ -214,8 +219,8 @@ export function HiddenPotentialScreen({
               >
                 <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-gold-bright" : "text-zinc-500")} />
                 <div>
-                  <div className={cn("font-arcade text-xs", isActive ? "text-white" : "text-zinc-300")}>{b.label}</div>
-                  <div className="mt-0.5 text-[10px] text-zinc-500">{b.desc}</div>
+                  <div className={cn("font-arcade text-xs", isActive ? "text-white" : "text-zinc-300")}>{t(b.labelKey)}</div>
+                  <div className="mt-0.5 text-[10px] text-zinc-500">{t(b.descKey)}</div>
                 </div>
               </button>
             );
@@ -231,7 +236,8 @@ export function HiddenPotentialScreen({
               const isGate = node.type === "gate";
               const canUnlock = !isUnlocked && isPrevUnlocked && (isGate ? liveCreature.copies > 1 : true);
               const accent = NODE_ACCENT[node.type];
-              const statLabel = node.type === "advanced" ? ADVANCED_LABEL[node.statType ?? ""] ?? node.statType : node.statType;
+              const advancedLabelKey = node.statType ? ADVANCED_LABEL_KEY[node.statType] : undefined;
+              const statLabel = node.type === "advanced" ? (advancedLabelKey ? t(advancedLabelKey) : node.statType) : node.statType;
 
               return (
                 <div key={node.id} className="relative">
@@ -263,7 +269,7 @@ export function HiddenPotentialScreen({
                       </div>
                       <div>
                         <h3 className="font-arcade text-sm">
-                          {isGate ? "Duplicate Gate" : node.type === "advanced" ? "Advanced Node" : "Stat Node"}
+                          {isGate ? t("potential.node.gate") : node.type === "advanced" ? t("potential.node.advanced") : t("potential.node.stat")}
                         </h3>
                         {statLabel && (
                           <p className={cn("mt-0.5 text-xs uppercase", isUnlocked || canUnlock ? accent.text : "text-zinc-500")}>
@@ -293,7 +299,7 @@ export function HiddenPotentialScreen({
 
                       {isUnlocked ? (
                         <div className={cn("flex items-center gap-1.5 font-arcade text-[10px] uppercase tracking-wide", accent.text)}>
-                          <Check className="h-4 w-4" /> Unlocked
+                          <Check className="h-4 w-4" /> {t("potential.unlocked")}
                         </div>
                       ) : isPrevUnlocked ? (
                         <PixelButton
@@ -302,11 +308,11 @@ export function HiddenPotentialScreen({
                           onClick={() => handleUnlock(node)}
                           className="text-[10px]"
                         >
-                          {isGate ? "Open (-1 Dupe)" : "Unlock"}
+                          {isGate ? t("potential.open_dupe") : t("potential.unlock")}
                         </PixelButton>
                       ) : (
                         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-zinc-600">
-                          <Lock className="h-3.5 w-3.5" /> Locked
+                          <Lock className="h-3.5 w-3.5" /> {t("potential.locked")}
                         </div>
                       )}
                     </div>
@@ -332,7 +338,7 @@ export function HiddenPotentialScreen({
           </div>
         </div>
       </div>
-      <LoadingOverlay show={settling} label="Saving potential..." />
+      <LoadingOverlay show={settling} label={t("potential.saving")} />
     </div>
   );
 }

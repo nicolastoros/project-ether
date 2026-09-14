@@ -15,8 +15,10 @@ import { CreatureName } from "@/components/ui/CreatureName";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/useT";
 
 export default function SellMonsterPage() {
+  const t = useT();
   const creatures = useGameStore((s) => s.creatures);
   const sellCreature = useGameStore((s) => s.sellCreature);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -36,9 +38,9 @@ export default function SellMonsterPage() {
     if (sold) {
       sellCreatureOnServer(creatureId, quantity);
       setQuantities((prev) => ({ ...prev, [creatureId]: 1 }));
-      toast.success(`Sold ${quantity}x for gold!`);
+      toast.success(`${t("formations.sold_success_prefix")}${quantity}${t("formations.sold_success_suffix")}`);
     } else {
-      toast.error("Can't sell your last copy while it's in your hub team, party, or a saved formation.");
+      toast.error(t("formations.sell_error_last_copy"));
     }
     setBusyId(null);
   };
@@ -46,16 +48,16 @@ export default function SellMonsterPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 lg:gap-4">
-        <BackButton href="/formations" label="Back to Formation Menu" />
+        <BackButton href="/formations" label={t("dex.back_to_formation_menu")} />
         <div>
-          <h1 className="font-arcade text-lg glow-text-gold">Sell Monster</h1>
-          <p className="mt-1 text-xs text-zinc-500">Trade creatures you don&apos;t need for gold.</p>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("formations.tile_sell_monster")}</h1>
+          <p className="mt-1 text-xs text-zinc-500">{t("formations.trade_for_gold")}</p>
         </div>
       </div>
 
       {creatures.length === 0 ? (
         <GlowPanel accent="none" className="flex h-32 items-center justify-center text-xs text-zinc-500">
-          Nothing to sell yet.
+          {t("formations.nothing_to_sell")}
         </GlowPanel>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -83,7 +85,7 @@ export default function SellMonsterPage() {
                   )}
                 </div>
                 <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-foreground">
-                  <GoldCoinIcon className="h-3 w-3" /> {unitValue}/ea
+                  <GoldCoinIcon className="h-3 w-3" /> {unitValue}{t("formations.per_each_suffix")}
                 </span>
 
                 <div className="mt-1 flex w-full items-center justify-between overflow-hidden rounded-md border border-arcade-border bg-arcade-panel-dark">
@@ -111,7 +113,7 @@ export default function SellMonsterPage() {
                   disabled={busyId === creature.id}
                   onClick={() => handleSell(creature.id, quantity)}
                 >
-                  Sell {quantity}
+                  {t("formations.sell_prefix")}{quantity}
                 </PixelButton>
               </GlowPanel>
             );

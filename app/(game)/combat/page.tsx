@@ -10,8 +10,10 @@ import { getTierStage, parseTierStageId } from "@/lib/difficultyTiers";
 import { ALL_ORB_ELEMENTS, ORB_EVENTS, getEventEnemyTeam } from "@/lib/eventData";
 import { PlaceholderView } from "@/components/ui/PlaceholderView";
 import { BattlePage } from "@/components/combat/BattlePage";
+import { useT } from "@/lib/i18n/useT";
 
 function CombatPageContent() {
+  const t = useT();
   const searchParams = useSearchParams();
   const stageId = searchParams.get("stage");
   const eventId = searchParams.get("eventId");
@@ -81,8 +83,8 @@ function CombatPageContent() {
   return (
     <PlaceholderView
       icon={Map}
-      title="Pick a stage from Campaign"
-      description="This screen only runs real Campaign battles — head to Campaign and select a stage to fight."
+      title={t("combat.pick_stage_title")}
+      description={t("combat.pick_stage_description")}
     />
   );
 }

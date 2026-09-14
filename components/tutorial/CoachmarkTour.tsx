@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import type { CoachmarkStepDef } from "@/lib/whatsNew";
+import { useT } from "@/lib/i18n/useT";
 
 const SPOTLIGHT_PAD = 8;
 // The target may render a frame or two after a step becomes active (layout not settled right
@@ -34,6 +35,7 @@ export function CoachmarkTour({
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const step = steps[stepIndex];
+  const t = useT();
 
   const measure = useCallback(() => {
     if (!step) return null;
@@ -121,18 +123,18 @@ export function CoachmarkTour({
       {/* Four-rectangle backdrop frame around the cutout, instead of an SVG mask — same technique
           used everywhere else in this codebase that needs a "hole" in an overlay. Each panel is
           also a click target, so tapping anywhere off the highlight advances the tour too. */}
-      <button type="button" aria-label="Next" onClick={advance} className="absolute inset-x-0 top-0 bg-black/78 backdrop-blur-[1px]" style={{ height: Math.max(0, rect.top) }} />
-      <button type="button" aria-label="Next" onClick={advance} className="absolute inset-x-0 bottom-0 bg-black/78 backdrop-blur-[1px]" style={{ top: rect.top + rect.height }} />
+      <button type="button" aria-label={t("tutorial.next")} onClick={advance} className="absolute inset-x-0 top-0 bg-black/78 backdrop-blur-[1px]" style={{ height: Math.max(0, rect.top) }} />
+      <button type="button" aria-label={t("tutorial.next")} onClick={advance} className="absolute inset-x-0 bottom-0 bg-black/78 backdrop-blur-[1px]" style={{ top: rect.top + rect.height }} />
       <button
         type="button"
-        aria-label="Next"
+        aria-label={t("tutorial.next")}
         onClick={advance}
         className="absolute bg-black/78 backdrop-blur-[1px]"
         style={{ top: rect.top, height: rect.height, left: 0, width: Math.max(0, rect.left) }}
       />
       <button
         type="button"
-        aria-label="Next"
+        aria-label={t("tutorial.next")}
         onClick={advance}
         className="absolute bg-black/78 backdrop-blur-[1px]"
         style={{ top: rect.top, height: rect.height, left: rect.left + rect.width, right: 0 }}
@@ -142,7 +144,7 @@ export function CoachmarkTour({
           advances instead of triggering the real button underneath mid-tour. */}
       <motion.button
         type="button"
-        aria-label="Next"
+        aria-label={t("tutorial.next")}
         onClick={advance}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, boxShadow: ["0 0 0 3px var(--color-gold-bright)", "0 0 22px 4px var(--color-gold-bright)", "0 0 0 3px var(--color-gold-bright)"] }}
@@ -166,7 +168,7 @@ export function CoachmarkTour({
           <button
             type="button"
             onClick={onComplete}
-            aria-label="Skip tour"
+            aria-label={t("tutorial.skip_tour")}
             className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-200"
           >
             <X className="h-3.5 w-3.5" />
@@ -177,14 +179,14 @@ export function CoachmarkTour({
           <p className="mt-1.5 text-xs leading-relaxed text-foreground">{step.description}</p>
           <div className="mt-3 flex items-center justify-between">
             <button type="button" onClick={onComplete} className="text-[10px] uppercase tracking-wide text-zinc-500 hover:text-zinc-300">
-              Skip Tour
+              {t("tutorial.skip_tour")}
             </button>
             <button
               type="button"
               onClick={advance}
               className="rounded-full bg-gradient-to-br from-gold-bright to-gold px-4 py-1.5 font-arcade text-[10px] uppercase tracking-wide text-white shadow-[0_0_10px_rgba(255,184,77,0.6)]"
             >
-              {isLast ? "Got it" : "Next"}
+              {isLast ? t("tutorial.got_it") : t("tutorial.next")}
             </button>
           </div>
         </motion.div>
