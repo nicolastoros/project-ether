@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getOverclockHistoryForUser, getOverclockLeaderboard } from "@/lib/db/bigquery";
+import { getOverclockHistoryForUser, getOverclockLeaderboard, getOverclockUserStanding } from "@/lib/db/bigquery";
 import { currentOverclockBoss, currentOverclockWeekId, currentOverclockWeekNumber } from "@/lib/overclock";
 
 /** Backs the Overclock pre-battle hub — the leaderboard itself is a snapshot refreshed at most
@@ -16,11 +16,14 @@ export async function GET() {
   try {
     const weekId = currentOverclockWeekId();
     const boss = currentOverclockBoss();
-    const [{ rankings, computedAt, nextUpdateAt }, history] = await Promise.all([
+    const [{ rankings, computedAt, nextUpdateAt }, history, standing] = await Promise.all([
       getOverclockLeaderboard(weekId),
       getOverclockHistoryForUser(session.user.id),
+      // Live rank, not read off `rankings` — that list is capped at the top 100 (see
+      // OVERCLOCK_LEADERBOARD_SIZE), so a player outside that cut still needs a real number to
+      // know how far off they are instead of just not appearing anywhere.
+      getOverclockUserStanding(session.user.id, weekId),
     ]);
-    const yourEntry = rankings.find((r) => r.userId === session.user.id) ?? null;
 
     return NextResponse.json({
       weekNumber: currentOverclockWeekNumber(),
@@ -28,7 +31,8 @@ export async function GET() {
       rankings,
       computedAt,
       nextUpdateAt,
-      yourRank: yourEntry?.rank ?? null,
+      yourRank: standing?.rank ?? null,
+      totalPlayers: standing?.totalPlayers ?? 0,
       history,
     });
   } catch (err) {

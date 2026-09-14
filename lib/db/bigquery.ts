@@ -2266,6 +2266,16 @@ async function computeAndStoreOverclockSnapshot(weekId: string): Promise<{ ranki
       params: { weekId, rows: rankings },
       types: { weekId: "STRING", rows: [{ rank: "INT64", userId: "STRING", username: "STRING", displayName: "STRING", damage: "INT64" }] },
     });
+  } else {
+    // Nobody has a score yet this week — still write a rank:0 sentinel row purely to record a
+    // computed_at timestamp. Without this, getOverclockLeaderboard's `snapRows.length === 0` check
+    // finds nothing here on every single read, recomputes from scratch every time, and hands back
+    // a "2 hours from right now" nextUpdateAt on every read instead of a real, stable target —
+    // which read to players as the countdown never moving no matter how long they waited.
+    await bq().query({
+      query: `INSERT INTO ${table("overclock_leaderboard_snapshot")} (week_id, rank, user_id, username, display_name, damage, computed_at) VALUES (@weekId, 0, '__empty__', '', '', 0, CURRENT_TIMESTAMP())`,
+      params: { weekId },
+    });
   }
   return { rankings, computedAt: Date.now() };
 }
@@ -2305,14 +2315,51 @@ export async function getOverclockLeaderboard(
     return { rankings, computedAt, nextUpdateAt: computedAt + OVERCLOCK_SNAPSHOT_REFRESH_MS };
   }
 
-  const rankings: OverclockLeaderboardEntry[] = snapRows.map((r) => ({
-    rank: r.rank,
-    userId: r.user_id,
-    username: r.username,
-    displayName: r.display_name,
-    damage: r.damage,
-  }));
+  // rank:0 is the "nobody scored yet" sentinel written by computeAndStoreOverclockSnapshot — it
+  // exists only to hold a stable computed_at, never a real row to display.
+  const rankings: OverclockLeaderboardEntry[] = snapRows
+    .filter((r) => r.rank > 0)
+    .map((r) => ({
+      rank: r.rank,
+      userId: r.user_id,
+      username: r.username,
+      displayName: r.display_name,
+      damage: r.damage,
+    }));
   return { rankings, computedAt: latestComputedAt, nextUpdateAt: latestComputedAt + OVERCLOCK_SNAPSHOT_REFRESH_MS };
+}
+
+interface OverclockStandingRow {
+  rank: number;
+  damage: number;
+  total_players: number;
+}
+
+/** A player's own live rank + damage this week, computed straight from overclock_scores (not the
+ * up-to-2h-stale snapshot) — the snapshot only ever holds the top 100 (see
+ * OVERCLOCK_LEADERBOARD_SIZE), so a player outside that cut still needs a real answer to "how far
+ * am I". Cheap enough to run on every leaderboard read (one aggregation over this week's rows, not
+ * the whole table) that there's no need to route it through the snapshot's own staleness gate. */
+export async function getOverclockUserStanding(
+  userId: string,
+  weekId: string
+): Promise<{ rank: number; totalPlayers: number; damage: number } | null> {
+  const [rows] = await bq().query({
+    query: `
+      WITH ranked AS (
+        SELECT s.user_id, s.best_damage, RANK() OVER (ORDER BY s.best_damage DESC) AS rnk
+        FROM ${table("overclock_scores")} s
+        JOIN ${table("users")} u ON u.id = s.user_id
+        WHERE s.week_id = @weekId AND u.is_admin = false AND u.is_banned = false
+      )
+      SELECT rnk AS rank, best_damage AS damage, (SELECT COUNT(*) FROM ranked) AS total_players
+      FROM ranked WHERE user_id = @userId
+    `,
+    params: { weekId, userId },
+  });
+  if (rows.length === 0) return null;
+  const row = rows[0] as OverclockStandingRow;
+  return { rank: Number(row.rank), totalPlayers: Number(row.total_players), damage: Number(row.damage) };
 }
 
 interface OverclockHistoryRow {

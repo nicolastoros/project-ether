@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Crown, Trophy, Medal } from "lucide-react";
+import { motion } from "framer-motion";
+import { Crown, Trophy, Medal, RefreshCw, Swords } from "lucide-react";
 import { useGameStore } from "@/lib/store";
 import { STARTER_CREATURES, ITEM_CATALOG } from "@/lib/gameData";
 import {
@@ -45,6 +46,7 @@ interface LeaderboardData {
   computedAt: number;
   nextUpdateAt: number;
   yourRank: number | null;
+  totalPlayers: number;
   history: HistoryEntry[];
 }
 
@@ -84,19 +86,19 @@ function RewardTierRow({ rank }: { rank: 1 | 2 | 3 }) {
     (i): i is NonNullable<typeof i> => Boolean(i)
   );
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-2.5">
-      <span className="flex items-center gap-2 font-arcade text-[10px] uppercase tracking-wide text-foreground">
-        <Icon className={cn("h-4 w-4", rank === 1 ? "text-gold-bright" : rank === 2 ? "text-zinc-400" : "text-amber-700")} />
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-3">
+      <span className="flex items-center gap-2 font-arcade text-[11px] uppercase tracking-wide text-foreground sm:text-xs">
+        <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6", rank === 1 ? "text-gold-bright" : rank === 2 ? "text-zinc-400" : "text-amber-700")} />
         {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} Place
       </span>
-      <span className="flex items-center gap-2 text-xs text-zinc-600">
-        <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-          <Image src="/assets/objects/lacrima.png" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+      <span className="flex items-center gap-3 text-sm text-zinc-600">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
+          <Image src="/assets/objects/lacrima.png" alt="" width={20} height={20} className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
           {OVERCLOCK_REWARD_LACRIMA_BY_RANK[rank]}
         </span>
         {chipItems.map((item) => (
-          <span key={item.id} className="inline-flex items-center gap-1">
-            <ItemIcon item={item} className="h-4 w-4" /> {OVERCLOCK_REWARD_CHIPSET_AMOUNT}
+          <span key={item.id} className="inline-flex items-center gap-1.5">
+            <ItemIcon item={item} className="h-5 w-5 sm:h-6 sm:w-6" /> {OVERCLOCK_REWARD_CHIPSET_AMOUNT}
           </span>
         ))}
       </span>
@@ -112,6 +114,7 @@ export function OverclockHome() {
   const creatures = useGameStore((s) => s.creatures);
   const isOnExpedition = useGameStore((s) => s.isOnExpedition);
   const overclockBestDamage = useGameStore((s) => s.profile.overclockBestDamage ?? 0);
+  const myUserId = useGameStore((s) => s.profile.id);
 
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -220,43 +223,73 @@ export function OverclockHome() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-arcade text-lg glow-text-gold">Overclock</h1>
-        <p className="mt-1 text-xs text-zinc-500">A weekly ranked boss — repeat as many times as you want, your best run counts.</p>
+        <h1 className="font-arcade text-lg glow-text-gold sm:text-xl">Overclock</h1>
+        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">A weekly ranked boss — repeat as many times as you want, your best run counts.</p>
       </div>
 
       {loading ? (
         <LoadingOverlay show label="Loading this week's Overclock..." />
       ) : (
         <>
-          <GlowPanel accent="gold" className="flex items-center gap-4 p-4">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame">
-              <CreatureSprite creature={bossCreature} className="h-16 w-16" />
+          <GlowPanel accent="gold" className="flex items-center gap-4 p-4" data-tour="overclock-boss">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gold bg-arcade-panel-light pixel-frame sm:h-24 sm:w-24">
+              <CreatureSprite creature={bossCreature} className="h-16 w-16 sm:h-20 sm:w-20" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-gold-bright">Week {data?.weekNumber ?? "—"}</p>
-              <p className="text-base font-semibold text-foreground">{data?.bossName ?? boss.name}</p>
-              <p className="text-[10px] text-zinc-500">Ranking updates in {nextUpdateLabel || "…"} · Resets in {resetLabel || "…"}</p>
+              <p className="font-arcade text-[11px] uppercase tracking-wide text-gold-bright sm:text-xs">Week {data?.weekNumber ?? "—"}</p>
+              <p className="text-base font-semibold text-foreground sm:text-lg">{data?.bossName ?? boss.name}</p>
+              <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">Ranking updates in {nextUpdateLabel || "…"} · Resets in {resetLabel || "…"}</p>
             </div>
           </GlowPanel>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-3">
-              <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-2">
-                <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Your Best This Week</p>
-                <p className="font-arcade text-lg text-gold-bright">{formatNumber(overclockBestDamage)}</p>
-                {data?.yourRank && <p className="text-[10px] text-zinc-500">Currently rank #{data.yourRank}</p>}
+              <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-3" data-tour="overclock-best">
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Your Best This Week</p>
+                <p className="font-arcade text-xl text-gold-bright sm:text-2xl">{formatNumber(overclockBestDamage)}</p>
+                {data?.yourRank ? (
+                  <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">
+                    Currently rank <span className="font-semibold text-gold-ink">#{data.yourRank}</span> of {formatNumber(data.totalPlayers)}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">Not ranked yet — fight the boss to get on the board.</p>
+                )}
               </div>
 
-              <div className="space-y-1.5">
-                <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Rewards</p>
+              <div className="space-y-1.5" data-tour="overclock-rewards">
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Rewards</p>
                 <RewardTierRow rank={1} />
                 <RewardTierRow rank={2} />
                 <RewardTierRow rank={3} />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Leaderboard</p>
+            <div className="space-y-1.5" data-tour="overclock-leaderboard">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Leaderboard</p>
+                {/* The server only actually recomputes once its own 2h window has passed (see
+                    getOverclockLeaderboard) — this button doesn't bypass that, it just re-runs the
+                    same check on demand instead of making the player wait for a passive countdown
+                    or a full page reload to find out whether it moved. Given its own pulsing glow
+                    (not just a static outline) so it reads as a real action, not a stray label. */}
+                <motion.button
+                  type="button"
+                  onClick={fetchLeaderboard}
+                  animate={{
+                    boxShadow: [
+                      "0 0 0px rgba(255,184,77,0.35)",
+                      "0 0 14px rgba(255,184,77,0.85)",
+                      "0 0 0px rgba(255,184,77,0.35)",
+                    ],
+                  }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  whileTap={{ scale: 0.94 }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-gold-bright to-gold px-3.5 py-2 font-arcade text-[10px] uppercase tracking-wide text-white sm:text-[11px]"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  Update Ranking
+                </motion.button>
+              </div>
               <GlowPanel accent="none" className="max-h-64 overflow-y-auto p-2">
                 {data && data.rankings.length > 0 ? (
                   <div className="space-y-1">
@@ -264,12 +297,12 @@ export function OverclockHome() {
                       <div
                         key={entry.userId}
                         className={cn(
-                          "flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs",
-                          entry.rank === data.yourRank ? "bg-gold/15 text-gold-ink font-semibold" : "text-zinc-600"
+                          "flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm",
+                          entry.userId === myUserId ? "bg-gold/15 text-gold-ink font-semibold" : "text-zinc-600"
                         )}
                       >
                         <span className="flex items-center gap-2 truncate">
-                          <span className="font-arcade text-[10px] text-zinc-400">#{entry.rank}</span>
+                          <span className="font-arcade text-[10px] text-zinc-400 sm:text-[11px]">#{entry.rank}</span>
                           <span className="truncate">{entry.displayName}</span>
                         </span>
                         <span className="shrink-0 font-mono">{formatNumber(entry.damage)}</span>
@@ -277,16 +310,29 @@ export function OverclockHome() {
                     ))}
                   </div>
                 ) : (
-                  <p className="p-3 text-center text-xs text-zinc-500">No scores yet this week — be the first!</p>
+                  <p className="p-3 text-center text-xs text-zinc-500 sm:text-sm">No scores yet this week — be the first!</p>
                 )}
               </GlowPanel>
 
+              {/* Own standing, called out separately, whenever it wouldn't otherwise show up in
+                  the Top 20 list above — the whole point is knowing how far off you are even when
+                  you're nowhere near the visible board. */}
+              {data?.yourRank && data.yourRank > 20 && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-xs sm:text-sm">
+                  <span className="flex items-center gap-2 font-semibold text-gold-ink">
+                    <span className="font-arcade text-[10px] sm:text-[11px]">#{data.yourRank}</span>
+                    Your Rank · of {formatNumber(data.totalPlayers)}
+                  </span>
+                  <span className="shrink-0 font-mono text-gold-ink">{formatNumber(overclockBestDamage)}</span>
+                </div>
+              )}
+
               {data && data.history.length > 0 && (
                 <>
-                  <p className="pt-2 font-arcade text-[10px] uppercase tracking-wide text-zinc-500">Previous Weeks</p>
+                  <p className="pt-2 font-arcade text-[11px] uppercase tracking-wide text-zinc-500 sm:text-xs">Previous Weeks</p>
                   <div className="space-y-1">
                     {data.history.map((h) => (
-                      <div key={h.weekId} className="flex items-center justify-between gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light px-2.5 py-1.5 text-[10px] text-zinc-600">
+                      <div key={h.weekId} className="flex items-center justify-between gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light px-2.5 py-1.5 text-[11px] text-zinc-600 sm:text-xs">
                         <span>{h.bossName}</span>
                         <span className="flex items-center gap-2">
                           {h.rank && <span className="font-arcade text-gold-bright">#{h.rank}</span>}
@@ -302,13 +348,26 @@ export function OverclockHome() {
         </>
       )}
 
-      <button
+      <motion.button
         type="button"
         onClick={() => setPicking(true)}
-        className="mx-auto block w-fit"
+        data-tour="overclock-start"
+        animate={{
+          scale: [1, 1.03, 1],
+          boxShadow: [
+            "0 0 10px rgba(255,184,77,0.5)",
+            "0 0 26px rgba(255,184,77,0.9)",
+            "0 0 10px rgba(255,184,77,0.5)",
+          ],
+        }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="mx-auto flex w-fit items-center gap-2 rounded-full bg-gradient-to-br from-gold-bright to-gold px-8 py-3 font-arcade text-sm uppercase tracking-widest text-white sm:px-10 sm:text-base"
       >
-        <Image src="/assets/ui/start_button.png" alt="Start" width={2172} height={724} className="h-auto w-48" />
-      </button>
+        <Swords className="h-5 w-5 sm:h-6 sm:w-6" />
+        Battle!
+      </motion.button>
     </div>
   );
 }

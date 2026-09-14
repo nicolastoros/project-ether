@@ -108,6 +108,7 @@ export function TopStatusBar() {
               type="button"
               onClick={() => router.push("/shop?tab=premium")}
               aria-label="Buy Lacrima"
+              data-tour="lacrima-buy"
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1.3, repeat: Infinity, repeatType: "loop", ease: "easeInOut" }}
               whileTap={{ scale: 0.85 }}

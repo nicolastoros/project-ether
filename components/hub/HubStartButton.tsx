@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
  * buttons" — this needs to read as THE way in, so it gets its own full-width row. */
 export function HubStartButton() {
   return (
-    <Link href="/start" className="group block">
+    <Link href="/start" className="group block" data-tour="hub-start">
       <motion.div
         animate={{
           scale: [1, 1.015, 1],

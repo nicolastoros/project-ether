@@ -225,7 +225,7 @@ export function MobileHeroHub() {
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
         {/* Straight into the mode-select hub (app/(game)/start/page.tsx) — Adventure, Survivor,
             Overclock, Infinite Tower all live there now instead of in an in-place sheet here. */}
-        <Link href="/start" className="mx-auto block w-fit">
+        <Link href="/start" className="mx-auto block w-fit" data-tour="hub-start">
           <motion.div
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{

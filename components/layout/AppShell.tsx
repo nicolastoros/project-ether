@@ -8,6 +8,7 @@ import { TopStatusBar } from "@/components/layout/TopStatusBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
 import { TutorialBubble } from "@/components/ui/TutorialBubble";
+import { WhatsNewTour } from "@/components/tutorial/WhatsNewTour";
 
 // Route -> full-screen backdrop swap for the main content column (behind TopStatusBar/main/
 // BottomNav, not the Sidebar — it keeps its own opaque nav surface). Add an entry here to give any
@@ -71,6 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <MobileDrawer />
       <TutorialBubble />
+      <WhatsNewTour />
     </div>
   );
 }
