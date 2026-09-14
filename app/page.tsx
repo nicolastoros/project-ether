@@ -1,30 +1,10 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { loadAccountIntoStore } from "@/lib/loadAccount";
 import { LandingPage } from "@/components/landing/LandingPage";
 
-// The root route is now the public marketing landing (was the login form — that moved to
-// app/play/page.tsx, which every "Play"/"Log In" link on this page points at). A visitor who's
-// already got a live session skips straight past the pitch into the game, same as the old login
-// page did for a returning player.
+// The root route is the public marketing landing — shown to every visitor regardless of session
+// state, logged-in or not, so a returning player still sees the pitch/layout instead of getting
+// bounced straight past it. "Play Now" links here all point at /play, which is the one place that
+// auto-logs an already-authenticated session straight into /hub (see its own comment) — that's
+// where the "account is saved, skip the login form" behavior belongs, not here.
 export default function RootPage() {
-  const { status } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    let cancelled = false;
-    (async () => {
-      const loaded = await loadAccountIntoStore();
-      if (!cancelled && loaded) router.replace("/hub");
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, router]);
-
   return <LandingPage />;
 }
