@@ -246,13 +246,15 @@ export function calcHeal(caster: Creature, power: number): number {
   return Math.max(15, Math.round((power || 80) * (stats.atk / 140))) + stats.heal * 20;
 }
 
-/** One combatant taking a damage/heal number this action — powers the floating Dokkan-style
- * number in CombatantCard.tsx. `isCrit` drives that number's special critical-hit styling. */
+/** One combatant taking a damage/heal number (or dodging one) this action — powers the floating
+ * Dokkan-style number in CombatantCard.tsx. `isCrit` drives that number's special critical-hit
+ * styling; `isMiss` (amount always 0 alongside it) swaps the number for a "Miss!" callout instead. */
 export interface HitInfo {
   uid: string;
   amount: number;
   isCrit: boolean;
   isHeal: boolean;
+  isMiss: boolean;
 }
 
 interface ApplyActionResult {
@@ -287,7 +289,7 @@ export function applyAction(
     actor.statusEffects.poison!--;
     const poisonDmg = Math.max(1, Math.round(actor.maxHp * 0.08));
     actor.currentHp = Math.max(0, actor.currentHp - poisonDmg);
-    hits.push({ uid: actor.uid, amount: poisonDmg, isCrit: false, isHeal: false });
+    hits.push({ uid: actor.uid, amount: poisonDmg, isCrit: false, isHeal: false, isMiss: false });
     logs.push({ id: nextLogId(), kind: "info", message: `${actor.creature.name} takes ${poisonDmg} poison damage!` });
     if (actor.currentHp === 0 && actor.isAlive) {
       actor.isAlive = false;
@@ -332,7 +334,12 @@ export function applyAction(
     // (Magnagold's Draconic Power), which is why this reads target.passiveEvasionBonus and not
     // just targetStats.evasion alone.
     if (Math.random() * 100 < targetStats.evasion + target.passiveEvasionBonus) {
-      logs.push({ id: nextLogId(), message: `${target.creature.name} evaded the attack!`, kind: "info" });
+      // A floating "Miss!" (via hits, same pipeline as a damage number) rather than an "info" log
+      // entry — an "info" kind gets swept into the blocking tap-to-continue notice panel every
+      // battle screen shows (see their own resolveTurn's noticeEntries), and evasion is frequent
+      // and minor enough that pausing the whole fight for it read as far more disruptive than a
+      // miss should ever be, unlike a real status/telegraph event.
+      hits.push({ uid: target.uid, amount: 0, isCrit: false, isHeal: false, isMiss: true });
       return;
     }
 
@@ -343,7 +350,7 @@ export function applyAction(
       const { dmg, isCrit } = calcDamage(actor.creature, target.creature, skill.power, target.guarding, isSuperAttack, atkMult, defMult);
       target.currentHp = Math.max(0, target.currentHp - dmg);
       target.guarding = false;
-      hits.push({ uid: target.uid, amount: dmg, isCrit, isHeal: false });
+      hits.push({ uid: target.uid, amount: dmg, isCrit, isHeal: false, isMiss: false });
       logs.push({
         id: nextLogId(),
         kind: "attack",
@@ -409,7 +416,7 @@ export function applyAction(
     if (target) {
       const heal = calcHeal(actor.creature, skill.power);
       target.currentHp = Math.min(target.maxHp, target.currentHp + heal);
-      hits.push({ uid: target.uid, amount: heal, isCrit: false, isHeal: true });
+      hits.push({ uid: target.uid, amount: heal, isCrit: false, isHeal: true, isMiss: false });
       logs.push({
         id: nextLogId(),
         kind: "heal",

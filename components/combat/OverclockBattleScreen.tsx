@@ -203,7 +203,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
     const bossUid = bossCombatant?.uid;
     let dealtThisAction = 0;
     if (bossUid) {
-      dealtThisAction = hits.filter((h) => h.uid === bossUid && !h.isHeal).reduce((sum, h) => sum + h.amount, 0);
+      dealtThisAction = hits.filter((h) => h.uid === bossUid && !h.isHeal && !h.isMiss).reduce((sum, h) => sum + h.amount, 0);
       if (dealtThisAction > 0) setTotalDamageDealt((prev) => prev + dealtThisAction);
     }
     // The accurate total as of THIS action, computed locally rather than read back from state —

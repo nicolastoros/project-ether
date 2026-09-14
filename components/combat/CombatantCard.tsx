@@ -113,6 +113,9 @@ export function CombatantCard({
 
   useEffect(() => {
     if (!myHit) return;
+    // A miss means nothing actually landed — no shake, no flash, just the floating "Miss!" text
+    // below reads as the whole event.
+    if (myHit.isMiss) return;
     if (myHit.isCrit) {
       // Bigger, longer shake for a critical — the number popping alone wasn't enough to read as
       // "special" at a glance the way Dokkan's own screen-shake-on-crit does.
@@ -242,20 +245,26 @@ export function CombatantCard({
               }}
               className={cn(
                 "pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 whitespace-nowrap text-center font-arcade font-black leading-none",
-                myHit.isHeal
-                  ? "text-emerald-400 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
-                  : myHit.isCrit
-                    ? "text-amber-300 drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]"
-                    : "text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
+                myHit.isMiss
+                  ? "text-zinc-300 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
+                  : myHit.isHeal
+                    ? "text-emerald-400 drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
+                    : myHit.isCrit
+                      ? "text-amber-300 drop-shadow-[0_0_10px_rgba(245,158,11,0.9)]"
+                      : "text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]"
               )}
             >
               {myHit.isCrit && (
                 <div className="text-[9px] font-bold tracking-widest text-red-400 sm:text-[10px]">CRITICAL!</div>
               )}
-              <div className={myHit.isCrit ? "text-2xl sm:text-3xl" : "text-base sm:text-lg"}>
-                {myHit.isHeal ? "+" : "-"}
-                {myHit.amount}
-              </div>
+              {myHit.isMiss ? (
+                <div className="text-lg italic sm:text-xl">Miss!</div>
+              ) : (
+                <div className={myHit.isCrit ? "text-2xl sm:text-3xl" : "text-base sm:text-lg"}>
+                  {myHit.isHeal ? "+" : "-"}
+                  {myHit.amount}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
