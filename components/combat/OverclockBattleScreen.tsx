@@ -126,19 +126,25 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
   const isPlayerTurn = phase === "active" && actor?.side === "player";
   const bossCombatant = combatants.find((c) => c.side === "enemy") ?? null;
 
-  function checkEndConditions(next: BattleCombatant[], logs: BattleLogEntry[]) {
+  function checkEndConditions(next: BattleCombatant[], logs: BattleLogEntry[], currentTotalDamage: number) {
     const enemiesAlive = next.some((c) => c.side === "enemy" && c.isAlive);
     const playersAlive = next.some((c) => c.side === "player" && c.isAlive);
 
     if (!enemiesAlive || !playersAlive) {
       setPhase(!enemiesAlive ? "victory" : "defeat");
-      // Win or lose, the running damage total (already tracked live — see resolveTurn) is the
-      // whole score. No gold/exp/items either way, by design (confirmed with the user) — the
-      // ranking itself is the only reward, so a normal fight can never be farmed for loot.
+      // Win or lose, the running damage total is the whole score. No gold/exp/items either way, by
+      // design (confirmed with the user) — the ranking itself is the only reward, so a normal fight
+      // can never be farmed for loot.
+      //
+      // currentTotalDamage (not the totalDamageDealt state var) on purpose: the killing blow against
+      // the boss is exactly the action that ends the fight, and setTotalDamageDealt's update from
+      // that same resolveTurn call hasn't been applied to this render's closure yet when this runs
+      // (React state updates aren't synchronous) — reading the state var here silently dropped every
+      // victory's final hit from the submitted score.
       if (!scoreSubmitted) {
         setScoreSubmitted(true);
-        submitOverclockScore(totalDamageDealt);
-        submitOverclockScoreOnServer(totalDamageDealt);
+        submitOverclockScore(currentTotalDamage);
+        submitOverclockScoreOnServer(currentTotalDamage);
       }
       return;
     }
@@ -195,10 +201,14 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
     // winning or losing the fight — tracked live (not just at the end) so the HUD can show a
     // running total during the fight too.
     const bossUid = bossCombatant?.uid;
+    let dealtThisAction = 0;
     if (bossUid) {
-      const dealtThisAction = hits.filter((h) => h.uid === bossUid && !h.isHeal).reduce((sum, h) => sum + h.amount, 0);
+      dealtThisAction = hits.filter((h) => h.uid === bossUid && !h.isHeal).reduce((sum, h) => sum + h.amount, 0);
       if (dealtThisAction > 0) setTotalDamageDealt((prev) => prev + dealtThisAction);
     }
+    // The accurate total as of THIS action, computed locally rather than read back from state —
+    // see checkEndConditions' own comment on why.
+    const runningTotalDamage = totalDamageDealt + dealtThisAction;
 
     const playAttackThenSettle = () => {
       if (skill.type === "Attack") {
@@ -207,13 +217,13 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
           if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
           setCombatants(next);
           setPendingSkill(null);
-          checkEndConditions(next, logs);
+          checkEndConditions(next, logs, runningTotalDamage);
         }, 220);
       } else {
         if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
         setCombatants(next);
         setPendingSkill(null);
-        checkEndConditions(next, logs);
+        checkEndConditions(next, logs, runningTotalDamage);
       }
     };
 
