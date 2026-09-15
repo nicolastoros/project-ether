@@ -679,6 +679,7 @@ const en = {
   "overclock.your_rank_prefix": "Your Rank · of ",
   "overclock.previous_weeks": "Previous Weeks",
   "overclock.battle": "Battle!",
+  "hub.missions_label": "Missions",
 } as const;
 
 const es: Record<keyof typeof en, string> = {
@@ -1352,6 +1353,7 @@ const es: Record<keyof typeof en, string> = {
   "overclock.your_rank_prefix": "Tu Puesto · de ",
   "overclock.previous_weeks": "Semanas Anteriores",
   "overclock.battle": "¡Batalla!",
+  "hub.missions_label": "Misiones",
 };
 
 export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = { en, es };

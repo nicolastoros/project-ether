@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, ClipboardList, X, type LucideIcon } from "lucide-react";
 import { useGameStore } from "@/lib/store";
-import { NAV_GROUPS } from "@/lib/navigation";
-import { DailyTaskList } from "@/components/hub/DailyTaskList";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { RAID_EVENTS } from "@/lib/raidBosses";
 import { getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
@@ -15,9 +12,6 @@ import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
 import { useT } from "@/lib/i18n/useT";
 import type { Language, TranslationKey } from "@/lib/i18n/translations";
 import { cn } from "@/lib/utils";
-
-const COLLECTION_RAIL = NAV_GROUPS.find((g) => g.titleKey === "nav.collection")?.items ?? [];
-const SOCIAL_RAIL = NAV_GROUPS.find((g) => g.titleKey === "nav.social")?.items ?? [];
 
 interface HeroSlide {
   id: string;
@@ -83,49 +77,7 @@ function buildHeroSlides(t: (key: TranslationKey) => string, language: Language)
 
 const SLIDE_DURATION_MS = 5500;
 
-interface RailButtonProps {
-  label: string;
-  icon: LucideIcon;
-  href?: string;
-  onClick?: () => void;
-  badge?: boolean;
-}
-
-function RailButton({ label, icon: Icon, href, onClick, badge }: RailButtonProps) {
-  const content = (
-    <>
-      <span className="relative">
-        <Icon className="h-4 w-4 text-foreground" />
-        {badge && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 font-arcade text-[7px] text-white ring-2 ring-white">
-            !
-          </span>
-        )}
-      </span>
-      <span className="font-arcade text-[7px] uppercase tracking-wide text-zinc-600">{label}</span>
-    </>
-  );
-  const className =
-    "flex flex-col items-center gap-1 rounded-2xl border border-white/60 bg-white/85 px-2 py-2 shadow-sm backdrop-blur-sm transition-transform active:scale-95";
-
-  if (href) {
-    return (
-      <Link href={href} className={className}>
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <button type="button" onClick={onClick} className={className}>
-      {content}
-    </button>
-  );
-}
-
 export function MobileHeroHub() {
-  const dailyTasks = useGameStore((s) => s.dailyTasks);
-  const [missionsOpen, setMissionsOpen] = useState(false);
-  const hasClaimableMission = dailyTasks.some((task) => task.progress >= task.target && !task.claimed);
   const t = useT();
   const language = useGameStore((s) => s.language);
   const HERO_SLIDES = useMemo(() => buildHeroSlides(t, language), [t, language]);
@@ -183,8 +135,8 @@ export function MobileHeroHub() {
       <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
 
       {/* One big, comfortable tap target covering the whole art — straight to whatever the slide
-          is advertising — sits below the rail buttons and Start controls (both z-10) so it never
-          steals their taps. The slide dots are a separate control layered on top of it. */}
+          is advertising — sits below the Start control (z-10) so it never steals its taps. The
+          slide dots are a separate control layered on top of it. */}
       <Link href={slide.href} className="absolute inset-0">
         <div className="absolute inset-x-0 bottom-32 px-4">
           <span className="inline-block rounded-full bg-black/50 px-2.5 py-1 font-arcade text-[8px] uppercase tracking-widest text-gold-bright backdrop-blur-sm">
@@ -215,23 +167,6 @@ export function MobileHeroHub() {
           ))}
         </div>
       )}
-
-      <div className="absolute left-3 top-3 z-10 flex flex-col gap-2">
-        {COLLECTION_RAIL.map((item) => (
-          <RailButton key={item.href} href={item.href} icon={item.icon} label={t(item.labelKey)} />
-        ))}
-      </div>
-      <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
-        {SOCIAL_RAIL.map((item) => (
-          <RailButton key={item.href} href={item.href} icon={item.icon} label={t(item.labelKey)} />
-        ))}
-        <RailButton
-          label="Missions"
-          icon={ClipboardList}
-          onClick={() => setMissionsOpen(true)}
-          badge={hasClaimableMission}
-        />
-      </div>
 
       <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
         {/* Straight into the mode-select hub (app/(game)/start/page.tsx) — Adventure, Survivor,
@@ -267,36 +202,6 @@ export function MobileHeroHub() {
           </motion.div>
         </Link>
       </div>
-
-      <AnimatePresence>
-        {missionsOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMissionsOpen(false)}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="relative max-h-[75vh] w-full max-w-md overflow-y-auto"
-            >
-              <button
-                onClick={() => setMissionsOpen(false)}
-                aria-label="Close"
-                className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-              <DailyTaskList />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

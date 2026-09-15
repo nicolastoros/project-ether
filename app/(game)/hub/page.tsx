@@ -1,6 +1,7 @@
 import { DungeonProgressCard } from "@/components/hub/DungeonProgressCard";
 import { CreatureShowcase } from "@/components/hub/CreatureShowcase";
 import { QuickActions } from "@/components/hub/QuickActions";
+import { QuickAccessRail } from "@/components/hub/QuickAccessRail";
 import { DailyTaskList } from "@/components/hub/DailyTaskList";
 import { MobileHeroHub } from "@/components/hub/MobileHeroHub";
 import { HubHeroCarousel } from "@/components/hub/HubHeroCarousel";
@@ -13,6 +14,7 @@ export default function HubPage() {
         <div className="-mx-3 -mt-4 flex flex-1 flex-col">
           <MobileHeroHub />
         </div>
+        <QuickAccessRail />
         <div className="mt-3">
           <DungeonProgressCard />
         </div>

@@ -7,8 +7,11 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Lock, Mail, User, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { STARTER_CREATURES, STARTER_CHOICE_IDS, type StarterChoiceId } from "@/lib/gameData";
-import { ELEMENT_ICON, ELEMENT_GRADIENT } from "@/lib/elementVisuals";
+import { ELEMENT_GRADIENT } from "@/lib/elementVisuals";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { RarityCardAura } from "@/components/ui/MythicCardAura";
+import { RarityBadge } from "@/components/ui/RarityBadge";
 import { loadAccountIntoStore } from "@/lib/loadAccount";
 import { useT } from "@/lib/i18n/useT";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -292,40 +295,48 @@ export default function RegisterPage() {
                 className="flex w-full flex-col gap-3"
               >
                 <p className="text-xs text-zinc-500">{t("auth.choose_first_creature")}</p>
-                <div className="flex flex-col gap-2.5">
-                  {STARTER_OPTIONS.map((creature) => {
-                    const Icon = ELEMENT_ICON[creature.element];
+                <div className="flex flex-col gap-3">
+                  {STARTER_OPTIONS.map((creature, i) => {
                     const selected = starterCreatureId === creature.id;
                     return (
-                      <button
+                      <motion.button
                         key={creature.id}
                         type="button"
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.08, duration: 0.3, ease: "easeOut" }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => setStarterCreatureId(creature.id as StarterChoiceId)}
                         className={cn(
-                          "pixel-frame flex items-center gap-3 rounded-2xl bg-arcade-panel/95 px-3 py-2.5 text-left shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.01]",
+                          "pixel-frame relative flex items-center gap-3 overflow-hidden rounded-2xl bg-arcade-panel/95 p-3 text-left shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.015]",
                           selected ? "glow-border-gold bg-gold/10" : "border border-arcade-border"
                         )}
                       >
+                        <RarityCardAura rarity={creature.rarity} />
                         <div
                           className={cn(
-                            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gold bg-gradient-to-b glow-border-gold",
-                            ELEMENT_GRADIENT[creature.element]
+                            "relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-gradient-to-b pixel-frame",
+                            ELEMENT_GRADIENT[creature.element],
+                            selected ? "border-gold" : "border-arcade-border"
                           )}
                         >
-                          <Icon className="h-6 w-6 text-gold-bright" />
+                          <CreatureSprite creature={creature} className="h-4/5 w-4/5 text-gold-bright" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{creature.name}</p>
-                          <p className="truncate text-[10px] text-zinc-500">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-base font-bold text-foreground">{creature.name}</p>
+                            <RarityBadge rarity={creature.rarity} />
+                          </div>
+                          <p className="mt-1 truncate text-[11px] text-zinc-500">
                             {creature.element} · HP {creature.baseStats.hp} · ATK {creature.baseStats.atk}
                           </p>
                         </div>
                         {selected && (
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold text-white">
-                            <Check className="h-3 w-3" />
+                          <span className="absolute right-3 top-3 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-[0_0_10px_rgba(255,184,77,0.7)]">
+                            <Check className="h-3.5 w-3.5" />
                           </span>
                         )}
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>
