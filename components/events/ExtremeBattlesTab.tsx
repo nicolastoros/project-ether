@@ -6,6 +6,7 @@ import { useGameStore } from "@/lib/store";
 import { RAID_BOSSES, RAID_EVENTS, getRaidEnemyCreatures, type RaidBoss, type RaidEvent } from "@/lib/raidBosses";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import { RaidBattleScreen } from "@/components/combat/RaidBattleScreen";
+import { BattleControls } from "@/components/combat/BattleControls";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
@@ -74,14 +75,17 @@ export function ExtremeBattlesTab() {
   if (pickingBoss) {
     return (
       <div className="space-y-3">
-        <div>
-          <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← {t("common.back_to_stages")}
-          </button>
-          <h1 className="font-arcade text-lg glow-text-gold">{pickingBoss.name}</h1>
-          <p className="text-xs text-zinc-500">
-            {t("battle.choose_up_to_prefix")}{MAX_RAID_PARTY}{t("battle.choose_up_to_raid_suffix")}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-3">
+          <div>
+            <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
+               ← {t("common.back_to_stages")}
+            </button>
+            <h1 className="font-arcade text-lg glow-text-gold">{pickingBoss.name}</h1>
+            <p className="text-xs text-zinc-500">
+              {t("battle.choose_up_to_prefix")}{MAX_RAID_PARTY}{t("battle.choose_up_to_raid_suffix")}
+            </p>
+          </div>
+          <BattleControls />
         </div>
         <MultiCreaturePicker
           creatures={creatures}

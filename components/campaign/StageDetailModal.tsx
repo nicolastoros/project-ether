@@ -11,6 +11,7 @@ import { getDailyExpEventStageId } from "@/lib/expEvent";
 import { getStageEnemyTeam } from "@/lib/campaignEnemies";
 import { DIFFICULTY_TIERS, getTierStage, isTierUnlocked, tierStageId } from "@/lib/difficultyTiers";
 import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
+import { bestParty, partyPower } from "@/lib/power";
 import { useGameStore } from "@/lib/store";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
@@ -58,6 +59,7 @@ interface StageDetailModalProps {
 export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
   const t = useT();
   const dungeon = useGameStore((s) => s.dungeon);
+  const creatures = useGameStore((s) => s.creatures);
   const [selectedTier, setSelectedTier] = useState<DifficultyTier>("Easy");
   // Tracks which stage the current selectedTier was computed for, so it only resets when a
   // (possibly different) stage opens — an unrelated dungeon-state re-render shouldn't stomp a
@@ -80,6 +82,17 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
   // — the same check BattlePage.tsx uses to decide whether to fall back to the sandbox placeholder.
   const isPlayable = stage ? getStageEnemyTeam(stage) !== null : false;
   const isSelectedTierLocked = stage ? !isTierUnlocked(stage, selectedTier, dungeon) : true;
+
+  // Mirrors TeamSelectScreen.tsx's own canSweep formula, computed here from the player's 2
+  // strongest owned creatures (Campaign's own team cap) instead of an in-progress team-select —
+  // nothing has been picked yet at this point in the flow. Deliberately NOT partyCreatureIds (a
+  // separately-saved formation, e.g. from Formations > Teams) — for most players that's still the
+  // starter pair from account creation and badly understates what their actual roster can field.
+  const currentPower = partyPower(bestParty(creatures, 2));
+  const tierStageStars = stage ? dungeon.stageStars[tierStageId(stage.id, selectedTier)] : undefined;
+  const hasAllStarsForTier = Boolean(tierStageStars?.noDeaths && tierStageStars?.noItems && tierStageStars?.underFiveTurns);
+  const isOverpowered = stage ? currentPower >= stage.recommendedPower * 2 : false;
+  const canSkip = hasAllStarsForTier || isOverpowered;
 
   const specificGear = stage
     ? TAMER_EQUIPMENT_CATALOG.filter((t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id)
@@ -179,9 +192,12 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
               </div>
             </div>
 
-            <p className="mt-3 text-center text-[11px] text-zinc-500 lg:mt-5 lg:text-sm">
-              {t("campaign.recommended_power_prefix")}{formatNumber(stage.recommendedPower)}
-            </p>
+            <div className="mt-3 flex items-center justify-center gap-3 text-center text-[11px] text-zinc-500 lg:mt-5 lg:gap-5 lg:text-sm">
+              <span>{t("campaign.recommended_power_prefix")}{formatNumber(stage.recommendedPower)}</span>
+              <span className={cn(currentPower >= stage.recommendedPower ? "text-emerald-500" : "text-zinc-500")}>
+                {t("campaign.current_power_prefix")}{formatNumber(currentPower)}
+              </span>
+            </div>
 
             <div className="mt-4 rounded-xl border border-arcade-border bg-arcade-panel-light p-3 lg:mt-6 lg:rounded-2xl lg:p-5">
               <p className="text-center text-[10px] uppercase tracking-wide text-zinc-500 mb-2 lg:text-xs lg:mb-3">{t("campaign.possible_drops")}</p>
@@ -217,15 +233,32 @@ export function StageDetailModal({ stage, onClose }: StageDetailModalProps) {
                 {selectedTier === "Easy" ? t("campaign.clear_previous_stage") : t("campaign.clear_previous_difficulty")}
               </div>
             ) : isPlayable ? (
-              <Link href={`/combat?stage=${tierStageId(stage.id, selectedTier)}`} className="mt-4 block lg:mt-6" onClick={onClose}>
-                <PixelButton variant="gold" className="w-full lg:py-4 lg:text-base">
-                  {Boolean(dungeon.stageStars[tierStageId(stage.id, selectedTier)])
-                    ? t("campaign.replay")
-                    : isFinalAreaOfChapter(stage.world, stage.worldStageNumber)
-                      ? t("campaign.boss_battle")
-                      : t("campaign.battle")}
-                </PixelButton>
-              </Link>
+              <div className="mt-4 flex gap-2 lg:mt-6 lg:gap-3">
+                {canSkip && (
+                  <Link
+                    href={`/combat?stage=${tierStageId(stage.id, selectedTier)}&sweep=1`}
+                    className="flex-1"
+                    onClick={onClose}
+                  >
+                    <PixelButton
+                      variant="neon"
+                      title={isOverpowered && !hasAllStarsForTier ? t("team_select.sweep_power_hint") : undefined}
+                      className="w-full lg:py-4 lg:text-base"
+                    >
+                      {t("campaign.skip_stage")}
+                    </PixelButton>
+                  </Link>
+                )}
+                <Link href={`/combat?stage=${tierStageId(stage.id, selectedTier)}`} className="flex-1" onClick={onClose}>
+                  <PixelButton variant="gold" className="w-full lg:py-4 lg:text-base">
+                    {Boolean(dungeon.stageStars[tierStageId(stage.id, selectedTier)])
+                      ? t("campaign.replay")
+                      : isFinalAreaOfChapter(stage.world, stage.worldStageNumber)
+                        ? t("campaign.boss_battle")
+                        : t("campaign.battle")}
+                  </PixelButton>
+                </Link>
+              </div>
             ) : (
               <div className="mt-4 flex items-center justify-center gap-1.5 rounded-full bg-arcade-panel-light py-3 font-arcade text-xs uppercase text-zinc-500 lg:mt-6 lg:py-4 lg:text-sm">
                 {t("campaign.coming_soon")}

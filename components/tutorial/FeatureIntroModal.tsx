@@ -1,9 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { X, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, X, type LucideIcon } from "lucide-react";
 import type { FeatureIntroItem } from "@/lib/whatsNew";
 import { useT } from "@/lib/i18n/useT";
+import { cn } from "@/lib/utils";
 
 export type { FeatureIntroItem };
 
@@ -59,9 +61,36 @@ export function FeatureIntroModal({
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
           {items.map((entry) => (
-            <div key={entry.title} className="rounded-xl border border-arcade-border bg-arcade-panel-light p-3">
-              <p className="font-arcade text-[10px] uppercase tracking-wide text-gold-bright">{entry.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-foreground/90">{entry.body}</p>
+            <div
+              key={entry.title}
+              className={cn(
+                "rounded-xl border",
+                entry.featured
+                  ? "border-gold bg-gradient-to-br from-gold/15 to-transparent p-4 shadow-[0_0_18px_-4px_rgba(255,184,77,0.55)]"
+                  : "border-arcade-border bg-arcade-panel-light p-3"
+              )}
+            >
+              <p
+                className={cn(
+                  "font-arcade uppercase tracking-wide text-gold-bright",
+                  entry.featured ? "text-sm" : "text-[10px]"
+                )}
+              >
+                {entry.title}
+              </p>
+              <p className={cn("leading-relaxed text-foreground/90", entry.featured ? "mt-1.5 text-[13px]" : "mt-1 text-xs")}>
+                {entry.body}
+              </p>
+              {entry.cta && (
+                <Link
+                  href={entry.cta.href}
+                  onClick={onSkip}
+                  className="mt-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-br from-gold-bright to-gold px-3 py-1.5 font-arcade text-[10px] uppercase tracking-wide text-white shadow-[0_0_10px_rgba(255,184,77,0.55)]"
+                >
+                  {entry.cta.label}
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              )}
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Flame, Sparkles, ShieldHalf, Trophy } from "lucide-react";
+import { Flame, Sparkles, ShieldHalf, Trophy, Zap } from "lucide-react";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -17,6 +17,7 @@ function buildActions(t: ReturnType<typeof useT>) {
     { href: "/gacha", label: t("nav.summon"), icon: Sparkles, accent: "text-gold-bright", featured: true },
     { href: "/inventory", label: t("hub.action_blacksmith"), icon: ShieldHalf, accent: "text-gold-bright", featured: false },
     { href: "/ranking", label: t("hub.action_ranking"), icon: Trophy, accent: "text-violet-500", featured: false },
+    { href: "/overclock", label: t("hub.action_overclock"), icon: Zap, accent: "text-sky-400", featured: false },
   ] as const;
 }
 
@@ -24,7 +25,7 @@ export function QuickActions() {
   const t = useT();
   const ACTIONS = buildActions(t);
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
       {ACTIONS.map(({ href, label, icon: Icon, accent, featured }) => (
         <Link key={href} href={href}>
           <GlowPanel

@@ -17,10 +17,15 @@ export const WHATS_NEW_SEEN_ID = "whats-new-v1";
 
 /** Shared {title, body} card shape used by every one-time feature-intro modal (see
  * components/tutorial/FeatureIntroModal.tsx) — ChangelogEntry is just this file's own naming for
- * it, kept as an alias so WHATS_NEW_CHANGELOG's declaration below stays self-descriptive. */
+ * it, kept as an alias so WHATS_NEW_CHANGELOG's declaration below stays self-descriptive.
+ * `featured` renders a noticeably bigger, gold-accented card instead of the plain default one —
+ * for the handful of changes that shouldn't be easy to miss/forget on a quick skim. `cta` adds a
+ * button that navigates straight to the feature (and closes the modal on click, via onSkip). */
 export interface FeatureIntroItem {
   title: string;
   body: string;
+  featured?: boolean;
+  cta?: { label: string; href: string };
 }
 export type ChangelogEntry = FeatureIntroItem;
 
@@ -36,55 +41,51 @@ export interface CoachmarkStepDef {
 
 const changelogEn: ChangelogEntry[] = [
   {
-    title: "Overclock — Weekly Ranked Boss",
-    body: "Fight a rotating weekly boss 2-on-1 and rack up as much damage as you can before you fall. Top the leaderboard before it resets every Friday for Lacrima and rare chipsets.",
+    title: "⚡ Auto-Battle",
+    body: "Let your team fight on its own — faster, no tapping skills every turn. Toggle it right before any battle starts.",
+    featured: true,
   },
   {
-    title: "One Start Button",
-    body: "Adventure, Survivor, and the new Overclock all launch from a single Start button now, in the Hub and the sidebar.",
+    title: "⏩ x2 Speed",
+    body: "Skip the slow animations and blast through fights twice as fast. Combine it with Auto-Battle for the fastest grind.",
+    featured: true,
   },
   {
-    title: "LR Ultimate Attacks",
-    body: "LR creatures now unleash a full-screen Ultimate Attack on top of their passive skills — watch for the banner mid-battle.",
+    title: "🏃 Skip Battle",
+    body: "Clearly stronger than a Campaign stage? Skip it outright — no fighting required, rewards granted instantly.",
+    featured: true,
   },
   {
-    title: "Creature Categories",
-    body: "Every creature now carries Category tags — build teams around shared tags to trigger more LR passive synergies.",
-  },
-  {
-    title: "Tamer Set Effects",
-    body: "Equip every piece of one Tamer gear set to unlock its Set Effect — Crit Rate, EXP, ATK, or Skill Damage bonuses.",
-  },
-  {
-    title: "Premium Shop",
-    body: "A new Lacrima shop is on its way — check the Shop's Premium tab for a preview of what's coming.",
+    title: "🔥 Overclock",
+    body: "A weekly ranked boss fight, free to enter as many times as you want. Rack up damage and climb the leaderboard.",
+    featured: true,
+    cta: { label: "Play Overclock", href: "/overclock" },
   },
 ];
 
+// Neutral Latin American Spanish (tú, not vos) — matches the rest of lib/i18n/translations.ts's
+// existing convention; keep new entries here consistent with that, not Argentine voseo.
 const changelogEs: ChangelogEntry[] = [
   {
-    title: "Overclock — Jefe Ranqueado Semanal",
-    body: "Enfréntate a un jefe semanal rotativo 2 contra 1 y acumula todo el daño que puedas antes de caer. Sube al ranking antes de que se resetee cada viernes para ganar Lacrima y chipsets raros.",
+    title: "⚡ Batalla Automática",
+    body: "Deja que tu equipo pelee solo — más rápido, sin tocar habilidades en cada turno. Actívala justo antes de cualquier batalla.",
+    featured: true,
   },
   {
-    title: "Un Solo Botón de Inicio",
-    body: "Adventure, Survivor y el nuevo Overclock ahora se inician desde un solo botón de Start, tanto en el Hub como en la barra lateral.",
+    title: "⏩ Velocidad x2",
+    body: "Salta las animaciones lentas y resuelve combates el doble de rápido. Combínala con Batalla Automática para avanzar aún más rápido.",
+    featured: true,
   },
   {
-    title: "Ataques Ultimate LR",
-    body: "Las creaturas LR ahora desatan un Ataque Ultimate a pantalla completa además de sus habilidades pasivas — atento al banner durante la batalla.",
+    title: "🏃 Omitir Batalla",
+    body: "¿Eres claramente más fuerte que una etapa de Campaña? Omítela directamente — sin pelear, recompensas al instante.",
+    featured: true,
   },
   {
-    title: "Categorías de Creaturas",
-    body: "Cada creatura ahora tiene etiquetas de Categoría — arma equipos con etiquetas compartidas para activar más sinergias de pasivas LR.",
-  },
-  {
-    title: "Efectos de Set del Domador",
-    body: "Equipa todas las piezas de un set de equipo del Domador para desbloquear su Efecto de Set — bonos de Crítico, EXP, ATK o Daño de Habilidad.",
-  },
-  {
-    title: "Tienda Premium",
-    body: "Una nueva tienda de Lacrima está en camino — revisa la pestaña Premium de la Tienda para ver un adelanto.",
+    title: "🔥 Overclock",
+    body: "Un jefe ranqueado semanal, gratis las veces que quieras. Acumula daño y sube en el ranking.",
+    featured: true,
+    cta: { label: "Jugar Overclock", href: "/overclock" },
   },
 ];
 

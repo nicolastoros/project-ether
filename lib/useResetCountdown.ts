@@ -45,3 +45,33 @@ export function useWeeklyResetCountdown(): string {
   }, []);
   return label;
 }
+
+/** "Xd Yh" / "Xh Ym" / "Xm" countdown to an arbitrary timestamp, ticking once a minute — coarse on
+ * purpose, this is a "come back later" cue, not a stopwatch. Originally local to
+ * OverclockHome.tsx; moved here so the /start mode-select badge (app/(game)/start/page.tsx) can
+ * reuse the same countdown instead of a third copy. */
+export function useCountdownToTimestamp(targetMs: number | null): string {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    // Both branches live inside tick() (called once synchronously, then on each interval tick)
+    // rather than as a direct setState call in the effect body itself — same shape as this file's
+    // other countdown hooks above.
+    const tick = () => {
+      if (!targetMs) {
+        setLabel("");
+        return;
+      }
+      const msLeft = Math.max(0, targetMs - Date.now());
+      const days = Math.floor(msLeft / 86_400_000);
+      const hours = Math.floor((msLeft % 86_400_000) / 3_600_000);
+      const minutes = Math.floor((msLeft % 3_600_000) / 60_000);
+      if (days > 0) setLabel(`${days}d ${hours}h`);
+      else if (hours > 0) setLabel(`${hours}h ${minutes}m`);
+      else setLabel(`${minutes}m`);
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [targetMs]);
+  return label;
+}

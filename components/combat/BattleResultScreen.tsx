@@ -61,6 +61,13 @@ interface BattleResultScreenProps {
    * the reward row, in order. Presentation only; each screen keeps computing its own rewards. */
   bonusLines?: ReactNode[];
   defeatMessage?: string;
+  /** Overrides the default "Rematch" label — SweepScreen.tsx passes "Re-Sweep" so the button
+   * reads correctly for an instant-resolve clear instead of implying a fought rematch. */
+  rematchLabel?: string;
+  /** Skips the K.O.-splash overlay straight to the results panel — SweepScreen.tsx passes true
+   * since an instant Sweep clear never actually fought anything, so there's no "fight just ended"
+   * beat to punctuate. */
+  skipKoSplash?: boolean;
   onRematch: () => void;
   /** Link-based exit (BattleScreen returns to /campaign). Mutually exclusive with onExitClick. */
   exitHref?: string;
@@ -94,6 +101,8 @@ export function BattleResultScreen({
   tamerResult,
   bonusLines = [],
   defeatMessage,
+  rematchLabel,
+  skipKoSplash = false,
   onRematch,
   exitHref,
   onExitClick,
@@ -101,7 +110,7 @@ export function BattleResultScreen({
   nextHref,
   nextLabel,
 }: BattleResultScreenProps) {
-  const [showKoSplash, setShowKoSplash] = useState(phase === "victory");
+  const [showKoSplash, setShowKoSplash] = useState(phase === "victory" && !skipKoSplash);
   const t = useT();
   const resolvedDefeatMessage = defeatMessage ?? t("battle.defeat_message_team");
   const resolvedNextLabel = nextLabel ?? t("battle.next_area");
@@ -315,7 +324,7 @@ export function BattleResultScreen({
           <div className="flex gap-2 sm:gap-3">
             <PixelButton variant="ghost" className="flex-1 sm:py-3 sm:text-base" onClick={onRematch}>
               <RotateCcw className="mr-1 inline h-4 w-4 sm:h-5 sm:w-5" />
-              {t("battle.rematch")}
+              {rematchLabel ?? t("battle.rematch")}
             </PixelButton>
             {exitHref ? (
               <Link href={exitHref} className="flex-1" onClick={onExitClick}>

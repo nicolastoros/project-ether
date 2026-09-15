@@ -7,6 +7,7 @@ import { CHALLENGE_EVENTS, RAID_BOSSES, getRaidEnemyCreatures, type RaidBoss, ty
 import { ITEM_CATALOG, STARTER_CREATURES } from "@/lib/gameData";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
 import { RaidBattleScreen } from "@/components/combat/RaidBattleScreen";
+import { BattleControls } from "@/components/combat/BattleControls";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
@@ -112,14 +113,17 @@ export function ChallengeTab() {
     const maxPartySize = pickingBoss.creatureIds?.length ?? MAX_PARTY;
     return (
       <div className="space-y-3">
-        <div>
-          <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             ← {t("common.back")}
-          </button>
-          <h1 className={cn("font-arcade text-lg", tierColorClass(pickingBoss.id))}>{pickingBoss.name}</h1>
-          <p className="text-xs text-zinc-500">
-            {t("battle.choose_up_to_prefix")}{maxPartySize}{t("battle.choose_up_to_suffix")}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-3">
+          <div>
+            <button onClick={() => setPickingBoss(null)} className="text-zinc-500 hover:text-white mb-2 text-xs">
+               ← {t("common.back")}
+            </button>
+            <h1 className={cn("font-arcade text-lg", tierColorClass(pickingBoss.id))}>{pickingBoss.name}</h1>
+            <p className="text-xs text-zinc-500">
+              {t("battle.choose_up_to_prefix")}{maxPartySize}{t("battle.choose_up_to_suffix")}
+            </p>
+          </div>
+          <BattleControls />
         </div>
         <MultiCreaturePicker
           creatures={creatures}

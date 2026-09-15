@@ -18,6 +18,10 @@ function CombatPageContent() {
   const stageId = searchParams.get("stage");
   const eventId = searchParams.get("eventId");
   const difficultyId = searchParams.get("difficultyId");
+  // Set only by StageDetailModal.tsx's "Skip" button (an explicit click, never a default) — lets
+  // BattlePage below jump straight into a Sweep using the player's current party, instead of
+  // landing on team-select first just to click Sweep there too.
+  const autoSweep = searchParams.get("sweep") === "1";
 
   if (eventId && difficultyId) {
     const ev = ORB_EVENTS.find((e) => e.id === eventId);
@@ -77,7 +81,7 @@ function CombatPageContent() {
   // battles via ?stage= (see StageDetailModal.tsx) — there's no standalone "sandbox" mode here
   // anymore (see Raid Battle / Expeditions for that).
   if (stage && getStageEnemyTeam(stage) !== null) {
-    return <BattlePage stage={stage} />;
+    return <BattlePage stage={stage} autoSweep={autoSweep} />;
   }
 
   return (

@@ -484,6 +484,15 @@ interface GameState {
    * game progress, so it doesn't need BigQuery persistence, and a new device simply defaulting back
    * to "en" is harmless. */
   language: Language;
+  /** Whether player turns resolve themselves (via pickEnemyAction, same AI the enemy side already
+   * uses) instead of waiting for a skill tap — see components/combat/BattleControls.tsx. Applies
+   * to all 3 battle screens (Campaign/Raid/Overclock). Local-only/device preference, same rationale
+   * as language above: a pure UX convenience, not game progress. */
+  autoBattleEnabled: boolean;
+  /** Whether battle screens collapse their setTimeout-based pacing (lunge delay, boss-attack delay,
+   * enemy "thinking" delay, the Ultimate cast overlay, the tap-to-continue status notice) down to
+   * near-zero — see lib/battlePacing.ts. Local-only, same rationale as language above. */
+  skipAnimationEnabled: boolean;
   /** Base Campaign stage ids (never tier-suffixed — "attempted" is tracked per area, not per
    * difficulty tier) the player has started and lost at least once — see ChapterAreaList.tsx's
    * badge: NEW until first attempted, blank while attempted-but-not-yet-won (no longer "unseen",
@@ -615,8 +624,7 @@ interface GameState {
   isOnExpedition: (creatureId: string) => boolean;
 
   toggleAutoBattle: () => void;
-  toggleAutoDg: () => void;
-  setSpeedMultiplier: (speed: 1 | 2 | 4) => void;
+  toggleSkipAnimation: () => void;
 
   clearSurvivalStage: (stageNumber: number) => void;
   clearDungeonStage: (stageNumber: number) => void;
@@ -666,9 +674,6 @@ export const useGameStore = create<GameState>()(
       dungeon: {
         highestStageCleared: 0,
         currentWave: 0,
-        autoBattleEnabled: false,
-        autoDgEnabled: false,
-        speedMultiplier: 1,
         perfectStages: [],
         stageStars: {},
       },
@@ -691,6 +696,8 @@ export const useGameStore = create<GameState>()(
       hasReceivedGiftsV10: false,
       seenTutorialTips: [],
       language: "en",
+      autoBattleEnabled: false,
+      skipAnimationEnabled: false,
       attemptedStageIds: [],
       dailyBonusClaimed: false,
       favoriteCreatureIds: [],
@@ -779,9 +786,6 @@ export const useGameStore = create<GameState>()(
           dungeon: {
             highestStageCleared: 0,
             currentWave: 0,
-            autoBattleEnabled: false,
-            autoDgEnabled: false,
-            speedMultiplier: 1,
             perfectStages: [],
             stageStars: {},
           },
@@ -1354,18 +1358,8 @@ export const useGameStore = create<GameState>()(
       isOnExpedition: (creatureId) =>
         get().activeExpeditions.some((e) => e.creatureIds.includes(creatureId)),
 
-      toggleAutoBattle: () =>
-        set((state) => ({
-          dungeon: { ...state.dungeon, autoBattleEnabled: !state.dungeon.autoBattleEnabled },
-        })),
-
-      toggleAutoDg: () =>
-        set((state) => ({
-          dungeon: { ...state.dungeon, autoDgEnabled: !state.dungeon.autoDgEnabled },
-        })),
-
-      setSpeedMultiplier: (speed) =>
-        set((state) => ({ dungeon: { ...state.dungeon, speedMultiplier: speed } })),
+      toggleAutoBattle: () => set((state) => ({ autoBattleEnabled: !state.autoBattleEnabled })),
+      toggleSkipAnimation: () => set((state) => ({ skipAnimationEnabled: !state.skipAnimationEnabled })),
 
       clearSurvivalStage: (stageNumber) =>
         set((state) => ({

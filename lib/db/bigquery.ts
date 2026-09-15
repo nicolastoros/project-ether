@@ -219,9 +219,6 @@ export interface AccountBundle {
   dungeon: {
     highestStageCleared: number;
     currentWave: number;
-    autoBattleEnabled: boolean;
-    autoDgEnabled: boolean;
-    speedMultiplier: 1 | 2 | 4;
     perfectStages: string[];
   };
   creatures: {
@@ -524,12 +521,9 @@ export async function getAccountBundle(userId: string): Promise<AccountBundle | 
       ? {
           highestStageCleared: dungeonRow.highest_stage_cleared,
           currentWave: dungeonRow.current_wave,
-          autoBattleEnabled: dungeonRow.auto_battle_enabled,
-          autoDgEnabled: dungeonRow.auto_dg_enabled,
-          speedMultiplier: dungeonRow.speed_multiplier as 1 | 2 | 4,
           perfectStages: dungeonRow.perfect_stages || [],
         }
-      : { highestStageCleared: 0, currentWave: 0, autoBattleEnabled: false, autoDgEnabled: false, speedMultiplier: 1, perfectStages: [] },
+      : { highestStageCleared: 0, currentWave: 0, perfectStages: [] },
     creatures: creatureRows.map((row) => ({
       creatureId: row.creature_id,
       level: row.level,

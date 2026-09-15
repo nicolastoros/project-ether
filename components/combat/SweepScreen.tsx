@@ -1,24 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Zap, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { Creature, DungeonStage } from "@/types/game";
-import { getDailyExpEventStageId } from "@/lib/expEvent";
-import { DUNGEON_STAGES, ITEM_CATALOG, pickWeightedTrainingItemId } from "@/lib/gameData";
 import { useGameStore } from "@/lib/store";
-import { grantItemOnServer, syncProgressToServer } from "@/lib/syncProgress";
-import { getTamerExpMultiplierBonus } from "@/lib/tamerBuffs";
-import { addGuildExpAction } from "@/app/actions/guild";
-import { GlowPanel } from "@/components/ui/GlowPanel";
-import { PixelButton } from "@/components/ui/PixelButton";
-import { GoldCoinIcon } from "@/components/icons/GoldCoinIcon";
-import { SealCoinIcon } from "@/components/icons/SealCoinIcon";
-import { ItemIcon } from "@/components/ui/ItemIcon";
-import { CreatureSprite } from "@/components/ui/CreatureSprite";
+import { grantStageRewards, type StageRewardResult } from "@/lib/battleRewards";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
-import { SYNC_PAUSE_MS } from "@/lib/useSyncGate";
+import { Zap } from "lucide-react";
+import { BattleResultScreen } from "./BattleResultScreen";
 import { useT } from "@/lib/i18n/useT";
+
+// Display name for the World 1-1 first-clear gift — see lib/battleRewards.ts's own
+// FIRST_CLEAR_GIFT_CREATURE_ID (and BattleScreen.tsx's identical constant) for the id this must
+// stay in sync with.
+const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
 
 interface SweepScreenProps {
   stage: DungeonStage;
@@ -27,148 +21,67 @@ interface SweepScreenProps {
   onResweep?: () => void;
 }
 
+/** Instant-clear path — same "no simulation, straight to the reward screen" idea as before, now
+ * sharing lib/battleRewards.ts's grantStageRewards with the real BattleScreen.tsx instead of its
+ * own independently-reimplemented (and previously incomplete — missing the first-clear multiplier,
+ * Exchange/Awaken Coins, Tamer gear, achievements, the first-stage-1 gift) reward math, and
+ * rendering the same shared BattleResultScreen so all of that is actually visible instead of
+ * silently dropped by a bespoke panel that only ever had slots for gold/EXP/Seal Coins/items. */
 export function SweepScreen({ stage, playerCreatures, onExit, onResweep }: SweepScreenProps) {
   const t = useT();
-  const addGold = useGameStore((s) => s.addGold);
-  const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
-  const gainProfileExp = useGameStore((s) => s.gainProfileExp);
-  const addSealCoins = useGameStore((s) => s.addSealCoins);
-  const grantItem = useGameStore((s) => s.grantItem);
   const guild = useGameStore((s) => s.guild);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
 
-  const [sealCoinsDropped, setSealCoinsDropped] = useState(0);
-  const [itemsDropped, setItemsDropped] = useState<{ itemId: string; quantity: number }[]>([]);
-  const [expMultiplier, setExpMultiplier] = useState(1);
-  // Same reasoning as BattleScreen.tsx's showResult — the rewards below fire syncProgressToServer
-  // the instant this effect runs, and the result panel used to render in that same instant too,
-  // so Continue/Re-Sweep could be tapped before that fire-and-forget write had any real chance to
-  // land. A brief "calculating" beat first gives it that time.
-  const [showResult, setShowResult] = useState(false);
+  const activeTamerGear = useMemo(() => {
+    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
+    return tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
+  }, [tamerInventory, equippedTamerGear]);
+
+  const [result, setResult] = useState<StageRewardResult | null>(null);
 
   useEffect(() => {
-    const isExpEventStage = stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
-    const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
-    const activeGear = tamerInventory.filter((gear) => equippedGearIds.has(gear.id));
-    // Wind's "EXP +100%" Set Effect (only when every Wind piece is equipped) stacks on top of the
-    // existing exp-event multiplier, same as a real battle's reward block.
-    const multiplier = (isExpEventStage ? 2 : 1) * (1 + getTamerExpMultiplierBonus(activeGear));
-    setExpMultiplier(multiplier);
-
-    addGold(stage.rewardGold);
-    playerCreatures.forEach((c) => gainCreatureExp(c.id, stage.rewardExp * multiplier));
-    gainProfileExp(stage.rewardExp * multiplier);
-
-    if (guild) {
-      addGuildExpAction(guild.id, stage.rewardExp * multiplier).catch(() => {});
-    }
-
-    let sealCoins = 0;
-    if (Math.random() * 100 < stage.equipmentDropChance) {
-      sealCoins = 1;
-      addSealCoins(1);
-    }
-    setSealCoinsDropped(sealCoins);
-
-    const drops: { itemId: string; quantity: number }[] = [];
-    const drop = (itemId: string, chance: number) => {
-      if (Math.random() * 100 < chance) {
-        grantItem(itemId, 1);
-        grantItemOnServer(itemId, 1);
-        const existing = drops.find((d) => d.itemId === itemId);
-        if (existing) existing.quantity += 1;
-        else drops.push({ itemId, quantity: 1 });
-      }
-    };
-
-    drop("it-rotten-egg", 15);
-    drop("it-chicken", 15);
-    drop(pickWeightedTrainingItemId(), stage.equipmentDropChance);
-
-    setItemsDropped(drops);
-    syncProgressToServer();
-    const timeout = setTimeout(() => setShowResult(true), SYNC_PAUSE_MS);
-    return () => clearTimeout(timeout);
+    const isEventBattle = Boolean(stage.eventRewards);
+    setResult(grantStageRewards({ stage, playerCreatures, isEventBattle, activeTamerGear, guild }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
-  // LoadingOverlay is already a fixed, full-viewport overlay — no wrapper needed here.
-  if (!showResult) {
+  // LoadingOverlay is already a fixed, full-viewport overlay — no wrapper needed here. Same
+  // "results are being calculated" beat as a real battle's own SYNC_PAUSE_MS-gated showResult —
+  // grantStageRewards' own syncProgressToServer call is fire-and-forget, so this isn't just a
+  // decorative pause: it's the same protection against Continue being tapped before that write
+  // has any real chance to land.
+  if (!result) {
     return <LoadingOverlay show label={t("battle.calculating_results")} />;
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center p-4">
-      <GlowPanel accent="gold" className="w-full max-w-lg p-6 text-center lg:p-10">
-        <Sparkles className="mx-auto mb-4 h-12 w-12 text-gold" />
-        <h1 className="font-arcade text-2xl text-gold-bright lg:text-4xl">{t("sweep.auto_clear_success")}</h1>
-        <p className="mt-2 text-sm text-zinc-400">{t("sweep.sector_prefix")}{stage.world}-{stage.worldStageNumber}: {stage.name}</p>
-
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
-            <GoldCoinIcon className="mx-auto h-8 w-8" />
-            <p className="mt-2 font-arcade text-lg text-foreground">+{stage.rewardGold}</p>
-            <p className="text-[10px] uppercase text-zinc-500">{t("sweep.gold_earned")}</p>
-          </div>
-          <div className="rounded-xl border border-arcade-border bg-arcade-panel-light p-4">
-            <Zap className="mx-auto h-8 w-8 text-sky-400" />
-            <p className="mt-2 font-arcade text-lg text-foreground">+{stage.rewardExp * expMultiplier}</p>
-            <p className="text-[10px] uppercase text-zinc-500">{t("sweep.exp_earned")}</p>
-          </div>
-        </div>
-
-        <div className="mt-6 text-left">
-          <p className="font-arcade text-xs uppercase text-zinc-500">{t("sweep.drops_received")}</p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {sealCoinsDropped > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light p-2 pr-4">
-                <SealCoinIcon className="h-6 w-6" />
-                <span className="font-bold text-foreground">x{sealCoinsDropped}</span>
-              </div>
-            )}
-            {itemsDropped.map((drop) => {
-              const itemDef = ITEM_CATALOG.find((it) => it.id === drop.itemId);
-              if (!itemDef) return null;
-              return (
-                <div key={drop.itemId} className="flex items-center gap-2 rounded-lg border border-arcade-border bg-arcade-panel-light p-2 pr-4">
-                  <ItemIcon item={itemDef} className="h-6 w-6" />
-                  <span className="font-bold text-foreground">x{drop.quantity}</span>
-                </div>
-              );
-            })}
-            {sealCoinsDropped === 0 && itemsDropped.length === 0 && (
-              <p className="text-sm text-zinc-500 italic">{t("sweep.no_extra_drops")}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8 text-left">
-          <p className="font-arcade text-xs uppercase text-zinc-500">{t("sweep.team_progress")}</p>
-          <div className="mt-3 flex gap-4">
-            {playerCreatures.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 rounded-xl border border-arcade-border bg-arcade-panel-light p-3 flex-1">
-                <CreatureSprite creature={c} className="h-10 w-10" />
-                <div>
-                  <p className="font-bold text-sm text-foreground">{c.name}</p>
-                  <p className="text-xs text-sky-400">+{stage.rewardExp * expMultiplier} EXP</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          {onResweep && (
-            <PixelButton variant="neon" className="w-full py-4 text-lg" onClick={onResweep}>
-              {t("sweep.re_sweep")}
-            </PixelButton>
-          )}
-          <PixelButton variant="gold" className="w-full py-4 text-lg" onClick={onExit}>
-            {t("sweep.continue")}
-          </PixelButton>
-        </div>
-      </GlowPanel>
-    </div>
+    <BattleResultScreen
+      phase="victory"
+      title={stage.name}
+      goldEarned={stage.rewardGold * result.rewardMultiplier}
+      creatureResults={result.creatureResults}
+      itemsDropped={result.itemsDropped}
+      sealCoinsDropped={result.sealCoinsDropped}
+      tamerResult={result.tamerResult}
+      skipKoSplash
+      bonusLines={[
+        result.rewardMultiplier > 1 && t("battle.first_clear_bonus"),
+        result.isExpEventStage && (
+          <span className="inline-flex items-center gap-1 text-sky-500">
+            <Zap className="h-3 w-3 fill-current" /> {t("battle.exp_event")}
+          </span>
+        ),
+        result.firstClearGift &&
+          (result.firstClearGift.isNew
+            ? `${FIRST_CLEAR_GIFT_CREATURE_NAME}${t("battle.joined_roster_suffix")}`
+            : `${t("battle.copy_owned_prefix")}${FIRST_CLEAR_GIFT_CREATURE_NAME}${t("battle.copy_owned_mid")}${result.firstClearGift.copies}${t("battle.copy_owned_suffix")}`),
+        result.tamerGearGranted && `${result.tamerGearGranted}${t("battle.tamer_gear_unlocked_suffix")}`,
+      ].filter((line): line is NonNullable<typeof line> => Boolean(line))}
+      rematchLabel={t("sweep.re_sweep")}
+      onRematch={onResweep ?? (() => {})}
+      onExitClick={onExit}
+      exitLabel={t("sweep.continue")}
+    />
   );
 }

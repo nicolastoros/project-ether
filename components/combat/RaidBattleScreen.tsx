@@ -34,9 +34,11 @@ import type { Direction } from "@/components/ui/CreatureSprite";
 import { CombatantCard } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
+import { BattleControls } from "./BattleControls";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
 import { useT } from "@/lib/i18n/useT";
 import { getAchievementName } from "@/lib/i18n/achievementDescriptions";
+import { getBattlePacing } from "@/lib/battlePacing";
 import { cn } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
@@ -94,6 +96,9 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
   const guild = useGameStore((s) => s.guild);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const language = useGameStore((s) => s.language);
+  const autoBattleEnabled = useGameStore((s) => s.autoBattleEnabled);
+  const skipAnimationEnabled = useGameStore((s) => s.skipAnimationEnabled);
+  const pacing = getBattlePacing(skipAnimationEnabled);
 
   // Which owned gear is actually equipped right now — shared by the buff computation below and
   // the victory-reward block's Wind Set Effect (EXP +100%) check further down.
@@ -285,7 +290,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
     // Same reasoning as BattleScreen.tsx's identical filter — only status-effect-class beats get
     // the takeover; plain damage/heal/guard already read fine from the arena's own animations.
     const noticeEntries = logs.filter((l) => l.kind === "info" || l.kind === "defeat");
-    if (noticeEntries.length > 0) {
+    if (noticeEntries.length > 0 && !skipAnimationEnabled) {
       setPendingNotice({ entries: noticeEntries, onDismiss: advanceTurn });
     } else {
       advanceTurn();
@@ -310,7 +315,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
           setCombatants(next);
           setPendingSkill(null);
           checkEndConditions(next, logs);
-        }, 220);
+        }, pacing.lungeDelayMs);
       } else {
         if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
         setCombatants(next);
@@ -321,14 +326,14 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
 
     const casterCreature = combatants.find((c) => c.uid === byUid)?.creature;
 
-    if (isBossAction && !isTelegraphing) {
+    if (isBossAction && !isTelegraphing && !skipAnimationEnabled) {
       // Play the boss animation first, delay damage.
       setActiveBossAnimation(skill.name);
       setTimeout(() => {
         setActiveBossAnimation(undefined);
         playAttackThenSettle();
-      }, 1500); // Wait 1.5s for the animation to play before dealing damage
-    } else if (isUltimate && casterCreature?.ultimateSkill) {
+      }, pacing.bossAttackDelayMs);
+    } else if (isUltimate && casterCreature?.ultimateSkill && !skipAnimationEnabled) {
       // Damage waits for the epic UltimateAttackIntro overlay to actually dismiss (tap, or its
       // own ~3.2s auto-timer) rather than a fixed setTimeout here — see
       // handleUltimateIntroDismiss below, which is what really calls playAttackThenSettle.
@@ -350,20 +355,24 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
     resolve?.();
   }
 
-  // See BattleScreen.tsx's identical effect for why !introDismissed is here — an enemy that wins
-  // the SPD-sorted turn order can't act while the passive banner still covers the screen.
+  // See BattleScreen.tsx's identical effect for why !introDismissed is here — a side that wins
+  // the SPD-sorted turn order can't act while the passive banner still covers the screen. Also
+  // auto-acts the player's own turns, via the same side-agnostic pickEnemyAction, when
+  // Auto-Battle is on.
   useEffect(() => {
     if (phase !== "active" || !introDismissed) return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
-    if (!currentActor || currentActor.side !== "enemy" || !currentActor.isAlive) return;
+    if (!currentActor || !currentActor.isAlive) return;
+    const isAutoActingTurn = currentActor.side === "enemy" || (currentActor.side === "player" && autoBattleEnabled);
+    if (!isAutoActingTurn) return;
 
     const timeout = setTimeout(() => {
       const { skill, targetUid } = pickEnemyAction(currentActor, combatants);
       resolveTurn(currentActor.uid, skill, targetUid);
-    }, 900);
+    }, pacing.enemyThinkDelayMs);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnPointer, phase, introDismissed]);
+  }, [turnPointer, phase, introDismissed, autoBattleEnabled, skipAnimationEnabled]);
 
   function handleSkillClick(skill: Skill) {
     if (!actor) return;
@@ -406,9 +415,12 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
           />
         )}
       </AnimatePresence>
-      <div>
-        <h1 className="font-arcade text-lg glow-text-gold">{t("battle.raid_battle_title")}</h1>
-        <p className="text-xs text-zinc-500">{boss.name} · {playerCreatures.length}v{bossCreatures.length}</p>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div>
+          <h1 className="font-arcade text-lg glow-text-gold">{t("battle.raid_battle_title")}</h1>
+          <p className="text-xs text-zinc-500">{boss.name} · {playerCreatures.length}v{bossCreatures.length}</p>
+        </div>
+        <BattleControls />
       </div>
 
       <div
@@ -542,7 +554,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
         </GlowPanel>
       )}
 
-      {!pendingNotice && isPlayerTurn && actor && (
+      {!pendingNotice && isPlayerTurn && actor && !autoBattleEnabled && (
         <GlowPanel className="p-3">
           <div className="mb-2 flex items-center justify-between">
             <p className="font-arcade text-[10px] glow-text-gold">
@@ -642,7 +654,7 @@ export function RaidBattleScreen({ boss, bossCreatures, playerCreatures, onRemat
         </GlowPanel>
       )}
 
-      {!pendingNotice && !isPlayerTurn && phase === "active" && (
+      {!pendingNotice && (!isPlayerTurn || autoBattleEnabled) && phase === "active" && (
         <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
           {actor ? `${actor.creature.name}${t("battle.is_acting_suffix")}` : "…"}
         </p>

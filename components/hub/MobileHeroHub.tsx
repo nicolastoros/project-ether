@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/lib/store";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { RAID_EVENTS } from "@/lib/raidBosses";
+import { currentOverclockBoss, currentOverclockWeekNumber, nextOverclockResetAt } from "@/lib/overclock";
 import { getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
 import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
 import { useT } from "@/lib/i18n/useT";
@@ -37,9 +38,21 @@ const CROP_POSITION_OVERRIDES: Record<string, string> = {
   welcome: "center 30%",
 };
 
+// One-shot (not ticking) "Xd Yh"/"Xh Ym"/"Xm" formatter — mirrors HubHeroCarousel.tsx's own copy;
+// this slide's subtitle only refreshes when buildHeroSlides itself recomputes (language change,
+// remount), same as every other stateless slide field here.
+function formatCoarseCountdown(targetMs: number): string {
+  const msLeft = Math.max(0, targetMs - Date.now());
+  const days = Math.floor(msLeft / 86_400_000);
+  const hours = Math.floor((msLeft % 86_400_000) / 3_600_000);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = Math.floor((msLeft % 3_600_000) / 60_000);
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
 // Function (not a module-level constant) so it can be rebuilt per-language inside the component —
 // see HubHeroCarousel.tsx's identical buildSlides.
-function buildHeroSlides(t: (key: TranslationKey) => string, language: Language): HeroSlide[] {
+function buildHeroSlides(t: (key: TranslationKey, params?: Record<string, string | number>) => string, language: Language): HeroSlide[] {
   return [
     {
       id: "welcome",
@@ -72,6 +85,20 @@ function buildHeroSlides(t: (key: TranslationKey) => string, language: Language)
       objectPosition: "center",
       fit: "contain" as const,
     })),
+    {
+      // Overclock had zero presence in this rotation before — only reachable via /start.
+      // overclock_mode.png is a wide mode-select tile, same shape as the raid banners above, so
+      // it gets the same "contain" (blurred cover-fill backdrop) treatment rather than "cover",
+      // which would crop it down to an unrecognizable sliver in this tall portrait box.
+      id: "overclock-promo",
+      image: "/assets/ui/overclock_mode.png",
+      label: t("hub.overclock_slide_label"),
+      title: t("hub.overclock_slide_title", { week: currentOverclockWeekNumber(), boss: currentOverclockBoss().name }),
+      subtitle: t("hub.overclock_slide_subtitle", { time: formatCoarseCountdown(nextOverclockResetAt()) }),
+      href: "/overclock",
+      objectPosition: "center",
+      fit: "contain" as const,
+    },
   ];
 }
 

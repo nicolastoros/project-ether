@@ -32,7 +32,9 @@ import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { CombatantCard } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
+import { BattleControls } from "./BattleControls";
 import { useT } from "@/lib/i18n/useT";
+import { getBattlePacing } from "@/lib/battlePacing";
 import { cn, formatNumber } from "@/lib/utils";
 
 type BattlePhase = "active" | "victory" | "defeat";
@@ -69,6 +71,9 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
   const guild = useGameStore((s) => s.guild);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const overclockBestDamage = useGameStore((s) => s.profile.overclockBestDamage ?? 0);
+  const autoBattleEnabled = useGameStore((s) => s.autoBattleEnabled);
+  const skipAnimationEnabled = useGameStore((s) => s.skipAnimationEnabled);
+  const pacing = getBattlePacing(skipAnimationEnabled);
 
   const activeTamerGear = useMemo(() => {
     const equippedGearIds = new Set(Object.values(equippedTamerGear).filter(Boolean));
@@ -163,7 +168,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
     };
 
     const noticeEntries = logs.filter((l) => l.kind === "info" || l.kind === "defeat");
-    if (noticeEntries.length > 0) {
+    if (noticeEntries.length > 0 && !skipAnimationEnabled) {
       setPendingNotice({ entries: noticeEntries, onDismiss: advanceTurn });
     } else {
       advanceTurn();
@@ -220,7 +225,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
           setCombatants(next);
           setPendingSkill(null);
           checkEndConditions(next, logs, runningTotalDamage);
-        }, 220);
+        }, pacing.lungeDelayMs);
       } else {
         if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
         setCombatants(next);
@@ -231,13 +236,13 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
 
     const casterCreature = combatants.find((c) => c.uid === byUid)?.creature;
 
-    if (isBossAction && !isTelegraphing) {
+    if (isBossAction && !isTelegraphing && !skipAnimationEnabled) {
       setActiveBossAnimation(skill.name);
       setTimeout(() => {
         setActiveBossAnimation(undefined);
         playAttackThenSettle();
-      }, 1500);
-    } else if (isUltimate && casterCreature?.ultimateSkill) {
+      }, pacing.bossAttackDelayMs);
+    } else if (isUltimate && casterCreature?.ultimateSkill && !skipAnimationEnabled) {
       setActiveUltimateUid((prev) => ({ uid: byUid, nonce: prev.nonce + 1 }));
       setUltimateAttack({ casterName: casterCreature.name, ultimate: casterCreature.ultimateSkill });
       pendingUltimateResolveRef.current = () => {
@@ -256,18 +261,22 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
     resolve?.();
   }
 
+  // Also auto-acts the player's own turns, via the same side-agnostic pickEnemyAction, when
+  // Auto-Battle is on — see BattleScreen.tsx's identical effect for the full reasoning.
   useEffect(() => {
     if (phase !== "active" || !introDismissed) return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
-    if (!currentActor || currentActor.side !== "enemy" || !currentActor.isAlive) return;
+    if (!currentActor || !currentActor.isAlive) return;
+    const isAutoActingTurn = currentActor.side === "enemy" || (currentActor.side === "player" && autoBattleEnabled);
+    if (!isAutoActingTurn) return;
 
     const timeout = setTimeout(() => {
       const { skill, targetUid } = pickEnemyAction(currentActor, combatants);
       resolveTurn(currentActor.uid, skill, targetUid);
-    }, 900);
+    }, pacing.enemyThinkDelayMs);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnPointer, phase, introDismissed]);
+  }, [turnPointer, phase, introDismissed, autoBattleEnabled, skipAnimationEnabled]);
 
   function handleSkillClick(skill: Skill) {
     if (!actor) return;
@@ -303,14 +312,17 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
           />
         )}
       </AnimatePresence>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div>
           <h1 className="font-arcade text-lg glow-text-gold">Overclock</h1>
           <p className="text-xs text-zinc-500">{boss.name} · 2v1</p>
         </div>
-        <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-1.5 text-right">
-          <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">{t("overclock.damage_dealt")}</p>
-          <p className="font-arcade text-sm text-gold-bright">{formatNumber(totalDamageDealt)}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <BattleControls />
+          <div className="rounded-xl border border-arcade-border bg-arcade-panel-light px-3 py-1.5 text-right">
+            <p className="font-arcade text-[9px] uppercase tracking-wide text-zinc-500">{t("overclock.damage_dealt")}</p>
+            <p className="font-arcade text-sm text-gold-bright">{formatNumber(totalDamageDealt)}</p>
+          </div>
         </div>
       </div>
 
@@ -389,7 +401,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
         </GlowPanel>
       )}
 
-      {!pendingNotice && isPlayerTurn && actor && (
+      {!pendingNotice && isPlayerTurn && actor && !autoBattleEnabled && (
         <GlowPanel className="p-3">
           <div className="mb-2 flex items-center justify-between">
             <p className="font-arcade text-[10px] glow-text-gold">
@@ -486,7 +498,7 @@ export function OverclockBattleScreen({ boss, bossCreature, playerCreatures, onR
         </GlowPanel>
       )}
 
-      {!pendingNotice && !isPlayerTurn && phase === "active" && (
+      {!pendingNotice && (!isPlayerTurn || autoBattleEnabled) && phase === "active" && (
         <p className="text-center text-[10px] uppercase tracking-widest text-zinc-500">
           {actor ? `${actor.creature.name}${t("battle.is_acting_suffix")}` : "…"}
         </p>

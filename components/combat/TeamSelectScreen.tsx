@@ -10,8 +10,10 @@ import { CreatureName } from "@/components/ui/CreatureName";
 import { RarityCardAura } from "@/components/ui/MythicCardAura";
 import { RarityBadge } from "@/components/ui/RarityBadge";
 import { PixelButton } from "@/components/ui/PixelButton";
+import { BattleControls } from "@/components/combat/BattleControls";
 import { cn } from "@/lib/utils";
 import { sortCreaturesByRarity } from "@/lib/gameData";
+import { partyPower } from "@/lib/power";
 import { useGameStore } from "@/lib/store";
 import { Check, X, Bookmark, BookmarkPlus, Trash2 } from "lucide-react";
 import { saveFormationAction, deleteFormationAction } from "@/app/actions/combat";
@@ -77,6 +79,13 @@ export function TeamSelectScreen({
   const isEventBattle = Boolean(stage.eventRewards);
   const stars = stageStars[stage.id] || { noDeaths: false, noItems: false, underFiveTurns: false };
   const hasAllStars = stars.noDeaths && stars.noItems && stars.underFiveTurns;
+  // A second, independent way to unlock Sweep: clearly overleveled for this stage, even without a
+  // prior 3-star clear — no point making someone manually mash through a fight they'd trivially
+  // win. 2x the stage's recommendedPower (not 1x) so this only fires once it's obviously not a
+  // real fight anymore, not just "technically strong enough."
+  const selectedCreatures = creatures.filter((c) => selectedIds.includes(c.id));
+  const isOverpowered = partyPower(selectedCreatures) >= stage.recommendedPower * 2;
+  const canSweep = hasAllStars || isOverpowered;
   const sortedCreatures = sortCreaturesByRarity(creatures);
   // Raid-mode presets can hold up to 4 creatures — too many for Campaign's 1-2 slot party, so
   // only offer the ones actually sized for this picker.
@@ -84,22 +93,25 @@ export function TeamSelectScreen({
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <div className="flex items-center gap-2 lg:gap-4">
-        <Link
-          href={isEventBattle ? "/events" : "/campaign"}
-          aria-label={isEventBattle ? t("common.back_to_events") : t("common.back_to_campaign")}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:h-11 lg:w-11"
-        >
-          <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5" />
-        </Link>
-        <div>
-          <h1 className="font-arcade text-lg glow-text-gold lg:text-2xl xl:text-3xl">
-            {isEventBattle ? stage.name : `${t("battle.world_label")} ${stage.world}-${stage.worldStageNumber}`}
-          </h1>
-          <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">
-            {isEventBattle ? t("team_select.choose_1_or_2") : `${stage.name} — ${t("team_select.choose_1_or_2").toLowerCase()}`}
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-3 lg:gap-x-4">
+        <div className="flex items-center gap-2 lg:gap-4">
+          <Link
+            href={isEventBattle ? "/events" : "/campaign"}
+            aria-label={isEventBattle ? t("common.back_to_events") : t("common.back_to_campaign")}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-arcade-border bg-arcade-panel text-zinc-500 shadow-sm transition-colors hover:text-foreground lg:h-11 lg:w-11"
+          >
+            <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5" />
+          </Link>
+          <div>
+            <h1 className="font-arcade text-lg glow-text-gold lg:text-2xl xl:text-3xl">
+              {isEventBattle ? stage.name : `${t("battle.world_label")} ${stage.world}-${stage.worldStageNumber}`}
+            </h1>
+            <p className="text-xs text-zinc-500 lg:mt-1 lg:text-base">
+              {isEventBattle ? t("team_select.choose_1_or_2") : `${stage.name} — ${t("team_select.choose_1_or_2").toLowerCase()}`}
+            </p>
+          </div>
         </div>
+        <BattleControls className="mt-1" />
       </div>
 
       {!isEventBattle && (
@@ -208,11 +220,12 @@ export function TeamSelectScreen({
         <GlowPanel accent="neon" className="flex items-center justify-between gap-3 p-3 lg:rounded-2xl lg:p-5">
           <p className="text-xs text-zinc-500 lg:text-base">{selectedIds.length}/2{t("team_select.creatures_selected_suffix")}</p>
           <div className="flex gap-2">
-            {hasAllStars && (
+            {canSweep && (
               <PixelButton
                 variant="gold"
                 disabled={selectedIds.length === 0}
                 onClick={() => onStart(true)}
+                title={isOverpowered && !hasAllStars ? t("team_select.sweep_power_hint") : undefined}
                 className="lg:px-8 lg:py-3.5 lg:text-base"
               >
                 {t("team_select.sweep")}

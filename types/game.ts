@@ -268,9 +268,6 @@ export interface ActiveExpedition {
 export interface DungeonProgress {
   highestStageCleared: number;
   currentWave: number;
-  autoBattleEnabled: boolean;
-  autoDgEnabled: boolean;
-  speedMultiplier: 1 | 2 | 4;
   perfectStages: string[];
   stageStars: Record<string, { noDeaths: boolean; noItems: boolean; underFiveTurns: boolean }>;
 }
@@ -354,36 +351,6 @@ export interface GachaBanner {
   multiPullCount: number;
   currencyType?: "gems" | "gold" | "item";
   currencyItemId?: string;
-}
-
-export type CombatantSide = "player" | "enemy";
-
-export interface CombatantState {
-  id: string;
-  creatureId: string;
-  side: CombatantSide;
-  currentHp: number;
-  maxHp: number;
-  actionGauge: number; // ATB-style fill 0-100
-  isAlive: boolean;
-}
-
-export interface CombatLogEntry {
-  id: string;
-  turn: number;
-  message: string;
-  kind: "attack" | "skill" | "defeat" | "info";
-}
-
-export interface CombatState {
-  battleId: string;
-  turn: number;
-  playerTeam: CombatantState[];
-  enemyTeam: CombatantState[];
-  log: CombatLogEntry[];
-  isAutoBattle: boolean;
-  speedMultiplier: 1 | 2 | 4;
-  status: "idle" | "in-progress" | "victory" | "defeat";
 }
 
 export type PvpTier =

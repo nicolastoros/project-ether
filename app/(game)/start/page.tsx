@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { currentOverclockBoss, nextOverclockResetAt } from "@/lib/overclock";
+import { useCountdownToTimestamp } from "@/lib/useResetCountdown";
 
 // Dokkan-style mode-select hub — the sidebar's "Start" entry (lib/navigation.ts) lands here
 // instead of linking straight into a mode, so new modes join this screen instead of piling up
@@ -31,6 +33,11 @@ const GAME_MODES: GameMode[] = [
 
 function ModeCard({ mode, t }: { mode: GameMode; t: ReturnType<typeof useT> }) {
   const comingSoon = !mode.href;
+  // Every mode card calls this the same way (hook order must stay stable across renders) — only
+  // the "overclock" card actually renders the result, so every other mode passes null and gets
+  // back an empty string for free.
+  const isOverclock = mode.id === "overclock";
+  const overclockResetLabel = useCountdownToTimestamp(isOverclock ? nextOverclockResetAt() : null);
 
   const card = (
     <motion.div
@@ -62,6 +69,15 @@ function ModeCard({ mode, t }: { mode: GameMode; t: ReturnType<typeof useT> }) {
           <div className="absolute inset-0 flex items-center justify-center bg-black/35">
             <span className="flex items-center gap-1.5 rounded-full bg-black/80 px-4 py-2 font-arcade text-[10px] uppercase tracking-wide text-white sm:text-xs">
               <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {t("common.coming_soon")}
+            </span>
+          </div>
+        )}
+        {/* The one concrete "stop looking identical to every other mode" cue — a live boss name +
+            reset countdown, breaking the otherwise-uniform treatment every other tile shares. */}
+        {isOverclock && !comingSoon && (
+          <div className="absolute left-2 top-2 sm:left-3 sm:top-3">
+            <span className="rounded-full bg-black/80 px-2.5 py-1 font-arcade text-[9px] uppercase tracking-wide text-sky-300 sm:text-[10px]">
+              {t("start.overclock_badge", { boss: currentOverclockBoss().name, time: overclockResetLabel || "…" })}
             </span>
           </div>
         )}

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { GACHA_BANNERS } from "@/lib/gameData";
 import { RAID_EVENTS } from "@/lib/raidBosses";
+import { currentOverclockBoss, currentOverclockWeekNumber, nextOverclockResetAt } from "@/lib/overclock";
 import { getRaidEventDescription } from "@/lib/i18n/raidDescriptions";
 import { getGachaBannerTagline } from "@/lib/i18n/shopDescriptions";
 import { useT } from "@/lib/i18n/useT";
@@ -38,6 +39,19 @@ const CROP_POSITION_OVERRIDES: Record<string, string> = {
 };
 const DEFAULT_CROP_POSITION = "center 80%";
 
+// One-shot (not ticking) "Xd Yh"/"Xh Ym"/"Xm" formatter — this slide's subtitle only refreshes
+// when buildSlides itself recomputes (language change, remount), same "stateless urgency cue, not
+// a new per-second timer on a big shared carousel" call the countdown-hook family in
+// lib/useResetCountdown.ts already makes elsewhere.
+function formatCoarseCountdown(targetMs: number): string {
+  const msLeft = Math.max(0, targetMs - Date.now());
+  const days = Math.floor(msLeft / 86_400_000);
+  const hours = Math.floor((msLeft % 86_400_000) / 3_600_000);
+  if (days > 0) return `${days}d ${hours}h`;
+  const minutes = Math.floor((msLeft % 3_600_000) / 60_000);
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
 // GACHA_BANNERS/RAID_EVENTS' own bannerImage is shared with the Summon/Raid pages' own banner
 // UI, which needs a different aspect ratio — this hub carousel gets its own dedicated wide art
 // here instead of reusing (and badly cropping) those, once one actually fits the slot cleanly.
@@ -51,7 +65,7 @@ const HOME_BANNER_OVERRIDES: Record<string, string> = {};
 // bannerImage (Elder Dragon's Awakening) since there's no art to show for them here.
 // A function (not a module-level constant) so it can be recomputed per-language inside the
 // component.
-function buildSlides(t: (key: TranslationKey) => string, language: Language): HeroSlide[] {
+function buildSlides(t: (key: TranslationKey, params?: Record<string, string | number>) => string, language: Language): HeroSlide[] {
   return [
     {
       id: "welcome",
@@ -83,6 +97,19 @@ function buildSlides(t: (key: TranslationKey) => string, language: Language): He
       href: "/events?tab=extreme",
       objectPosition: CROP_POSITION_OVERRIDES[e.id] ?? DEFAULT_CROP_POSITION,
     })),
+    {
+      // Overclock had zero presence in the Hub's own promotional rotation before this — only
+      // reachable via /start. /assets/ui/overclock_mode.png is composed for a mode-select tile,
+      // not this carousel's wide strip — swap in a dedicated banner via HOME_BANNER_OVERRIDES
+      // once one exists, same as every other slide here.
+      id: "overclock-promo",
+      image: HOME_BANNER_OVERRIDES["overclock-promo"] ?? "/assets/ui/overclock_mode.png",
+      label: t("hub.overclock_slide_label"),
+      title: t("hub.overclock_slide_title", { week: currentOverclockWeekNumber(), boss: currentOverclockBoss().name }),
+      subtitle: t("hub.overclock_slide_subtitle", { time: formatCoarseCountdown(nextOverclockResetAt()) }),
+      href: "/overclock",
+      objectPosition: CROP_POSITION_OVERRIDES["overclock-promo"] ?? DEFAULT_CROP_POSITION,
+    },
   ];
 }
 

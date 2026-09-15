@@ -9,20 +9,11 @@ import { CreatureSprite, type Direction } from "@/components/ui/CreatureSprite";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { LegendaryCardAura } from "@/components/ui/MythicCardAura";
 import { useGameStore } from "@/lib/store";
-import { ACHIEVEMENTS, cumulativeStageCountThroughWorld, DUNGEON_STAGES, pickWeightedTrainingItemId, TAMER_EQUIPMENT_CATALOG } from "@/lib/gameData";
-import { notifyAchievementUnlocked } from "@/lib/achievementNotify";
-import { getDailyExpEventStageId } from "@/lib/expEvent";
+import { DUNGEON_STAGES } from "@/lib/gameData";
 import { parseTierStageId } from "@/lib/difficultyTiers";
-import { isFinalAreaOfChapter } from "@/lib/campaignChapters";
-import { applyTamerBuffs, getTamerExpMultiplierBonus } from "@/lib/tamerBuffs";
-import {
-  grantCreatureOnServer,
-  grantItemOnServer,
-  grantTamerEquipmentOnServer,
-  syncProgressToServer,
-  unlockAchievementOnServer,
-} from "@/lib/syncProgress";
-import { addGuildExpAction } from "@/app/actions/guild";
+import { applyTamerBuffs } from "@/lib/tamerBuffs";
+import { grantStageRewards } from "@/lib/battleRewards";
+import { getBattlePacing } from "@/lib/battlePacing";
 import {
   applyAction,
   applyLrPassives,
@@ -44,6 +35,7 @@ import { SKILL_TYPE_STYLES, SKILL_TYPE_LABEL_KEY } from "@/components/monsters/C
 import { CombatantCard, STATUS_BADGE, STATUS_LABEL_KEY } from "./CombatantCard";
 import { LrPassiveIntro } from "./LrPassiveIntro";
 import { UltimateAttackIntro } from "./UltimateAttackIntro";
+import { BattleControls } from "./BattleControls";
 import { BattleResultScreen, type CreatureResultEntry, type TamerResultEntry } from "./BattleResultScreen";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
@@ -58,9 +50,8 @@ const ARENA_BACKGROUNDS: Record<number, string> = {
   4: "/assets/maps/w4.png",
   5: "/assets/maps/w5.png",
 };
-// One-time welcome gift for clearing World 1-1 for the very first time — see the isFirstStage1Clear
-// check below. Admins already own every creature, so grantCreature() is simply a no-op for them.
-const FIRST_CLEAR_GIFT_CREATURE_ID = "cr-dragoon";
+// Display name for the World 1-1 first-clear gift — see lib/battleRewards.ts's own
+// FIRST_CLEAR_GIFT_CREATURE_ID for the id this must stay in sync with.
 const FIRST_CLEAR_GIFT_CREATURE_NAME = "Dragoon";
 // `lunge` is the direction the attack tackle travels — toward the opposing cluster. Campaign is
 // side-by-side, so it's mostly horizontal, with a slight vertical lean matching each side's
@@ -170,21 +161,14 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
   // navigation).
   const isEventBattle = Boolean(stage.eventRewards);
   const t = useT();
-  const addGold = useGameStore((s) => s.addGold);
-  const gainCreatureExp = useGameStore((s) => s.gainCreatureExp);
-  const gainProfileExp = useGameStore((s) => s.gainProfileExp);
-  const clearDungeonStage = useGameStore((s) => s.clearDungeonStage);
-  const tickMissionProgress = useGameStore((s) => s.tickMissionProgress);
-  const unlockAchievement = useGameStore((s) => s.unlockAchievement);
-  const grantCreature = useGameStore((s) => s.grantCreature);
   const recordStageStars = useGameStore((s) => s.recordStageStars);
-  const addSealCoins = useGameStore((s) => s.addSealCoins);
-  const grantTamerEquipment = useGameStore((s) => s.grantTamerEquipment);
-  const grantItem = useGameStore((s) => s.grantItem);
   const tamerInventory = useGameStore((s) => s.tamerInventory);
   const equippedTamerId = useGameStore((s) => s.equippedTamerId);
   const equippedTamerGear = useGameStore((s) => s.equippedTamerGear);
   const guild = useGameStore((s) => s.guild);
+  const autoBattleEnabled = useGameStore((s) => s.autoBattleEnabled);
+  const skipAnimationEnabled = useGameStore((s) => s.skipAnimationEnabled);
+  const pacing = getBattlePacing(skipAnimationEnabled);
 
   // The next area in the same chapter, Easy tier (if one exists) — powers the results screen's
   // "Next Area" shortcut. Same-world guard means this naturally stays undefined past a chapter's
@@ -312,12 +296,6 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         useGameStore.getState().markStagePerfect(stage.id);
       }
 
-      // Captured before recordStageStars writes below — that call itself would make this exact
-      // id "already present", so the first-clear check has to run first.
-      const wasStageAlreadyCleared = isEventBattle
-        ? false
-        : Boolean(useGameStore.getState().dungeon.stageStars[stage.id]);
-
       const stars = {
         noDeaths: !(hasDeaths || anyDeaths),
         noItems: true,
@@ -325,149 +303,25 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
       };
       setStarsEarned(stars);
       setElapsedSeconds(Math.max(0, Math.round((Date.now() - (battleStartRef.current ?? Date.now())) / 1000)));
-      if (!isEventBattle) {
-        recordStageStars(stage.id, stars);
-      }
 
       if (!rewardGranted) {
         setRewardGranted(true);
-        const highestBefore = useGameStore.getState().dungeon.highestStageCleared;
-        // Keyed off this exact stage id (so it's correct per difficulty tier, not just per base
-        // stage number) rather than highestStageCleared, which only ever tracks Easy-tier
-        // progress. Always false for event battles — that "first clear" bonus track (2x
-        // gold/exp, Exchange Coins, Tamer gear) is Campaign-only.
-        const isFirstClearOfThisStage = !isEventBattle && !wasStageAlreadyCleared;
-        const multiplier = isFirstClearOfThisStage ? 2 : 1;
-        setRewardMultiplier(multiplier);
+        // Called before recordStageStars below — grantStageRewards reads
+        // dungeon.stageStars[stage.id] itself (to tell a first clear from a repeat), and that
+        // write would make this exact id "already present" if it ran first.
+        const result = grantStageRewards({ stage, playerCreatures, isEventBattle, activeTamerGear, guild });
+        setRewardMultiplier(result.rewardMultiplier);
+        setIsExpEventStage(result.isExpEventStage);
+        setTamerResult(result.tamerResult);
+        setCreatureResults(result.creatureResults);
+        setSealCoinsDropped(result.sealCoinsDropped);
+        setItemsDropped(result.itemsDropped);
+        setFirstClearGift(result.firstClearGift);
+        setTamerGearGranted(result.tamerGearGranted);
+      }
 
-        const expEventActive = !isEventBattle && stage.id === getDailyExpEventStageId(stage.world, DUNGEON_STAGES);
-        setIsExpEventStage(expEventActive);
-        // Wind's "EXP +100%" Set Effect (only when every Wind piece is equipped) stacks with the
-        // existing first-clear/exp-event multipliers rather than replacing them.
-        const expMultiplier = multiplier * (expEventActive ? 2 : 1) * (1 + getTamerExpMultiplierBonus(activeTamerGear));
-
-        addGold(stage.rewardGold * multiplier);
-        const expGainAmount = stage.rewardExp * expMultiplier;
-        const levelsBefore = new Map(playerCreatures.map((c) => [c.id, c.level]));
-        const tamerBefore = useGameStore.getState().profile;
-        playerCreatures.forEach((c) => gainCreatureExp(c.id, expGainAmount));
-        gainProfileExp(expGainAmount);
-        const updatedCreatures = useGameStore.getState().creatures;
-        const tamerAfter = useGameStore.getState().profile;
-        setTamerResult({
-          expGained: expGainAmount,
-          levelBefore: tamerBefore.level,
-          levelAfter: tamerAfter.level,
-          exp: tamerAfter.exp,
-          expToNextLevel: tamerAfter.expToNextLevel,
-        });
-        setCreatureResults(
-          playerCreatures.map((c) => {
-            const updated = updatedCreatures.find((uc) => uc.id === c.id);
-            return {
-              creature: c,
-              expGained: expGainAmount,
-              levelBefore: levelsBefore.get(c.id) ?? c.level,
-              levelAfter: updated?.level ?? c.level,
-              exp: updated?.exp ?? c.exp,
-              expToNextLevel: updated?.expToNextLevel ?? c.expToNextLevel,
-            };
-          })
-        );
-        // Easy-tier clears are the only thing allowed to advance the base 54-stage counter
-        // CampaignHome.tsx's stage-lock logic depends on — a Hard/Super run of an already-unlocked
-        // stage must never touch it.
-        const isEasyTier = !stage.tier || stage.tier === "Easy";
-        const isFirstStage1Clear = !isEventBattle && isEasyTier && stage.stageNumber === 1 && highestBefore === 0;
-        if (isEasyTier && !isEventBattle) clearDungeonStage(stage.stageNumber);
-        tickMissionProgress("task-dungeon");
-        // "Explorer of the Digital World" — cleared every stage through World 5. Checked against
-        // this stage's own number rather than the post-clear highestStageCleared so a lower-stage
-        // replay after already clearing World 5 doesn't matter either way.
-        if (!isEventBattle && stage.stageNumber >= cumulativeStageCountThroughWorld(5)) {
-          const achievementId = "ach-explorer-digital-world";
-          if (unlockAchievement(achievementId)) {
-            unlockAchievementOnServer(achievementId);
-            const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
-            if (achievement) notifyAchievementUnlocked(achievement);
-          }
-        }
-        if (isFirstStage1Clear) {
-          const gift = grantCreature(FIRST_CLEAR_GIFT_CREATURE_ID);
-          if (gift) {
-            setFirstClearGift(gift);
-            grantCreatureOnServer(FIRST_CLEAR_GIFT_CREATURE_ID);
-          }
-        }
-
-        if (Math.random() * 100 < stage.equipmentDropChance) {
-          setSealCoinsDropped(1);
-          addSealCoins(1);
-        }
-
-        // Exchange Coins: 2 per area, per difficulty tier, the first time that exact tier is
-        // cleared — a 4-tier area yields 8 one-time. Chapter-agnostic (keyed off stage.id, which
-        // already encodes both the area and the tier), so this covers every chapter automatically.
-        if (isFirstClearOfThisStage) {
-          grantItem("it-exchange-coin", 2);
-          grantItemOnServer("it-exchange-coin", 2);
-          setItemsDropped((prev) => [...prev, { itemId: "it-exchange-coin", quantity: 2 }]);
-        }
-
-        // Awaken Coins: 1-5 random, every time a chapter's boss area is beaten (not gated by
-        // first-clear — a boss re-run still pays out, same as a Raid win). Campaign-only.
-        if (!isEventBattle && isFinalAreaOfChapter(stage.world, stage.worldStageNumber)) {
-          const awakenCoins = 1 + Math.floor(Math.random() * 5);
-          grantItem("it-awaken-coin", awakenCoins);
-          grantItemOnServer("it-awaken-coin", awakenCoins);
-          setItemsDropped((prev) => [...prev, { itemId: "it-awaken-coin", quantity: awakenCoins }]);
-        }
-
-        if (isFirstClearOfThisStage) {
-          const tamerPiece = TAMER_EQUIPMENT_CATALOG.find(
-            (t) => t.source.kind === "campaign-clear" && t.source.stageId === stage.id
-          );
-          if (tamerPiece && grantTamerEquipment(tamerPiece.id)) {
-            setTamerGearGranted(tamerPiece.name);
-            grantTamerEquipmentOnServer(tamerPiece.id);
-          }
-        }
-
-        const drop = (itemId: string, chance: number) => {
-          if (Math.random() * 100 < chance) {
-            grantItem(itemId, 1);
-            grantItemOnServer(itemId, 1);
-            setItemsDropped((prev) => [...prev, { itemId, quantity: 1 }]);
-          }
-        };
-
-        if (stage.eventRewards) {
-          // Event logic: guarantee event rewards
-          for (const reward of stage.eventRewards) {
-            grantItem(reward.itemId, reward.amount);
-            grantItemOnServer(reward.itemId, reward.amount);
-            setItemsDropped((prev) => [...prev, { itemId: reward.itemId, quantity: reward.amount }]);
-          }
-        } else {
-          // Normal campaign logic
-          drop("it-rotten-egg", 35);
-          drop("it-chicken", 20);
-          if (Math.random() * 100 < stage.equipmentDropChance) {
-            drop(pickWeightedTrainingItemId(), 100);
-          }
-
-          if (isFirstClearOfThisStage && stage.world === 1 && isFinalAreaOfChapter(1, stage.worldStageNumber)) {
-            grantItem("it-frontier-emblem", 1);
-            grantItemOnServer("it-frontier-emblem", 1);
-            setItemsDropped((prev) => [...prev, { itemId: "it-frontier-emblem", quantity: 1 }]);
-          }
-        }
-        
-        if (guild) {
-          addGuildExpAction(guild.id, stage.rewardExp).catch(() => {});
-        }
-
-        syncProgressToServer();
+      if (!isEventBattle) {
+        recordStageStars(stage.id, stars);
       }
       return;
     }
@@ -507,7 +361,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     // Pokémon-style takeover, and it holds the next turn (this battle's own enemy-AI effect
     // included) until the player taps past it.
     const noticeEntries = logs.filter((l) => l.kind === "info" || l.kind === "defeat");
-    if (noticeEntries.length > 0) {
+    if (noticeEntries.length > 0 && !skipAnimationEnabled) {
       setPendingNotice({ entries: noticeEntries, onDismiss: advanceTurn });
     } else {
       advanceTurn();
@@ -523,14 +377,14 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
         setTimeout(() => {
           if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
           settle();
-        }, 220);
+        }, pacing.lungeDelayMs);
       } else {
         if (hits.length > 0) setHitEvent((prev) => ({ hits, nonce: prev.nonce + 1 }));
         settle();
       }
     };
 
-    if (isUltimate && actingCombatant?.creature.ultimateSkill) {
+    if (isUltimate && actingCombatant?.creature.ultimateSkill && !skipAnimationEnabled) {
       // Play the charge-up aura on the caster immediately, but damage waits for the epic
       // UltimateAttackIntro overlay to actually dismiss (tap, or its own ~3.2s auto-timer)
       // instead of a fixed setTimeout — see handleUltimateIntroDismiss below.
@@ -552,22 +406,25 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
     resolve?.();
   }
 
-  // Enemy turns resolve themselves after a short "thinking" delay. Held back by !introDismissed
-  // so an enemy that happens to win the SPD-sorted turn order can't act (and land damage) while
-  // the passive activation banner is still covering the screen — re-fires once introDismissed
-  // flips true, same as any other dependency change.
+  // Enemy turns resolve themselves after a short "thinking" delay — and, under Auto-Battle, so
+  // do the player's own turns, via the exact same side-agnostic pickEnemyAction. Held back by
+  // !introDismissed so a side that happens to win the SPD-sorted turn order can't act (and land
+  // damage) while the passive activation banner is still covering the screen — re-fires once
+  // introDismissed flips true, same as any other dependency change.
   useEffect(() => {
     if (phase !== "active" || !introDismissed) return;
     const currentActor = combatants.find((c) => c.uid === turnOrder[turnPointer]);
-    if (!currentActor || currentActor.side !== "enemy" || !currentActor.isAlive) return;
+    if (!currentActor || !currentActor.isAlive) return;
+    const isAutoActingTurn = currentActor.side === "enemy" || (currentActor.side === "player" && autoBattleEnabled);
+    if (!isAutoActingTurn) return;
 
     const timeout = setTimeout(() => {
       const { skill, targetUid } = pickEnemyAction(currentActor, combatants);
       resolveTurn(currentActor.uid, skill, targetUid);
-    }, 900);
+    }, pacing.enemyThinkDelayMs);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnPointer, phase, introDismissed]);
+  }, [turnPointer, phase, introDismissed, autoBattleEnabled, skipAnimationEnabled]);
 
   function handleSkillClick(skill: Skill) {
     if (!actor) return;
@@ -603,11 +460,14 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
           />
         )}
       </AnimatePresence>
-      <div>
-        <h1 className="font-arcade text-lg glow-text-gold">
-          {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
-        </h1>
-        <p className="text-xs text-zinc-500">{stage.name} · {t("battle.turn_battle_2v2")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div>
+          <h1 className="font-arcade text-lg glow-text-gold">
+            {t("battle.world_label")} {stage.world}-{stage.worldStageNumber}
+          </h1>
+          <p className="text-xs text-zinc-500">{stage.name} · {t("battle.turn_battle_2v2")}</p>
+        </div>
+        <BattleControls />
       </div>
 
       <div className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-4xl xl:max-w-6xl 2xl:max-w-[1600px]">
@@ -722,7 +582,7 @@ export function BattleScreen({ stage, playerCreatures, enemyCreatures, onRematch
                         {t("common.tap_to_continue")}
                       </p>
                     </button>
-                  ) : isPlayerTurn && actor ? (
+                  ) : isPlayerTurn && actor && !autoBattleEnabled ? (
                     <>
                       <div className="mb-2 sm:mb-3 flex items-center justify-between">
                         <p className="font-arcade text-[10px] sm:text-xs text-white">

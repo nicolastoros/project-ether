@@ -15,12 +15,14 @@ import {
 } from "@/lib/overclock";
 import { OverclockBattleScreen } from "@/components/combat/OverclockBattleScreen";
 import { MultiCreaturePicker } from "@/components/combat/MultiCreaturePicker";
+import { BattleControls } from "@/components/combat/BattleControls";
 import { GlowPanel } from "@/components/ui/GlowPanel";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { ItemIcon } from "@/components/ui/ItemIcon";
 import { CreatureSprite } from "@/components/ui/CreatureSprite";
 import { cn, formatNumber } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
+import { useCountdownToTimestamp } from "@/lib/useResetCountdown";
 
 const MAX_PARTY = 2;
 
@@ -49,34 +51,6 @@ interface LeaderboardData {
   yourRank: number | null;
   totalPlayers: number;
   history: HistoryEntry[];
-}
-
-/** "Xd Yh" / "Xh Ym" / "Xm" countdown to a timestamp, ticking once a minute — coarse on purpose,
- * this is a "come back later" cue, not a stopwatch. */
-function useCountdownTo(targetMs: number | null): string {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    // Both branches live inside tick() (called once synchronously, then on each interval tick)
-    // rather than as a direct setState call in the effect body itself — same shape as
-    // lib/useResetCountdown.ts's existing countdown hooks.
-    const tick = () => {
-      if (!targetMs) {
-        setLabel("");
-        return;
-      }
-      const msLeft = Math.max(0, targetMs - Date.now());
-      const days = Math.floor(msLeft / 86_400_000);
-      const hours = Math.floor((msLeft % 86_400_000) / 3_600_000);
-      const minutes = Math.floor((msLeft % 3_600_000) / 60_000);
-      if (days > 0) setLabel(`${days}d ${hours}h`);
-      else if (hours > 0) setLabel(`${hours}h ${minutes}m`);
-      else setLabel(`${minutes}m`);
-    };
-    tick();
-    const id = setInterval(tick, 60_000);
-    return () => clearInterval(id);
-  }, [targetMs]);
-  return label;
 }
 
 const RANK_ICON: Record<number, typeof Crown> = { 1: Crown, 2: Trophy, 3: Medal };
@@ -149,8 +123,8 @@ export function OverclockHome() {
       .finally(() => setLoading(false));
   }, []);
 
-  const nextUpdateLabel = useCountdownTo(data?.nextUpdateAt ?? null);
-  const resetLabel = useCountdownTo(nextOverclockResetAt());
+  const nextUpdateLabel = useCountdownToTimestamp(data?.nextUpdateAt ?? null);
+  const resetLabel = useCountdownToTimestamp(nextOverclockResetAt());
 
   // Max 1 LR among the 2 picks — once one is selected, every OTHER owned LR gets excluded (same
   // Map<id, reason> mechanism MultiCreaturePicker already uses for "ON EXPEDITION").
@@ -196,12 +170,15 @@ export function OverclockHome() {
   if (picking) {
     return (
       <div className="space-y-3">
-        <div>
-          <button onClick={() => setPicking(false)} className="text-zinc-500 hover:text-white mb-2 text-xs">
-             {t("overclock.back")}
-          </button>
-          <h1 className="font-arcade text-lg glow-text-gold">{boss.name}</h1>
-          <p className="text-xs text-zinc-500">{t("overclock.choose_up_to_prefix")}{MAX_PARTY}{t("overclock.choose_up_to_suffix")}</p>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-3">
+          <div>
+            <button onClick={() => setPicking(false)} className="text-zinc-500 hover:text-white mb-2 text-xs">
+               {t("overclock.back")}
+            </button>
+            <h1 className="font-arcade text-lg glow-text-gold">{boss.name}</h1>
+            <p className="text-xs text-zinc-500">{t("overclock.choose_up_to_prefix")}{MAX_PARTY}{t("overclock.choose_up_to_suffix")}</p>
+          </div>
+          <BattleControls />
         </div>
         <MultiCreaturePicker
           creatures={creatures}
@@ -228,6 +205,7 @@ export function OverclockHome() {
       <div>
         <h1 className="font-arcade text-lg glow-text-gold sm:text-xl">{t("overclock.title")}</h1>
         <p className="mt-1 text-xs text-zinc-500 sm:text-sm">{t("overclock.subtitle")}</p>
+        <p className="mt-1 text-xs text-sky-500 sm:text-sm">{t("overclock.no_cost_hook")}</p>
       </div>
 
       {loading ? (

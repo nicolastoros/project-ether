@@ -15,3 +15,13 @@ export function creaturePower(creature: Pick<Creature, "baseStats" | "level">): 
 export function partyPower(creatures: Creature[]): number {
   return creatures.reduce((sum, c) => sum + creaturePower(c), 0);
 }
+
+/** The `size` strongest owned creatures, strongest first — "the best team you could actually
+ * field," not whatever's sitting in a possibly-stale saved formation. Used to show/gate the
+ * Campaign power-skip before the player has picked a team yet (StageDetailModal.tsx,
+ * BattlePage.tsx's auto-sweep) — partyCreatureIds only reflects whatever formation was saved,
+ * which for most players is still the starter pair from account creation and badly understates
+ * how strong their actual roster has become. */
+export function bestParty(creatures: Creature[], size: number): Creature[] {
+  return [...creatures].sort((a, b) => creaturePower(b) - creaturePower(a)).slice(0, size);
+}
